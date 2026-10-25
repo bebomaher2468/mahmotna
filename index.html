@@ -530,7 +530,7 @@ async function loadData(){
    ?sb.from("submissions").select("*, tasks(title)").order("created_at",{ascending:false})
    :Promise.resolve({data:[],error:null}),
   currentUser
-   ?sb.from("profiles").select("id, display_name")
+   ?sb.from("profiles").select("id, display_name, role")
    :Promise.resolve({data:[],error:null})
  ]);
 
@@ -1070,7 +1070,7 @@ function renderAchievementDashboard(){
  section.classList.remove("hidden");
  const picker=$("achievementAdminPicker");
  picker.classList.toggle("hidden",!isAdmin());
- const members=memberProfiles||[];
+ const members=(memberProfiles||[]).filter(m=>m.role==="member");
  const select=$("achievementMember");
  if(isAdmin()){
   const previous=select.value;
