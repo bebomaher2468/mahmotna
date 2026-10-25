@@ -239,32 +239,28 @@ async function createMember() {
 
  
 
+
 async function loadMembersList() {
   const list = $("membersList");
-
-  if (!isAdmin()) {
-    return toast("القائمة دي للمسؤول فقط.");
-  }
+  if (!isAdmin()) return toast("القائمة دي للمسؤول فقط.");
 
   list.innerHTML = '<div class="empty">جاري تحميل الأعضاء...</div>';
 
   try {
     const { data, error } = await sb
       .from("profiles")
-      .select("username, display_name")
+      .select("id, username, display_name")
       .eq("role", "member")
       .order("display_name");
 
     if (error) {
-      console.error(error);
-      list.innerHTML =
-        '<div class="empty">تعذر تحميل الأعضاء.</div>';
+      console.error("Load members error:", error);
+      list.innerHTML = '<div class="empty">تعذر تحميل الأعضاء.</div>';
       return;
     }
 
     if (!data || data.length === 0) {
-      list.innerHTML =
-        '<div class="empty">لسه مفيش أعضاء مضافين.</div>';
+      list.innerHTML = '<div class="empty">لسه مفيش أعضاء مضافين.</div>';
       return;
     }
 
@@ -274,7 +270,7 @@ async function loadMembersList() {
           <strong>${escapeHtml(member.display_name || "عضو")}</strong>
           <button
             class="btn danger"
-            onclick="deleteMember('${escapeHtml(member.username || "")}')">
+            onclick="deleteMemberById('${member.id}')">
             🗑️ حذف العضو
           </button>
         </div>
@@ -283,25 +279,20 @@ async function loadMembersList() {
         </p>
       </div>
     `).join("");
-
   } catch (err) {
     console.error(err);
-    list.innerHTML =
-      '<div class="empty">حصل خطأ أثناء تحميل القائمة.</div>';
+    list.innerHTML = '<div class="empty">حصل خطأ أثناء تحميل القائمة.</div>';
   }
 }
 
-async function deleteMember(username) {
-  if (!isAdmin()) {
-    return toast("مش مسموح لك بالعملية دي.");
-  }
 
-  if (!username) {
-    return toast("اسم المستخدم غير موجود.");
-  }
+
+async function deleteMemberById(memberId) {
+  if (!isAdmin()) return toast("مش مسموح لك بالعملية دي.");
+  if (!memberId) return toast("معرّف العضو غير موجود.");
 
   const confirmed = confirm(
-    `متأكد إنك عايز تحذف العضو "${username}"؟ لن يتمكن من تسجيل الدخول بعد الحذف.`
+    "متأكد إنك عايز تحذف العضو ده؟ لن يتمكن من تسجيل الدخول بعد الحذف."
   );
 
   if (!confirmed) return;
@@ -312,33 +303,23 @@ async function deleteMember(username) {
       {
         body: {
           action: "delete_member",
-          username
+          userId: memberId
         }
       }
     );
 
     if (error || !data?.ok) {
-      console.error(error, data);
+      console.error("Delete member error:", error, data);
       return toast(data?.error || "تعذر حذف العضو.");
     }
 
-    toast(`تم حذف العضو ${username} بنجاح.`);
+    toast("تم حذف العضو بنجاح.");
     await loadMembersList();
 
   } catch (err) {
     console.error(err);
     toast("حصل خطأ أثناء الحذف. حاول تاني.");
   }
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
 }
 
 
