@@ -240,9 +240,13 @@ async function createMember() {
  
 
 
+
 async function loadMembersList() {
   const list = $("membersList");
-  if (!isAdmin()) return toast("القائمة دي للمسؤول فقط.");
+
+  if (!isAdmin()) {
+    return toast("القائمة دي للمسؤول فقط.");
+  }
 
   list.innerHTML = '<div class="empty">جاري تحميل الأعضاء...</div>';
 
@@ -255,7 +259,10 @@ async function loadMembersList() {
 
     if (error) {
       console.error("Load members error:", error);
-      list.innerHTML = '<div class="empty">تعذر تحميل الأعضاء.</div>';
+      list.innerHTML = `
+        <div class="empty">
+          فشل تحميل الأعضاء: ${escapeHtml(error.message || "خطأ غير معروف")}
+        </div>`;
       return;
     }
 
@@ -280,8 +287,11 @@ async function loadMembersList() {
       </div>
     `).join("");
   } catch (err) {
-    console.error(err);
-    list.innerHTML = '<div class="empty">حصل خطأ أثناء تحميل القائمة.</div>';
+    console.error("Load members exception:", err);
+    list.innerHTML = `
+      <div class="empty">
+        حصل خطأ: ${escapeHtml(err?.message || "خطأ غير معروف")}
+      </div>`;
   }
 }
 
