@@ -576,7 +576,41 @@ async function downloadSubmission(id){
 
  window.open(data.signedUrl,"_blank","noopener");
 }
-async function loadAdminSubs(){if(!isAdmin())return;const {data,error}=await sb.from("submissions").select("*, tasks(title), profiles(display_name,email)").order("created_at",{ascending:false}).limit(100);if(error){$("adminSubmissions").innerHTML='<div class="empty">تعذّر تحميل التسليمات. راجع سياسات قاعدة البيانات.</div>';return}const all=data||[];$("adminSubmissions").innerHTML=all.length?all.map(s=>`<div class="submission"><div class="submissionhead"><b>${esc(s.tasks?.title||"تاسك")}</b><span class="muted small">${esc(s.profiles?.display_name||s.profiles?.email||"عضو")}</span></div>${submissionHTML(s,true)}</div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>'}
+
+async function loadAdminSubs(){
+  if(!isAdmin())return;
+
+  const {data,error}=await sb
+    .from("submissions")
+    .select("*, tasks(title), profiles(display_name,email)")
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  if(error){
+    console.error("خطأ تحميل التسليمات:",error);
+    $("adminSubmissions").innerHTML=
+      '<div class="empty">حصل خطأ: '+
+      esc(error.message)+
+      '</div>';
+    return;
+  }
+
+  const all=data||[];
+
+  $("adminSubmissions").innerHTML=all.length
+    ?all.map(s=>`
+      <div class="submission">
+        <div class="submissionhead">
+          <b>${esc(s.tasks?.title||"تاسك")}</b>
+          <span class="muted small">
+            ${esc(s.profiles?.display_name||s.profiles?.email||"عضو")}
+          </span>
+        </div>
+        ${submissionHTML(s,true)}
+      </div>
+    `).join("")
+    :'<div class="empty">لسه مفيش تسليمات.</div>';
+}
 async function updateSubmission(id){if(!isAdmin())return;const status=$("status_"+id).value,admin_feedback=$("feedback_"+id).value.trim();const {error}=await sb.from("submissions").update({status,admin_feedback,reviewed_by:currentUser.id}).eq("id",id);if(error)return toast("فشل تحديث التسليم: "+error.message);await loadData();toast("تم حفظ مراجعة التسليم")}
 init();
 </script></body></html>
