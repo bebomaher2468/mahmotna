@@ -28,7 +28,48 @@
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
   <div class="sectionhead"><div><h2>تسليماتي</h2><p>التسليمات اللي رفعتها وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
-  <section id="adminSection" class="hidden"><div class="sectionhead"><div><h2>لوحة المسؤولين</h2><p>مراجعة تسليمات الأعضاء وتحديث حالتها.</p></div></div><div id="adminSubmissions" class="submissions"></div></section>
+  <section id="adminSection" class="hidden"><div class="sectionhead"><div><h2>لوحة المسؤولين</h2><p>مراجعة تسليمات الأعضاء وتحديث حالتها.</p></div></div>
+<div class="panel" style="padding:18px;margin:18px 0">
+  <h2 style="margin-top:0">👥 إدارة الأعضاء</h2>
+  <p class="muted small">إنشاء حسابات جديدة وإعادة تعيين كلمات المرور.</p>
+
+  <div class="divider"></div>
+
+  <h3>＋ إضافة عضو جديد</h3>
+  <div class="formgrid">
+    <div>
+      <label class="label" for="newMemberName">اسم العضو</label>
+      <input id="newMemberName" class="field" placeholder="الاسم اللي هيظهر في الموقع">
+    </div>
+    <div>
+      <label class="label" for="newMemberUsername">اسم المستخدم</label>
+      <input id="newMemberUsername" class="field" placeholder="مثال: ahmed123" autocomplete="off">
+    </div>
+    <div>
+      <label class="label" for="newMemberPassword">كلمة المرور المؤقتة</label>
+      <input id="newMemberPassword" class="field" type="password" minlength="8" placeholder="8 أحرف على الأقل" autocomplete="new-password">
+    </div>
+    <button class="btn primary" onclick="createMember()">إنشاء حساب العضو</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3>🔑 إعادة تعيين كلمة المرور</h3>
+  <div class="formgrid">
+    <div>
+      <label class="label" for="resetMemberUsername">اسم المستخدم</label>
+      <input id="resetMemberUsername" class="field" placeholder="اسم العضو المطلوب">
+    </div>
+    <div>
+      <label class="label" for="resetMemberPassword">كلمة المرور الجديدة</label>
+      <input id="resetMemberPassword" class="field" type="password" minlength="8" placeholder="8 أحرف على الأقل" autocomplete="new-password">
+    </div>
+    <button class="btn secondary" onclick="resetMemberPassword()">تغيير كلمة المرور</button>
+  </div>
+</div>
+
+<div id="adminSubmissions" class="submissions"></div>
+</section>
  </section>
 </main>
 <footer class="container footer">كنيسة الشهيدة دميانة والأنبا توماس السائح<br>فصل الأنبا توماس السائح للخدام • مجموعة القديس فيلبس الرسول<br>تطوير: أبانوب ماهر &amp; فيلوباتير إيميل</footer>
@@ -52,6 +93,108 @@ function updateAuthUI(){
  $("userChip").textContent=currentUser?(profile?.display_name||currentUser.email)+(isAdmin()?" • مسؤول":" • عضو"):"زائر";
  $("adminAdd").classList.toggle("hidden",!isAdmin());$("adminAddTop").classList.toggle("hidden",!isAdmin());$("adminSection").classList.toggle("hidden",!isAdmin());
 }
+ 
+async function createMember() {
+  if (!isAdmin()) {
+    return toast("مش مسموح لك بالعملية دي.");
+  }
+
+  const display_name = $("newMemberName").value.trim();
+  const username = $("newMemberUsername").value.trim().toLowerCase();
+  const password = $("newMemberPassword").value;
+
+  if (!display_name || !username || !password) {
+    return toast("اكتب اسم العضو واسم المستخدم وكلمة المرور.");
+  }
+
+  if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(username)) {
+    return toast("اسم المستخدم لازم يكون من 3 إلى 30 حرفًا أو رقمًا.");
+  }
+
+  if (password.length < 8 || password.length > 72) {
+    return toast("كلمة المرور لازم تكون من 8 إلى 72 حرفًا.");
+  }
+
+  const btn = document.activeElement;
+  if (btn) btn.disabled = true;
+
+  try {
+    const { data, error } = await sb.functions.invoke("manage-members", {
+      body: {
+        action: "create_member",
+        username,
+        display_name,
+        password
+      }
+    });
+
+    if (error) {
+      return toast("فشل إنشاء الحساب. راجع البيانات وحاول تاني.");
+    }
+
+    if (!data?.ok) {
+      return toast(data?.error || data?.message || "تعذر إنشاء الحساب.");
+    }
+
+    toast("تم إنشاء حساب " + username + " بنجاح.");
+
+    $("newMemberName").value = "";
+    $("newMemberUsername").value = "";
+    $("newMemberPassword").value = "";
+  } catch (err) {
+    toast("حصل خطأ في الاتصال. حاول تاني.");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function resetMemberPassword() {
+  if (!isAdmin()) {
+    return toast("مش مسموح لك بالعملية دي.");
+  }
+
+  const username = $("resetMemberUsername").value.trim().toLowerCase();
+  const password = $("resetMemberPassword").value;
+
+  if (!username || !password) {
+    return toast("اكتب اسم المستخدم وكلمة المرور الجديدة.");
+  }
+
+  if (password.length < 8 || password.length > 72) {
+    return toast("كلمة المرور لازم تكون من 8 إلى 72 حرفًا.");
+  }
+
+  const btn = document.activeElement;
+  if (btn) btn.disabled = true;
+
+  try {
+    const { data, error } = await sb.functions.invoke("manage-members", {
+      body: {
+        action: "reset_password",
+        username,
+        password
+      }
+    });
+
+    if (error) {
+      return toast("فشل تغيير كلمة المرور. راجع اسم المستخدم.");
+    }
+
+    if (!data?.ok) {
+      return toast(data?.error || data?.message || "تعذر تغيير كلمة المرور.");
+    }
+
+    toast("تم تغيير كلمة المرور بنجاح.");
+
+    $("resetMemberUsername").value = "";
+    $("resetMemberPassword").value = "";
+  } catch (err) {
+    toast("حصل خطأ في الاتصال. حاول تاني.");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function init(){
  
 if(!ready()){
