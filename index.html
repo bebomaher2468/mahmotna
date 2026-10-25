@@ -239,6 +239,57 @@ async function resetMemberPassword() {
   }
 }
 
+ 
+async function changeMyPassword() {
+  if (!currentUser) {
+    return toast("سجّل دخولك الأول.");
+  }
+
+  const oldPassword = $("oldMyPassword").value;
+  const newPassword = $("newMyPassword").value;
+
+  if (!oldPassword || !newPassword) {
+    return toast("اكتب كلمة المرور القديمة والجديدة.");
+  }
+
+  if (newPassword.length < 8 || newPassword.length > 72) {
+    return toast("كلمة المرور الجديدة لازم تكون من 8 إلى 72 حرفًا.");
+  }
+
+  if (oldPassword === newPassword) {
+    return toast("اختار كلمة مرور جديدة مختلفة عن القديمة.");
+  }
+
+  try {
+    // التحقق من كلمة المرور القديمة
+    const { error: verifyError } = await sb.auth.signInWithPassword({
+      email: currentUser.email,
+      password: oldPassword
+    });
+
+    if (verifyError) {
+      return toast("كلمة المرور القديمة غير صحيحة.");
+    }
+
+    // تغيير كلمة المرور بعد نجاح التحقق
+    const { error: updateError } = await sb.auth.updateUser({
+      password: newPassword
+    });
+
+    if (updateError) {
+      return toast("تعذر تغيير كلمة المرور. حاول مرة أخرى.");
+    }
+
+    $("oldMyPassword").value = "";
+    $("newMyPassword").value = "";
+
+    toast("تم تغيير كلمة المرور بنجاح.");
+  } catch (err) {
+    toast("حصل خطأ في الاتصال. حاول مرة أخرى.");
+  }
+}
+
+
 async function init(){
  
 if(!ready()){
