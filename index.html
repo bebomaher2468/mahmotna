@@ -31,7 +31,7 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
- .notification-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:25;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.notification-popover .submissions{margin-top:8px}.notification-popover .submission{padding:12px}.notification-popover .submission p{margin:7px 0;line-height:1.7}.notification-popover .sectionhead{gap:8px}.notification-popover .sectionhead .actions{flex-wrap:nowrap}.notification-popover .btn{padding:7px 9px;font-size:12px}@media(max-width:580px){.notification-popover{top:74px;right:12px;max-height:75vh}.notification-popover #notificationsList .submissionhead{align-items:flex-start;flex-direction:column;gap:4px}}</style></head>
+ .notification-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:25;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.notification-popover .submissions{margin-top:8px}.notification-popover .submission{padding:12px}.notification-popover .submission p{margin:7px 0;line-height:1.7}.notification-popover .sectionhead{gap:8px}.notification-popover .sectionhead .actions{flex-wrap:nowrap}.notification-popover .btn{padding:7px 9px;font-size:12px}@media(max-width:580px){.notification-popover{top:74px;right:12px;max-height:75vh}.notification-popover #notificationsList .submissionhead{align-items:flex-start;flex-direction:column;gap:4px}} .achievement-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:24;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.achievement-popover .sectionhead{gap:8px}.achievement-popover .grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.achievement-popover .panel{min-width:0}.achievement-popover h2{overflow-wrap:anywhere}.achievement-popover .submissions{margin-top:8px}.achievement-popover .submission{padding:10px}@media(max-width:580px){.achievement-popover{top:74px;right:12px;max-height:75vh}.actions{gap:5px}.actions #achievementToggle{padding:8px;font-size:11px}}</style></head>
 <body>
 <header class="container top">
  <div class="brand">
@@ -43,7 +43,7 @@
     <small>مجموعة القديس فيلبس الرسول</small>
   </div>
 </div>
- <div class="actions"><button id="notificationToggle" class="btn secondary" onclick="toggleNotificationPanel()" aria-label="مركز الإشعارات">🔔 <span id="notificationUnread" class="badge">0 جديد</span></button><span id="userChip" class="muted small"></span><button id="authBtn" class="btn secondary" onclick="openAuth()">تسجيل الدخول</button><button id="logoutBtn" class="btn secondary hidden" onclick="logout()">خروج</button></div>
+ <div class="actions"><button id="notificationToggle" class="btn secondary" onclick="toggleNotificationPanel()" aria-label="مركز الإشعارات">🔔 <span id="notificationUnread" class="badge">0 جديد</span></button><button id="achievementToggle" class="btn secondary" onclick="toggleAchievementPanel()" aria-label="لوحة الإنجازات">🏆 إنجازاتي</button><span id="userChip" class="muted small"></span><button id="authBtn" class="btn secondary" onclick="openAuth()">تسجيل الدخول</button><button id="logoutBtn" class="btn secondary hidden" onclick="logout()">خروج</button></div>
 </header>
 <main class="container">
  <section id="appView">
@@ -63,19 +63,16 @@
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
   <div class="sectionhead"><div><h2>تسليماتي</h2><p>التسليمات اللي رفعتها وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
-  <section id="achievementDashboard" class="panel" style="padding:18px;margin:18px 0">
-    <div class="sectionhead"><div><h2>🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div></div>
-    <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px">
-      <label class="label" for="achievementMember">عرض إنجازات عضو</label>
-      <select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select>
-    </div>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-      <div class="panel" style="padding:14px"><div class="muted small">المهام المنجزة</div><h2 id="achAccepted">0</h2></div>
-      <div class="panel" style="padding:14px"><div class="muted small">المهام المتبقية</div><h2 id="achRemaining">0</h2></div>
-      <div class="panel" style="padding:14px"><div class="muted small">نسبة الإنجاز</div><h2 id="achPercent">0%</h2></div>
+  <section id="achievementDashboard" class="achievement-popover panel hidden" aria-label="لوحة الإنجازات">
+    <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div><button class="xbtn" onclick="toggleAchievementPanel(false)" aria-label="إغلاق">✕</button></div>
+    <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px"><label class="label" for="achievementMember">عرض إنجازات عضو</label><select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px">
+      <div class="panel" style="padding:10px"><div class="muted small">المهام المنجزة</div><h2 id="achAccepted">0</h2></div>
+      <div class="panel" style="padding:10px"><div class="muted small">المهام المتبقية</div><h2 id="achRemaining">0</h2></div>
+      <div class="panel" style="padding:10px"><div class="muted small">نسبة الإنجاز</div><h2 id="achPercent">0%</h2></div>
     </div>
     <div style="height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:14px 0"><div id="achProgress" style="height:100%;width:0;background:var(--green);transition:width .3s"></div></div>
-    <h3>آخر التسليمات</h3><div id="achLatest" class="submissions"><div class="empty">سجّل دخولك لعرض إنجازاتك.</div></div>
+    <h3 style="font-size:15px">آخر التسليمات</h3><div id="achLatest" class="submissions"><div class="empty">سجّل دخولك لعرض إنجازاتك.</div></div>
   </section>
   
 <section id="changePasswordSection" class="hidden">
@@ -480,7 +477,8 @@ async function changeMyPassword() {
 
 
 
-function toggleNotificationPanel(force){const panel=$("notificationCenter");if(!panel)return;const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen)loadNotifications();}
+function toggleAchievementPanel(force){const panel=$("achievementDashboard");if(!panel)return;if(!currentUser)return toast("سجّل دخولك عشان تشوف إنجازاتك.");const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");$("notificationCenter")?.classList.add("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen)renderAchievementDashboard();}
+function toggleNotificationPanel(force){const panel=$("notificationCenter");if(!panel)return;const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");$("achievementDashboard")?.classList.add("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen)loadNotifications();}
 async function loadNotifications(){
  const list=$("notificationsList"); if(!list)return;
  if(!currentUser){$("notificationUnread").textContent="0 جديد";list.innerHTML='<div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div>';return;}
