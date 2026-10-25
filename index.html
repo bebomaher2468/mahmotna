@@ -106,6 +106,20 @@
 <div class="panel" style="padding:18px;margin:18px 0">
   <h2 style="margin-top:0">👥 إدارة الأعضاء</h2>
   <p class="muted small">إنشاء حسابات جديدة وإعادة تعيين كلمات المرور.</p>
+ 
+<div class="panel" style="padding:18px;margin:18px 0">
+  <h2>👥 الأعضاء المسجلون</h2>
+  <p class="muted small">قائمة بأسماء المستخدمين اللي أنشأت حساباتهم.</p>
+
+  <button class="btn secondary" onclick="loadMembersList()">
+    🔄 تحديث القائمة
+  </button>
+
+  <div id="membersList" class="submissions">
+    <div class="empty">اضغط تحديث القائمة لعرض الأعضاء.</div>
+  </div>
+</div>
+
 
   <div class="divider"></div>
 
@@ -222,6 +236,64 @@ async function createMember() {
     if (btn) btn.disabled = false;
   }
 }
+
+ 
+async function loadMembersList() {
+  const list = $("membersList");
+
+  if (!isAdmin()) {
+    return toast("القائمة دي للمسؤول فقط.");
+  }
+
+  list.innerHTML = '<div class="empty">جاري تحميل الأعضاء...</div>';
+
+  try {
+    const { data, error } = await sb
+      .from("profiles")
+      .select("username, display_name")
+      .eq("role", "member")
+      .order("display_name");
+
+    if (error) {
+      console.error("Load members error:", error);
+      list.innerHTML =
+        '<div class="empty">تعذر تحميل الأعضاء. راجع صلاحيات قاعدة البيانات.</div>';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      list.innerHTML =
+        '<div class="empty">لسه مفيش أعضاء مضافين.</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(member => `
+      <div class="submission">
+        <div class="submissionhead">
+          <strong>${escapeHtml(member.display_name || "عضو")}</strong>
+          <span class="badge">عضو</span>
+        </div>
+        <p>اسم المستخدم: <strong dir="ltr">${escapeHtml(member.username || "غير محدد")}</strong></p>
+      </div>
+    `).join("");
+
+  } catch (err) {
+    console.error(err);
+    list.innerHTML =
+      '<div class="empty">حصل خطأ أثناء تحميل القائمة.</div>';
+  }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
 
 async function resetMemberPassword() {
   if (!isAdmin()) {
@@ -447,6 +519,7 @@ function renderTasks(){
 }
 
 function scrollToTasks(){$("tasksSection").scrollIntoView({behavior:"smooth"})}
+
 function openAuth(){
   if(!ready()){
     toast("كمّل إعداد Supabase الأول، الخطوات موجودة في README.");
@@ -462,34 +535,25 @@ function openAuth(){
         </div>
 
         <p class="muted small">
-          سجّل دخولك عشان تسلّم التاسكات وتتابع حالتها.
+          ادخل اسم المستخدم وكلمة المرور عشان تسلّم التاسكات وتتابع حالتها.
         </p>
 
         <div class="formgrid">
           <div>
-            <label class="label">الإيميل</label>
-            <input id="authEmail" class="field" type="email"
-              autocomplete="email" placeholder="name@example.com">
+            <label class="label" for="authEmail">اسم المستخدم</label>
+            <input id="authEmail" class="field" type="text"
+              autocomplete="username" placeholder="اكتب اسم المستخدم">
           </div>
 
           <div>
-            <label class="label">كلمة السر</label>
+            <label class="label" for="authPassword">كلمة المرور</label>
             <input id="authPassword" class="field" type="password"
-              autocomplete="current-password" placeholder="٨ أحرف أو أكتر">
+              autocomplete="current-password" placeholder="اكتب كلمة المرور">
           </div>
 
-          <button class="btn secondary" onclick="resetPassword()">
-            نسيت كلمة المرور؟
+          <button class="btn primary" onclick="signIn()">
+            تسجيل الدخول 🚀
           </button>
-
-          <div class="formrow">
-            <button class="btn primary" onclick="signIn()">تسجيل الدخول</button>
-            <button class="btn secondary" onclick="openSignupPage()">إنشاء حساب جديد</button>
-          </div>
-
-          <p class="muted small">
-            الحساب الجديد بيبدأ كعضو عادي. المسؤول بيتحدد يدويًا من قاعدة البيانات.
-          </p>
         </div>
       </div>
     </div>`;
