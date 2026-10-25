@@ -242,14 +242,30 @@ async function createMember() {
 
 
 
-async function loadMembersList() {
-  const list = $("membersList");
 
-  if (!isAdmin()) {
-    return toast("القائمة دي للمسؤول فقط.");
+async function loadMembersList() {
+  const list = document.getElementById("membersList");
+
+  if (!list) {
+    alert("مش لاقي عنصر membersList في الصفحة.");
+    return;
   }
 
-  list.innerHTML = '<div class="empty">جاري تحميل الأعضاء...</div>';
+  if (!isAdmin()) {
+    toast("القائمة دي للمسؤول فقط.");
+    return;
+  }
+
+  list.textContent = "جاري تحميل الأعضاء...";
+
+  const escapeHTML = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
 
   let timeoutId;
 
@@ -257,60 +273,55 @@ async function loadMembersList() {
     const result = await Promise.race([
       sb
         .from("profiles")
-        .select("id, username, display_name")
+        .select("id, username, display_name, role")
         .eq("role", "member")
-        .order("display_name"),
+        .order("display_name", { ascending: true }),
 
       new Promise((_, reject) => {
         timeoutId = setTimeout(
-          () => reject(new Error("انتهت مهلة الاتصال بـ Supabase. افتح الموقع مرة أخرى وحاول.")),
+          () => reject(new Error("الاتصال بقاعدة البيانات استغرق أكثر من 10 ثوانٍ.")),
           10000
         );
       })
     ]);
 
-    clearTimeout(timeoutId);
-
     const { data, error } = result;
 
     if (error) {
-      console.error("Load members error:", error);
-      list.innerHTML = `
-        <div class="empty">
-          فشل تحميل الأعضاء: ${esc(error.message || "خطأ غير معروف")}
-        </div>`;
+      console.error("Members list error:", error);
+      list.textContent = "فشل تحميل القائمة: " + error.message;
       return;
     }
 
-    if (!data || data.length === 0) {
-      list.innerHTML = '<div class="empty">لسه مفيش أعضاء مضافين.</div>';
+    if (!Array.isArray(data) || data.length === 0) {
+      list.textContent = "مفيش أعضاء لعرضهم.";
       return;
     }
 
     list.innerHTML = data.map(member => `
       <div class="submission">
         <div class="submissionhead">
-          <strong>${esc(member.display_name || "عضو")}</strong>
+          <strong>${escapeHTML(member.display_name || "عضو")}</strong>
           <button
             class="btn danger"
-            onclick="deleteMemberById('${member.id}')">
+            onclick="deleteMemberById('${escapeHTML(member.id)}')">
             🗑️ حذف العضو
           </button>
         </div>
-        <p>اسم المستخدم:
-          <strong dir="ltr">${esc(member.username || "غير محدد")}</strong>
+        <p>
+          اسم المستخدم:
+          <strong dir="ltr">${escapeHTML(member.username || "غير محدد")}</strong>
         </p>
       </div>
     `).join("");
 
   } catch (err) {
+    console.error("Members list exception:", err);
+    list.textContent =
+      "حصلت مشكلة أثناء تحميل القائمة: " +
+      (err?.message || "خطأ غير معروف");
+  } finally {
     clearTimeout(timeoutId);
-    console.error("Load members exception:", err);
-
-    list.innerHTML = `
-      <div class="empty">
-        ${esc(err?.message || "حصل خطأ أثناء تحميل القائمة.")}
-      </div>`;
   }
 }
 
