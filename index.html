@@ -28,6 +28,49 @@
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
   <div class="sectionhead"><div><h2>تسليماتي</h2><p>التسليمات اللي رفعتها وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
+  
+<section id="changePasswordSection" class="hidden">
+  <div class="panel" style="padding:18px;margin:18px 0">
+    <h2>🔐 تغيير كلمة المرور</h2>
+    <p class="muted small">
+      اكتب كلمة المرور الحالية، ثم اختر كلمة مرور جديدة.
+    </p>
+
+    <div class="formgrid">
+      <div>
+        <label class="label" for="oldMyPassword">
+          كلمة المرور القديمة
+        </label>
+        <input
+          id="oldMyPassword"
+          class="field"
+          type="password"
+          autocomplete="current-password"
+          placeholder="كلمة المرور الحالية"
+        >
+      </div>
+
+      <div>
+        <label class="label" for="newMyPassword">
+          كلمة المرور الجديدة
+        </label>
+        <input
+          id="newMyPassword"
+          class="field"
+          type="password"
+          minlength="8"
+          autocomplete="new-password"
+          placeholder="8 أحرف على الأقل"
+        >
+      </div>
+
+      <button class="btn primary" onclick="changeMyPassword()">
+        حفظ كلمة المرور الجديدة
+      </button>
+    </div>
+  </div>
+</section>
+
   <section id="adminSection" class="hidden"><div class="sectionhead"><div><h2>لوحة المسؤولين</h2><p>مراجعة تسليمات الأعضاء وتحديث حالتها.</p></div></div>
 <div class="panel" style="padding:18px;margin:18px 0">
   <h2 style="margin-top:0">👥 إدارة الأعضاء</h2>
