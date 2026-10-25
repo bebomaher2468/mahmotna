@@ -55,6 +55,10 @@
 <div class="notice" id="connectionNotice">الموقع محتاج إعداد Supabase مرة واحدة قبل ما يسجّل الدخول ويحفظ البيانات أونلاين.</div></div>
   </div>
   <div class="stats"><div class="stat"><strong id="statOpen">—</strong><span>تاسكات مفتوحة</span></div><div class="stat"><strong id="statDone">—</strong><span>تاسكات مكتملة</span></div><div class="stat"><strong id="statSubs">—</strong><span>تسليماتي</span></div></div>
+  <section id="notificationCenter" class="panel" style="padding:18px;margin:18px 0">
+    <div class="sectionhead" style="margin-top:0"><div><h2>🔔 مركز الإشعارات <span id="notificationUnread" class="badge">0 جديد</span></h2><p>المهام الجديدة، مواعيد التسليم، ونتيجة مراجعة شغلك.</p></div><button class="btn secondary" onclick="markAllNotificationsRead()">تحديد الكل كمقروء</button></div>
+    <div id="notificationsList" class="submissions"><div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div></div>
+  </section>
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
@@ -181,7 +185,7 @@
 const SUPABASE_URL = "https://gxoddlgmxgkojfloxpon.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Cky_TTKUC8ETzn7ffNrOAQ_lgQr07hr";
 const CONFIGURED = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("PASTE_") && SUPABASE_ANON_KEY.length > 30 && !SUPABASE_ANON_KEY.includes("PASTE_");
-let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], memberProfiles = [], filter = "all", currentTask = null;
+let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], memberProfiles = [], filter = "all", currentTask = null, notificationChannel = null;
 if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -475,6 +479,41 @@ async function changeMyPassword() {
 }
 
 
+
+async function loadNotifications(){
+ const list=$("notificationsList"); if(!list)return;
+ if(!currentUser){$("notificationUnread").textContent="0 جديد";list.innerHTML='<div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div>';return;}
+ const {data,error}=await sb.from("notifications").select("id,title,body,kind,task_id,read_at,created_at").order("created_at",{ascending:false}).limit(30);
+ if(error){console.error("Notifications:",error);list.innerHTML='<div class="notice">فعّل مركز الإشعارات بتشغيل ملف supabase/notifications.sql في Supabase SQL Editor.</div>';return;}
+ const rows=data||[]; $("notificationUnread").textContent=rows.filter(n=>!n.read_at).length+" جديد";
+ const icons={new_task:"🆕",due_soon:"⏰",accepted:"✅",revision:"📝"};
+ list.innerHTML=rows.length?rows.map(n=>'<article class="submission" style="border-color:'+(n.read_at?'var(--line)':'#78a8ff88')+'"><div class="submissionhead"><strong>'+(icons[n.kind]||"🔔")+' '+esc(n.title)+'</strong><span class="muted small">'+new Date(n.created_at).toLocaleString("ar-EG")+'</span></div><p>'+esc(n.body||"")+'</p><button class="btn secondary" onclick="markNotificationRead(\''+n.id+'\')">'+(n.read_at?'مقروء':'تحديد كمقروء')+'</button></article>').join(""):'<div class="empty">مفيش إشعارات لحد دلوقتي.</div>';
+}
+async function markNotificationRead(id){
+ if(!currentUser)return;
+ const {error}=await sb.from("notifications").update({read_at:new Date().toISOString()}).eq("id",id).eq("user_id",currentUser.id);
+ if(error)return toast("تعذر تحديث الإشعار."); await loadNotifications();
+}
+async function markAllNotificationsRead(){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ const {error}=await sb.from("notifications").update({read_at:new Date().toISOString()}).eq("user_id",currentUser.id).is("read_at",null);
+ if(error)return toast("تعذر تحديث الإشعارات."); await loadNotifications();
+}
+async function createDueSoonNotifications(){
+ if(!currentUser)return;
+ const now=Date.now();
+ for(const t of tasks.filter(t=>t.status!=="done"&&t.due_date&&new Date(t.due_date+"T23:59:59").getTime()>=now&&new Date(t.due_date+"T00:00:00").getTime()-now<=86400000)){
+  const {error}=await sb.from("notifications").upsert({user_id:currentUser.id,title:"موعد التسليم قرب",body:"فاضل أقل من 24 ساعة على تسليم: "+t.title,kind:"due_soon",task_id:t.id},{onConflict:"user_id,task_id,kind",ignoreDuplicates:true});
+  if(error)console.error("Due notification:",error.message);
+ }
+}
+function subscribeNotifications(){
+ if(notificationChannel&&sb)sb.removeChannel(notificationChannel);
+ notificationChannel=null;
+ if(!currentUser||!sb)return;
+ notificationChannel=sb.channel("notifications-"+currentUser.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUser.id},()=>loadNotifications()).subscribe();
+}
+
 async function init(){
  
 if(!ready()){
@@ -494,6 +533,7 @@ try{
   updateAuthUI();
   await loadData();
 
+  subscribeNotifications();
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==="PASSWORD_RECOVERY"){
       currentUser=session?.user||null;
@@ -508,6 +548,7 @@ try{
     if(currentUser) await loadProfile();
 
     updateAuthUI();
+    subscribeNotifications();
     await loadData();
   });
 
