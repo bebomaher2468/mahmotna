@@ -31,6 +31,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   border-radius: inherit;
 }
 
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes logoFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
@@ -1109,18 +1110,39 @@ async function deleteSubmission(id){
 
 function renderMySubs(){
  const all = submissions;
+ const grouped = {};
+ all.forEach(s=>{
+  const key=s.user_id||"unknown";
+  if(!grouped[key]){
+   grouped[key]={
+    name:s.member_name||"اسم غير متاح",
+    role:s.member_role==="admin"?"مسؤول":"عضو",
+    items:[]
+   };
+  }
+  grouped[key].items.push(s);
+ });
+ const groups=Object.values(grouped);
 
  $("mySubmissions").innerHTML = !currentUser
   ? '<div class="empty">سجّل دخولك عشان تشوف التسليمات.</div>'
-  : all.length
-   ? all.map(s => `
-    <div style="margin-bottom:16px">
-     <p class="muted small">
-      ناشر التسليم: ${esc(s.member_name || "عضو")}
-      • ${s.member_role === "admin" ? "مسؤول" : "عضو"}
-     </p>
-     ${submissionHTML(s, false)}
-    </div>
+  : groups.length
+   ? groups.map((g,index)=>`
+    <section class="panel" style="padding:16px;margin-bottom:18px;animation:fadeUp .45s ease both;animation-delay:${Math.min(index,8)*60}ms">
+     <div class="sectionhead" style="margin:0 0 12px">
+      <div>
+       <h2>${esc(g.name)}</h2>
+       <p>${g.role} • ${g.items.length} تسليم</p>
+      </div>
+     </div>
+     <div class="submissions">
+      ${g.items.map(s=>`
+       <div style="margin-bottom:12px">
+        ${submissionHTML(s, false)}
+       </div>
+      `).join("")}
+     </div>
+    </section>
    `).join("")
    : '<div class="empty">لسه مفيش أي تسليمات.</div>';
 }
