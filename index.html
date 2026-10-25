@@ -193,12 +193,13 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(msg){$("toast").textContent=msg;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),3500)}
 function isAdmin(){return profile?.role==="admin"}
+function displayMemberName(name){return name==="bebomaher2468"?"Abanoub Maher":name} 
 function fmtDate(d){if(!d)return "من غير موعد";return new Date(d+"T12:00:00").toLocaleDateString("ar-EG",{year:"numeric",month:"short",day:"numeric"})}
 function statusLabel(t){if(t.status==="done")return ["مكتملة","done"];if(t.due_date && new Date(t.due_date+"T23:59:59")<new Date())return ["فات موعدها","late"];return ["مفتوحة",""]}
 function ready(){return !!sb}
 function updateAuthUI(){
  $("authBtn").classList.toggle("hidden",!!currentUser);$("logoutBtn").classList.toggle("hidden",!currentUser);
- const visibleName = currentUser ? ((profile?.display_name === "bebomaher2468" || profile?.display_name === currentUser.email) ? "Abanoub Maher" : (profile?.display_name || currentUser.email)) : "";
+ const visibleName = currentUser ? displayMemberName((profile?.display_name === currentUser.email ? "" : profile?.display_name) || currentUser.email?.split("@")[0] || "") : "";
  $("userChip").textContent=currentUser?visibleName+(isAdmin()?" • مسؤول":" • عضو"):"زائر";
  $("adminAdd").classList.toggle("hidden",!isAdmin());$("adminAddTop").classList.toggle("hidden",!isAdmin());$("adminSection").classList.toggle("hidden",!isAdmin());
  $("changePasswordSection").classList.toggle("hidden",!currentUser);
@@ -605,7 +606,7 @@ async function loadData(){
   const names={};
   const roles={};
   profiles.forEach(p=>{
-   names[p.id]=p.display_name||p.username||"اسم غير معروف";
+   names[p.id]=displayMemberName(p.display_name||p.username||"اسم غير معروف");
    roles[p.id]=p.role||"member";
   });
 
@@ -1237,7 +1238,7 @@ async function loadAdminSubs(){
 
   const names={};
   profiles.forEach(p=>{
-    names[p.id]=p.display_name||p.email||"عضو";
+    names[p.id]=displayMemberName(p.display_name||p.email||"عضو");
   });
 
   $("adminSubmissions").innerHTML=all.length
