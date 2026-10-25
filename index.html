@@ -73,11 +73,120 @@ function renderTasks(){
  $("tasksGrid").innerHTML=list.length?list.map(t=>{const [lab,cls]=statusLabel(t);return `<article class="task"><div class="tasktop"><span class="muted small">مهمة #${esc(t.id.slice(0,8))}</span><span class="badge ${cls}">${lab}</span></div><h3>${esc(t.title)}</h3><p>${esc(t.description||"مفيش تفاصيل إضافية.")}</p><div class="taskbottom"><span class="muted small">📅 ${fmtDate(t.due_date)}</span><div class="actions"><button class="btn secondary" onclick="openTask('${t.id}')">التفاصيل</button>${isAdmin()?`<button class="btn secondary" onclick="openTaskForm('${t.id}')">تعديل</button>`:""}</div></div></article>`}).join(""):'<div class="empty">مفيش تاسكات مطابقة دلوقتي.</div>'
 }
 function scrollToTasks(){$("tasksSection").scrollIntoView({behavior:"smooth"})}
-function openAuth(){if(!ready()){toast("كمّل إعداد Supabase الأول، الخطوات موجودة في README.");return}$("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal auth"><div class="modalhead"><h2>أهلاً بيك 👋</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">سجّل دخولك عشان تسلّم التاسكات وتتابع حالتها.</p><div class="formgrid"><div><label class="label">الإيميل</label><input id="authEmail" class="field" type="email" autocomplete="email" placeholder="name@example.com"></div><div><label class="label">كلمة السر</label><input id="authPassword" class="field" type="password" autocomplete="current-password" placeholder="٨ أحرف أو أكتر"></div><div class="formrow"><button class="btn primary" onclick="signIn()">تسجيل الدخول</button><button class="btn secondary" onclick="signUp()">إنشاء حساب</button></div><p class="muted small">الحساب الجديد بيبدأ كعضو عادي. المسؤول بيتحدد يدويًا من قاعدة البيانات.</p></div></div></div>`}
-async function signIn(){const email=$("authEmail").value.trim(),password=$("authPassword").value;if(!email||!password)return toast("اكتب الإيميل وكلمة السر.");const {error}=await sb.auth.signInWithPassword({email,password});if(error)return toast(error.message);closeModal();toast("تم تسجيل الدخول")}
-async function signUp(){const email=$("authEmail").value.trim(),password=$("authPassword").value;if(!email||password.length<8)return toast("اكتب إيميل صحيح وكلمة سر ٨ أحرف على الأقل.");const {error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error)return toast(error.message);closeModal();toast("لو تأكيد الإيميل مفعّل، افتح رسالة التأكيد وبعدين سجّل دخولك.")}
-async function logout(){if(sb)await sb.auth.signOut();currentUser=null;profile=null;updateAuthUI();await loadData();toast("تم تسجيل الخروج")}
-function closeModal(){$("modalRoot").innerHTML=""}
+function openAuth(){
+  if(!ready()){
+    toast("كمّل إعداد Supabase الأول، الخطوات موجودة في README.");
+    return;
+  }
+
+  $("modalRoot").innerHTML = `
+    <div class="modalback" onclick="if(event.target===this)closeModal()">
+      <div class="modal auth">
+        <div class="modalhead">
+          <h2>أهلاً بيك 👋</h2>
+          <button class="xbtn" onclick="closeModal()">✕</button>
+        </div>
+
+        <p class="muted small">
+          سجّل دخولك عشان تسلّم التاسكات وتتابع حالتها.
+        </p>
+
+        <div class="formgrid">
+          <div>
+            <label class="label">الإيميل</label>
+            <input id="authEmail" class="field" type="email"
+              autocomplete="email" placeholder="name@example.com">
+          </div>
+
+          <div>
+            <label class="label">كلمة السر</label>
+            <input id="authPassword" class="field" type="password"
+              autocomplete="current-password" placeholder="٨ أحرف أو أكتر">
+          </div>
+
+          <button class="btn secondary" onclick="resetPassword()">
+            نسيت كلمة المرور؟
+          </button>
+
+          <div class="formrow">
+            <button class="btn primary" onclick="signIn()">تسجيل الدخول</button>
+            <button class="btn secondary" onclick="signUp()">إنشاء حساب</button>
+          </div>
+
+          <p class="muted small">
+            الحساب الجديد بيبدأ كعضو عادي. المسؤول بيتحدد يدويًا من قاعدة البيانات.
+          </p>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function resetPassword(){
+  const email = $("authEmail").value.trim();
+
+  if(!email){
+    toast("اكتب الإيميل الأول، وبعدها اضغط نسيت كلمة المرور.");
+    return;
+  }
+
+  const {error} = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname
+  });
+
+  if(error){
+    toast("تعذّر إرسال الرابط: " + error.message);
+    return;
+  }
+
+  toast("لو الإيميل مسجل، هتوصلك رسالة لاستعادة كلمة المرور.");
+}
+
+async function signIn(){
+  const email = $("authEmail").value.trim();
+  const password = $("authPassword").value;
+
+  if(!email || !password) return toast("اكتب الإيميل وكلمة السر.");
+
+  const {error} = await sb.auth.signInWithPassword({email,password});
+
+  if(error) return toast(error.message);
+
+  closeModal();
+  toast("تم تسجيل الدخول");
+}
+
+async function signUp(){
+  const email = $("authEmail").value.trim();
+  const password = $("authPassword").value;
+
+  if(!email || password.length < 8)
+    return toast("اكتب إيميل صحيح وكلمة سر ٨ أحرف على الأقل.");
+
+  const {error} = await sb.auth.signUp({
+    email,
+    password,
+    options:{emailRedirectTo:location.origin+location.pathname}
+  });
+
+  if(error) return toast(error.message);
+
+  closeModal();
+  toast("لو تأكيد الإيميل مفعّل، افتح رسالة التأكيد وبعدين سجّل دخولك.");
+}
+
+async function logout(){
+  if(sb) await sb.auth.signOut();
+  currentUser=null;
+  profile=null;
+  updateAuthUI();
+  await loadData();
+  toast("تم تسجيل الخروج");
+}
+
+function closeModal(){
+  $("modalRoot").innerHTML="";
+}
+
 function openTaskForm(id=null){
  if(!isAdmin())return toast("إضافة التاسكات للمسؤولين بس.");const t=tasks.find(x=>x.id===id);
  $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${t?"تعديل تاسك":"إضافة تاسك جديد"}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="formgrid"><div><label class="label">عنوان التاسك *</label><input id="taskTitle" class="field" maxlength="140" value="${esc(t?.title||"")}" placeholder="مثال: تجهيز عرض الاجتماع"></div><div><label class="label">التفاصيل</label><textarea id="taskDesc" class="field" rows="4" placeholder="اكتب المطلوب بوضوح...">${esc(t?.description||"")}</textarea></div><div class="formrow"><div><label class="label">آخر موعد</label><input id="taskDue" class="field" type="date" value="${esc(t?.due_date||"")}"></div><div><label class="label">حالة التاسك</label><select id="taskStatus" class="field"><option value="open" ${!t||t.status==="open"?"selected":""}>مفتوحة</option><option value="done" ${t?.status==="done"?"selected":""}>مكتملة / أرشيف</option></select></div></div><div><label class="label">لينك مرجعي (اختياري)</label><input id="taskLink" class="field" type="url" value="${esc(t?.reference_url||"")}" placeholder="https://..."></div><div><label class="label">طريقة التسليم المسموحة</label><select id="taskSubmission" class="field"><option value="both" ${!t||t.submission_type==="both"?"selected":""}>ملفات أو لينكات</option><option value="file" ${t?.submission_type==="file"?"selected":""}>ملفات فقط</option><option value="link" ${t?.submission_type==="link"?"selected":""}>لينكات فقط</option></select></div><button class="btn primary" onclick="saveTask('${id||""}')">حفظ التاسك</button>${t?`<button class="btn danger" onclick="deleteTask('${t.id}')">حذف التاسك</button>`:""}</div></div></div>`
