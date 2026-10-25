@@ -246,19 +246,30 @@ async function resetPassword(){
   toast("لو الإيميل مسجل، هتوصلك رسالة لاستعادة كلمة المرور.");
 }
 
+
 async function signIn(){
-  const email = $("authEmail").value.trim();
+  const login = $("authEmail").value.trim();
   const password = $("authPassword").value;
 
-  if(!email || !password) return toast("اكتب الإيميل وكلمة السر.");
+  if(!login || !password) {
+    return toast("اكتب اسم المستخدم أو الإيميل وكلمة السر.");
+  }
 
-  const {error} = await sb.auth.signInWithPassword({email,password});
+  const email = login.includes("@")
+    ? login
+    : `${login.toLowerCase()}@members.invalid`;
 
-  if(error) return toast(error.message);
+  const { error } = await sb.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error) return toast("تعذر تسجيل الدخول. راجع البيانات وحاول تاني.");
 
   closeModal();
   toast("تم تسجيل الدخول");
 }
+
 
  
 function openSignupPage(){
