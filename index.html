@@ -59,7 +59,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 <p>المسؤولون بينظّموا التاسكات ويتابعوا تفاصيلها، والأعضاء عليهم التنفيذ والتسليم. ملفاتك، لينكاتك، وكل شغلك… كله متجمع في مكان واحد.</p>
 <div class="notice" id="connectionNotice">الموقع محتاج إعداد Supabase مرة واحدة قبل ما يسجّل الدخول ويحفظ البيانات أونلاين.</div></div>
   </div>
-  <div class="stats"><div class="stat"><strong id="statOpen">—</strong><span>تاسكات مفتوحة</span></div><div class="stat"><strong id="statDone">—</strong><span>تاسكات مكتملة</span></div><div class="stat"><strong id="statSubs">—</strong><span>تسليماتي</span></div></div>
+  <div class="stats"><div class="stat"><strong id="statOpen">—</strong><span>تاسكات مفتوحة</span></div><div class="stat"><strong id="statDone">—</strong><span>تاسكات مكتملة</span></div><div class="stat"><strong id="statSubs">—</strong><span>إجمالي التسليمات</span></div></div>
   <section id="notificationCenter" class="notification-popover panel hidden" aria-label="مركز الإشعارات">
     <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🔔 الإشعارات</h2><p>آخر تحديثات مهامك</p></div><div class="actions"><button class="btn secondary" onclick="markAllNotificationsRead()">قراءة الكل</button><button class="xbtn" onclick="toggleNotificationPanel(false)" aria-label="إغلاق">✕</button></div></div>
     <div id="notificationsList" class="submissions"><div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div></div>
@@ -67,7 +67,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
-  <div class="sectionhead"><div><h2>تسليماتي</h2><p>التسليمات اللي رفعتها وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
+  <div class="sectionhead"><div><h2>تسليمات الأعضاء</h2><p>كل التسليمات المرفوعة وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
   <section id="achievementDashboard" class="achievement-popover panel hidden" aria-label="لوحة الإنجازات">
     <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div><button class="xbtn" onclick="toggleAchievementPanel(false)" aria-label="إغلاق">✕</button></div>
     <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px"><label class="label" for="achievementMember">عرض إنجازات عضو</label><select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select></div>
