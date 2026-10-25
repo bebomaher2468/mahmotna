@@ -683,7 +683,7 @@ async function loadAdminSubs(){
   if(userIds.length){
     const {data:profileData,error:profileError}=await sb
       .from("profiles")
-      .select("id,display_name,email")
+      .select("id,display_name")
       .in("id",userIds);
 
     if(profileError) console.error("خطأ تحميل أسماء الأعضاء:",profileError);
