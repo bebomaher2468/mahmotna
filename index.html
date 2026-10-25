@@ -577,40 +577,55 @@ async function downloadSubmission(id){
  window.open(data.signedUrl,"_blank","noopener");
 }
 
+
 async function loadAdminSubs(){
   if(!isAdmin())return;
 
   const {data,error}=await sb
     .from("submissions")
-    .select("*, tasks(title), profiles(display_name,email)")
+    .select("*, tasks(title)")
     .order("created_at",{ascending:false})
     .limit(100);
 
   if(error){
     console.error("خطأ تحميل التسليمات:",error);
     $("adminSubmissions").innerHTML=
-      '<div class="empty">حصل خطأ: '+
-      esc(error.message)+
-      '</div>';
+      '<div class="empty">حصل خطأ: '+esc(error.message)+'</div>';
     return;
   }
 
   const all=data||[];
+  const userIds=[...new Set(all.map(s=>s.user_id).filter(Boolean))];
+  let profiles=[];
+
+  if(userIds.length){
+    const {data:profileData,error:profileError}=await sb
+      .from("profiles")
+      .select("id,display_name,email")
+      .in("id",userIds);
+
+    if(profileError) console.error("خطأ تحميل أسماء الأعضاء:",profileError);
+    profiles=profileData||[];
+  }
+
+  const names={};
+  profiles.forEach(p=>{
+    names[p.id]=p.display_name||p.email||"عضو";
+  });
 
   $("adminSubmissions").innerHTML=all.length
     ?all.map(s=>`
       <div class="submission">
         <div class="submissionhead">
           <b>${esc(s.tasks?.title||"تاسك")}</b>
-          <span class="muted small">
-            ${esc(s.profiles?.display_name||s.profiles?.email||"عضو")}
-          </span>
+          <span class="muted small">${esc(names[s.user_id]||"عضو")}</span>
         </div>
         ${submissionHTML(s,true)}
       </div>
     `).join("")
     :'<div class="empty">لسه مفيش تسليمات.</div>';
 }
+
 async function updateSubmission(id){if(!isAdmin())return;const status=$("status_"+id).value,admin_feedback=$("feedback_"+id).value.trim();const {error}=await sb.from("submissions").update({status,admin_feedback,reviewed_by:currentUser.id}).eq("id",id);if(error)return toast("فشل تحديث التسليم: "+error.message);await loadData();toast("تم حفظ مراجعة التسليم")}
 init();
 </script></body></html>
