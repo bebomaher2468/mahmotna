@@ -1107,7 +1107,7 @@ function renderAchievementDashboard(){
   section.classList.add("hidden");
   return;
  }
- section.classList.remove("hidden");
+ // Visibility is controlled by toggleAchievementPanel(); keep the panel hidden until clicked.
  const picker=$("achievementAdminPicker");
  picker.classList.toggle("hidden",!isAdmin());
  const members=(memberProfiles||[]).filter(m=>m.role==="member");
