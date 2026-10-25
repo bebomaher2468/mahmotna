@@ -31,7 +31,7 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
-</style></head>
+ .notification-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:25;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.notification-popover .submissions{margin-top:8px}.notification-popover .submission{padding:12px}.notification-popover .submission p{margin:7px 0;line-height:1.7}.notification-popover .sectionhead{gap:8px}.notification-popover .sectionhead .actions{flex-wrap:nowrap}.notification-popover .btn{padding:7px 9px;font-size:12px}@media(max-width:580px){.notification-popover{top:74px;right:12px;max-height:75vh}.notification-popover #notificationsList .submissionhead{align-items:flex-start;flex-direction:column;gap:4px}}</style></head>
 <body>
 <header class="container top">
  <div class="brand">
@@ -43,7 +43,7 @@
     <small>مجموعة القديس فيلبس الرسول</small>
   </div>
 </div>
- <div class="actions"><span id="userChip" class="muted small"></span><button id="authBtn" class="btn secondary" onclick="openAuth()">تسجيل الدخول</button><button id="logoutBtn" class="btn secondary hidden" onclick="logout()">خروج</button></div>
+ <div class="actions"><button id="notificationToggle" class="btn secondary" onclick="toggleNotificationPanel()" aria-label="مركز الإشعارات">🔔 <span id="notificationUnread" class="badge">0 جديد</span></button><span id="userChip" class="muted small"></span><button id="authBtn" class="btn secondary" onclick="openAuth()">تسجيل الدخول</button><button id="logoutBtn" class="btn secondary hidden" onclick="logout()">خروج</button></div>
 </header>
 <main class="container">
  <section id="appView">
@@ -55,8 +55,8 @@
 <div class="notice" id="connectionNotice">الموقع محتاج إعداد Supabase مرة واحدة قبل ما يسجّل الدخول ويحفظ البيانات أونلاين.</div></div>
   </div>
   <div class="stats"><div class="stat"><strong id="statOpen">—</strong><span>تاسكات مفتوحة</span></div><div class="stat"><strong id="statDone">—</strong><span>تاسكات مكتملة</span></div><div class="stat"><strong id="statSubs">—</strong><span>تسليماتي</span></div></div>
-  <section id="notificationCenter" class="panel" style="padding:18px;margin:18px 0">
-    <div class="sectionhead" style="margin-top:0"><div><h2>🔔 مركز الإشعارات <span id="notificationUnread" class="badge">0 جديد</span></h2><p>المهام الجديدة، مواعيد التسليم، ونتيجة مراجعة شغلك.</p></div><button class="btn secondary" onclick="markAllNotificationsRead()">تحديد الكل كمقروء</button></div>
+  <section id="notificationCenter" class="notification-popover panel hidden" aria-label="مركز الإشعارات">
+    <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🔔 الإشعارات</h2><p>آخر تحديثات مهامك</p></div><div class="actions"><button class="btn secondary" onclick="markAllNotificationsRead()">قراءة الكل</button><button class="xbtn" onclick="toggleNotificationPanel(false)" aria-label="إغلاق">✕</button></div></div>
     <div id="notificationsList" class="submissions"><div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div></div>
   </section>
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
@@ -480,6 +480,7 @@ async function changeMyPassword() {
 
 
 
+function toggleNotificationPanel(force){const panel=$("notificationCenter");if(!panel)return;const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen)loadNotifications();}
 async function loadNotifications(){
  const list=$("notificationsList"); if(!list)return;
  if(!currentUser){$("notificationUnread").textContent="0 جديد";list.innerHTML='<div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div>';return;}
