@@ -215,7 +215,7 @@ function openAuth(){
 
           <div class="formrow">
             <button class="btn primary" onclick="signIn()">تسجيل الدخول</button>
-            <button class="btn secondary" onclick="signUp()">إنشاء حساب</button>
+            <button class="btn secondary" onclick="openSignupPage()">إنشاء حساب جديد</button>
           </div>
 
           <p class="muted small">
@@ -260,6 +260,88 @@ async function signIn(){
   toast("تم تسجيل الدخول");
 }
 
+ 
+function openSignupPage(){
+  $("modalRoot").innerHTML = `
+    <div class="modalback" onclick="if(event.target===this)closeModal()">
+      <div class="modal auth">
+        <div class="modalhead">
+          <h2>إنشاء حساب جديد 📝</h2>
+          <button class="xbtn" onclick="closeModal()">✕</button>
+        </div>
+
+        <p class="muted small">
+          أنشئ حسابك عشان تشارك في التاسكات وتتابع تسليماتك.
+        </p>
+
+        <div class="formgrid">
+          <div>
+            <label class="label">الإيميل</label>
+            <input id="authEmail" class="field" type="email"
+              autocomplete="email" placeholder="name@example.com">
+          </div>
+
+          <div>
+            <label class="label">كلمة السر</label>
+            <input id="authPassword" class="field" type="password"
+              autocomplete="new-password" placeholder="٨ أحرف أو أكتر">
+          </div>
+
+          <button class="btn primary" onclick="signUp()">
+            إنشاء الحساب
+          </button>
+
+          <button class="btn secondary" onclick="openLoginPage()">
+            رجوع لتسجيل الدخول
+          </button>
+
+          <p class="muted small">
+            الحساب الجديد بيبدأ كعضو عادي.
+          </p>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openLoginPage(){
+  $("modalRoot").innerHTML = `
+    <div class="modalback" onclick="if(event.target===this)closeModal()">
+      <div class="modal auth">
+        <div class="modalhead">
+          <h2>أهلاً بيك 👋</h2>
+          <button class="xbtn" onclick="closeModal()">✕</button>
+        </div>
+
+        <p class="muted small">
+          سجّل دخولك عشان تسلّم التاسكات وتتابع حالتها.
+        </p>
+
+        <div class="formgrid">
+          <div>
+            <label class="label">الإيميل</label>
+            <input id="authEmail" class="field" type="email"
+              autocomplete="email" placeholder="name@example.com">
+          </div>
+
+          <div>
+            <label class="label">كلمة السر</label>
+            <input id="authPassword" class="field" type="password"
+              autocomplete="current-password" placeholder="اكتب كلمة السر">
+          </div>
+
+          <button class="btn secondary" onclick="resetPassword()">
+            نسيت كلمة المرور؟
+          </button>
+
+          <div class="formrow">
+            <button class="btn primary" onclick="signIn()">تسجيل الدخول</button>
+            <button class="btn secondary" onclick="openSignupPage()">إنشاء حساب جديد</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+ 
 async function signUp(){
   const email = $("authEmail").value.trim();
   const password = $("authPassword").value;
