@@ -9,7 +9,7 @@ create table if not exists public.notifications (
  read_at timestamptz, created_at timestamptz not null default now()
 );
 create index if not exists notifications_user_created_idx on public.notifications(user_id,created_at desc);
-create unique index if not exists notifications_due_once_idx on public.notifications(user_id,task_id,kind) where kind='due_soon' and task_id is not null;
+create unique index if not exists notifications_due_once_idx on public.notifications(user_id,task_id,kind);
 alter table public.notifications enable row level security;
 drop policy if exists "Users read own notifications" on public.notifications;
 create policy "Users read own notifications" on public.notifications for select to authenticated using(user_id=auth.uid());
