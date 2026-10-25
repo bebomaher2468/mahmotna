@@ -277,7 +277,7 @@ async function loadMembersList() {
       console.error("Load members error:", error);
       list.innerHTML = `
         <div class="empty">
-          فشل تحميل الأعضاء: ${escapeHtml(error.message || "خطأ غير معروف")}
+          فشل تحميل الأعضاء: ${esc(error.message || "خطأ غير معروف")}
         </div>`;
       return;
     }
@@ -290,7 +290,7 @@ async function loadMembersList() {
     list.innerHTML = data.map(member => `
       <div class="submission">
         <div class="submissionhead">
-          <strong>${escapeHtml(member.display_name || "عضو")}</strong>
+          <strong>${esc(member.display_name || "عضو")}</strong>
           <button
             class="btn danger"
             onclick="deleteMemberById('${member.id}')">
@@ -298,7 +298,7 @@ async function loadMembersList() {
           </button>
         </div>
         <p>اسم المستخدم:
-          <strong dir="ltr">${escapeHtml(member.username || "غير محدد")}</strong>
+          <strong dir="ltr">${esc(member.username || "غير محدد")}</strong>
         </p>
       </div>
     `).join("");
@@ -309,7 +309,7 @@ async function loadMembersList() {
 
     list.innerHTML = `
       <div class="empty">
-        ${escapeHtml(err?.message || "حصل خطأ أثناء تحميل القائمة.")}
+        ${esc(err?.message || "حصل خطأ أثناء تحميل القائمة.")}
       </div>`;
   }
 }
