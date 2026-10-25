@@ -198,7 +198,7 @@ function statusLabel(t){if(t.status==="done")return ["مكتملة","done"];if(t
 function ready(){return !!sb}
 function updateAuthUI(){
  $("authBtn").classList.toggle("hidden",!!currentUser);$("logoutBtn").classList.toggle("hidden",!currentUser);
- const visibleName = currentUser ? ((profile?.display_name && profile.display_name !== "bebomaher2468") ? profile.display_name : (currentUser.email?.split("@")[0] === "bebomaher2468" ? "Abanoub Maher" : (profile?.display_name || currentUser.email))) : "";
+ const visibleName = currentUser ? ((profile?.display_name === "bebomaher2468" || profile?.display_name === currentUser.email) ? "Abanoub Maher" : (profile?.display_name || currentUser.email)) : "";
  $("userChip").textContent=currentUser?visibleName+(isAdmin()?" • مسؤول":" • عضو"):"زائر";
  $("adminAdd").classList.toggle("hidden",!isAdmin());$("adminAddTop").classList.toggle("hidden",!isAdmin());$("adminSection").classList.toggle("hidden",!isAdmin());
  $("changePasswordSection").classList.toggle("hidden",!currentUser);
