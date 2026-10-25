@@ -297,21 +297,81 @@ async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عاي�
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
  const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">رفع ملف (اختياري حسب المطلوب)</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip,.xlsx,.txt"></div>`:""}<div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">رفع ملف (اختياري حسب المطلوب)</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip,.xlsx,.txt"></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
+
 async function submitWork(taskId){
- if(!currentUser)return toast("سجّل دخولك الأول.");const t=tasks.find(x=>x.id===taskId);if(!t||t.status==="done")return toast("التاسك مقفولة.");let file=$("submitFile")?.files?.[0]||null,link=$("submitLink")?.value.trim()||null,note=$("submitNote")?.value.trim()||"";
- if(t.submission_type==="file"&&!file)return toast("التاسك دي محتاجة ملف.");if(t.submission_type==="link"&&!link)return toast("التاسك دي محتاجة لينك.");if(!file&&!link)return toast("ارفع ملف أو حط لينك قبل الإرسال.");if(file&&file.size>15*1024*1024)return toast("أقصى حجم للملف 15 ميجابايت.");
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+
+ const t=tasks.find(x=>x.id===taskId);
+ if(!t||t.status==="done")return toast("التاسك مقفولة.");
+
+ const file=$("submitFile")?.files?.[0]||null;
+ const link=$("submitLink")?.value.trim()||null;
+ const submissionText=$("submitText")?.value.trim()||"";
+ const note=$("submitNote")?.value.trim()||"";
+
+ if(!file&&!link&&!submissionText)
+   return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
+
+ if(file&&file.size>15*1024*1024)
+   return toast("أقصى حجم للملف 15 ميجابايت.");
+
  let filePath=null,fileName=null;
- if(file){const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");filePath=`${currentUser.id}/${taskId}/${Date.now()}_${safe}`;const {error:upErr}=await sb.storage.from("submissions").upload(filePath,file,{upsert:false,contentType:file.type||"application/octet-stream"});if(upErr)return toast("فشل رفع الملف: "+upErr.message);fileName=file.name}
- const {error}=await sb.from("submissions").insert({task_id:taskId,user_id:currentUser.id,link_url:link,file_path:filePath,file_name:fileName,note,status:"submitted"});
- if(error){if(filePath)await sb.storage.from("submissions").remove([filePath]);return toast("فشل تسجيل التسليم: "+error.message)}
- await loadData();await openTask(taskId);toast("اتسلّم شغلك بنجاح!")
+
+ if(file){
+   const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+   filePath=`${currentUser.id}/${taskId}/${Date.now()}_${safe}`;
+
+   const {error:upErr}=await sb.storage.from("submissions").upload(
+     filePath,file,
+     {upsert:false,contentType:file.type||"application/octet-stream"}
+   );
+
+   if(upErr)return toast("فشل رفع الملف: "+upErr.message);
+   fileName=file.name;
+ }
+
+ const {error}=await sb.from("submissions").insert({
+   task_id:taskId,
+   user_id:currentUser.id,
+   submission_text:submissionText||null,
+   link_url:link,
+   file_path:filePath,
+   file_name:fileName,
+   note,
+   status:"submitted"
+ });
+
+ if(error){
+   if(filePath)await sb.storage.from("submissions").remove([filePath]);
+   return toast("فشل تسجيل التسليم: "+error.message);
+ }
+
+ await loadData();
+ await openTask(taskId);
+ toast("اتسلّم شغلك بنجاح!");
 }
+
+
 function submissionHTML(s,admin){
  const st={"submitted":"مستلم","reviewing":"قيد المراجعة","accepted":"مقبول","revision":"محتاج تعديل"}[s.status]||s.status;
- return `<div class="submission"><div class="submissionhead"><b>${esc(s.tasks?.title||"تسليم")}</b><span class="badge ${s.status==="accepted"?"done":""}">${st}</span></div>${s.note?`<p>${esc(s.note)}</p>`:""}${s.link_url?`<p class="linkline">🔗 <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer">فتح لينك التسليم</a></p>`:""}${s.file_path?`<p class="linkline">📎 <button class="btn secondary" onclick="downloadSubmission('${s.id}')">تحميل الملف: ${esc(s.file_name||"ملف")}</button></p>`:""}${s.admin_feedback?`<p>ملاحظة المسؤول: ${esc(s.admin_feedback)}</p>`:""}${admin?`<div class="formrow"><select class="field" id="status_${s.id}"><option value="submitted" ${s.status==="submitted"?"selected":""}>مستلم</option><option value="reviewing" ${s.status==="reviewing"?"selected":""}>قيد المراجعة</option><option value="accepted" ${s.status==="accepted"?"selected":""}>مقبول</option><option value="revision" ${s.status==="revision"?"selected":""}>محتاج تعديل</option></select><input class="field" id="feedback_${s.id}" placeholder="ملاحظة للمُسلِّم" value="${esc(s.admin_feedback||"")}"></div><button class="btn secondary" style="margin-top:8px" onclick="updateSubmission('${s.id}')">حفظ المراجعة</button>`:""}<div class="muted small" style="margin-top:7px">${new Date(s.created_at).toLocaleString("ar-EG")}</div></div>`
+
+ return `<div class="submission">
+ <div class="submissionhead">
+ <b>${esc(s.tasks?.title||"تسليم")}</b>
+ <span class="badge ${s.status==="accepted"?"done":""}">${st}</span>
+ </div>
+ ${s.submission_text?`<div style="margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><b>الحل المكتوب:</b><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px;line-height:1.8">${esc(s.submission_text)}</div></div>`:""}
+ ${s.note?`<p>${esc(s.note)}</p>`:""}
+ ${s.link_url?`<p class="linkline">🔗 <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer">فتح لينك التسليم</a></p>`:""}
+ ${s.file_path?`<p class="linkline">📎 <button class="btn secondary" onclick="downloadSubmission('${s.id}')">تحميل الملف: ${esc(s.file_name||"ملف")}</button></p>`:""}
+ ${s.admin_feedback?`<p>ملاحظة المسؤول: ${esc(s.admin_feedback)}</p>`:""}
+ ${admin?`<div class="formrow"><select class="field" id="status_${s.id}"><option value="submitted" ${s.status==="submitted"?"selected":""}>مستلم</option><option value="reviewing" ${s.status==="reviewing"?"selected":""}>قيد المراجعة</option><option value="accepted" ${s.status==="accepted"?"selected":""}>مقبول</option><option value="revision" ${s.status==="revision"?"selected":""}>محتاج تعديل</option></select><input class="field" id="feedback_${s.id}" placeholder="ملاحظة للمُسلِّم" value="${esc(s.admin_feedback||"")}"></div><button class="btn secondary" style="margin-top:8px" onclick="updateSubmission('${s.id}')">حفظ المراجعة</button>`:""}
+ <div class="muted small" style="margin-top:7px">${new Date(s.created_at).toLocaleString("ar-EG")}</div>
+ </div>`;
 }
+
 function renderMySubs(){$("mySubmissions").innerHTML=!currentUser?'<div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div>':submissions.length?submissions.map(s=>submissionHTML(s,false)).join(""):'<div class="empty">لسه مسلّمتش أي شغل.</div>'}
 async function downloadSubmission(id){const s=submissions.find(x=>x.id===id);if(!s)return toast("مش لاقي الملف.");const {data,error}=await sb.storage.from("submissions").createSignedUrl(s.file_path,60);if(error)return toast("مش قادر أفتح الملف: "+error.message);window.open(data.signedUrl,"_blank","noopener")}
 async function loadAdminSubs(){if(!isAdmin())return;const {data,error}=await sb.from("submissions").select("*, tasks(title), profiles(display_name,email)").order("created_at",{ascending:false}).limit(100);if(error){$("adminSubmissions").innerHTML='<div class="empty">تعذّر تحميل التسليمات. راجع سياسات قاعدة البيانات.</div>';return}const all=data||[];$("adminSubmissions").innerHTML=all.length?all.map(s=>`<div class="submission"><div class="submissionhead"><b>${esc(s.tasks?.title||"تاسك")}</b><span class="muted small">${esc(s.profiles?.display_name||s.profiles?.email||"عضو")}</span></div>${submissionHTML(s,true)}</div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>'}
