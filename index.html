@@ -1089,16 +1089,24 @@ async function deleteSubmission(id){
 }
  
 
+
 function renderMySubs(){
- const mine=currentUser?submissions.filter(s=>s.user_id===currentUser.id):[];
- $("mySubmissions").innerHTML=!currentUser
-  ?'<div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div>'
-  :mine.length
-   ?mine.map(s=>`
-    <div style="margin-bottom:16px">${submissionHTML(s,false)}</div>
+ const all = submissions;
+
+ $("mySubmissions").innerHTML = !currentUser
+  ? '<div class="empty">سجّل دخولك عشان تشوف التسليمات.</div>'
+  : all.length
+   ? all.map(s => `
+    <div style="margin-bottom:16px">
+     <p class="muted small">
+      صاحب التسليم: ${esc(s.member_name || "عضو")}
+     </p>
+     ${submissionHTML(s, false)}
+    </div>
    `).join("")
-   :'<div class="empty">لسه مفيش أي تسليمات.</div>';
+   : '<div class="empty">لسه مفيش أي تسليمات.</div>';
 }
+
 
 function renderAchievementDashboard(){
  const section=$("achievementDashboard");
