@@ -59,6 +59,20 @@
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
   <div class="sectionhead"><div><h2>تسليماتي</h2><p>التسليمات اللي رفعتها وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
+  <section id="achievementDashboard" class="panel" style="padding:18px;margin:18px 0">
+    <div class="sectionhead"><div><h2>🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div></div>
+    <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px">
+      <label class="label" for="achievementMember">عرض إنجازات عضو</label>
+      <select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+      <div class="panel" style="padding:14px"><div class="muted small">المهام المنجزة</div><h2 id="achAccepted">0</h2></div>
+      <div class="panel" style="padding:14px"><div class="muted small">المهام المتبقية</div><h2 id="achRemaining">0</h2></div>
+      <div class="panel" style="padding:14px"><div class="muted small">نسبة الإنجاز</div><h2 id="achPercent">0%</h2></div>
+    </div>
+    <div style="height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:14px 0"><div id="achProgress" style="height:100%;width:0;background:var(--green);transition:width .3s"></div></div>
+    <h3>آخر التسليمات</h3><div id="achLatest" class="submissions"><div class="empty">سجّل دخولك لعرض إنجازاتك.</div></div>
+  </section>
   
 <section id="changePasswordSection" class="hidden">
   <div class="panel" style="padding:18px;margin:18px 0">
@@ -167,7 +181,7 @@
 const SUPABASE_URL = "https://gxoddlgmxgkojfloxpon.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Cky_TTKUC8ETzn7ffNrOAQ_lgQr07hr";
 const CONFIGURED = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("PASTE_") && SUPABASE_ANON_KEY.length > 30 && !SUPABASE_ANON_KEY.includes("PASTE_");
-let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], filter = "all", currentTask = null;
+let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], memberProfiles = [], filter = "all", currentTask = null;
 if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -553,6 +567,7 @@ async function loadData(){
 
  renderTasks();
  renderMySubs();
+ renderAchievementDashboard();
 
  if(isAdmin())await loadAdminSubs();
 }
@@ -1035,18 +1050,48 @@ async function deleteSubmission(id){
  
 
 function renderMySubs(){
+ const mine=currentUser?submissions.filter(s=>s.user_id===currentUser.id):[];
  $("mySubmissions").innerHTML=!currentUser
-  ?'<div class="empty">سجّل دخولك عشان تشوف تسليمات الأعضاء.</div>'
-  :submissions.length
-   ?submissions.map(s=>`
-    <div style="margin-bottom:16px">
-     <div style="font-weight:700;margin-bottom:6px">
-      👤 ${esc(s.member_name||"عضو")}
-     </div>
-     ${submissionHTML(s,false)}
-    </div>
+  ?'<div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div>'
+  :mine.length
+   ?mine.map(s=>`
+    <div style="margin-bottom:16px">${submissionHTML(s,false)}</div>
    `).join("")
    :'<div class="empty">لسه مفيش أي تسليمات.</div>';
+}
+
+function renderAchievementDashboard(){
+ const section=$("achievementDashboard");
+ if(!section)return;
+ if(!currentUser){
+  section.classList.add("hidden");
+  return;
+ }
+ section.classList.remove("hidden");
+ const picker=$("achievementAdminPicker");
+ picker.classList.toggle("hidden",!isAdmin());
+ const members=memberProfiles||[];
+ const select=$("achievementMember");
+ if(isAdmin()){
+  const previous=select.value;
+  select.innerHTML=members.map(m=>`<option value="${esc(m.id)}">${esc(m.display_name||"عضو")}</option>`).join("");
+  if(members.some(m=>m.id===previous))select.value=previous;
+ }
+ const targetId=isAdmin()?(select.value||members[0]?.id||currentUser.id):currentUser.id;
+ const acceptedTaskIds=new Set(submissions.filter(s=>s.user_id===targetId&&s.status==="accepted").map(s=>s.task_id));
+ const accepted=tasks.filter(t=>acceptedTaskIds.has(t.id)).length;
+ const remaining=Math.max(0,tasks.length-accepted);
+ const percent=tasks.length?Math.round(accepted/tasks.length*100):0;
+ $("achAccepted").textContent=accepted;
+ $("achRemaining").textContent=remaining;
+ $("achPercent").textContent=percent+"%";
+ $("achProgress").style.width=percent+"%";
+ const latest=submissions.filter(s=>s.user_id===targetId).slice(0,5);
+ $("achLatest").innerHTML=latest.length?latest.map(s=>`
+  <div class="submission" style="margin-bottom:10px">
+   <div class="submissionhead"><b>${esc(s.tasks?.title||tasks.find(t=>t.id===s.task_id)?.title||"مهمة")}</b><span class="badge">${esc(s.status==="accepted"?"مقبول":s.status==="revision"?"مطلوب تعديل":s.status==="reviewing"?"قيد المراجعة":"تم التسليم")}</span></div>
+   <div class="muted small">${esc(fmtDate((s.created_at||"").slice(0,10)))}</div>
+  </div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>';
 }
 
 async function downloadSubmission(id){
