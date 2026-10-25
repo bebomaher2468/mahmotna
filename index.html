@@ -97,15 +97,57 @@ try{
 }
 }
 async function loadProfile(){const {data,error}=await sb.from("profiles").select("id,display_name,role").eq("id",currentUser.id).maybeSingle();if(error)console.error(error);profile=data||{id:currentUser.id,display_name:currentUser.email,role:"member"}}
+
 async function loadData(){
  if(!sb)return;
- const [tr,sr]=await Promise.all([sb.from("tasks").select("*").order("created_at",{ascending:false}),currentUser?sb.from("submissions").select("*, tasks(title)").eq("user_id",currentUser.id).order("created_at",{ascending:false}):Promise.resolve({data:[],error:null})]);
- if(tr.error){console.error(tr.error);$("tasksGrid").innerHTML='<div class="empty">تعذّر تحميل التاسكات. راجع إعداد قاعدة البيانات في README.</div>';return}
- tasks=tr.data||[];submissions=sr.data||[];
- $("connectionNotice").className="notice good";$("connectionNotice").textContent=currentUser?"أنت داخل بحسابك. البيانات محفوظة أونلاين حسب صلاحيات حسابك.":"اتفرج على التاسكات كزائر، وسجّل دخولك لو عايز تسلّم شغلك.";
- $("statOpen").textContent=tasks.filter(t=>t.status!=="done").length;$("statDone").textContent=tasks.filter(t=>t.status==="done").length;$("statSubs").textContent=submissions.length;
- renderTasks();renderMySubs();if(isAdmin())await loadAdminSubs();
+
+ const [tr,sr,pr]=await Promise.all([
+  sb.from("tasks").select("*").order("created_at",{ascending:false}),
+  currentUser
+   ?sb.from("submissions").select("*, tasks(title)").order("created_at",{ascending:false})
+   :Promise.resolve({data:[],error:null}),
+  currentUser
+   ?sb.from("profiles").select("id, display_name")
+   :Promise.resolve({data:[],error:null})
+ ]);
+
+ if(tr.error){
+  console.error(tr.error);
+  $("tasksGrid").innerHTML='<div class="empty">تعذّر تحميل التاسكات. راجع إعداد قاعدة البيانات في README.</div>';
+  return;
+ }
+
+ if(sr.error){
+  console.error(sr.error);
+  toast("تعذّر تحميل تسليمات الأعضاء: "+sr.error.message);
+ }
+
+ tasks=tr.data||[];
+
+ const profiles=pr.data||[];
+ const names={};
+ profiles.forEach(p=>{names[p.id]=p.display_name||"عضو";});
+
+ submissions=(sr.data||[]).map(s=>({
+  ...s,
+  member_name:names[s.user_id]||"عضو"
+ }));
+
+ $("connectionNotice").className="notice good";
+ $("connectionNotice").textContent=currentUser
+  ?"أنت داخل بحسابك. يمكنك مشاهدة تسليمات الأعضاء."
+  :"اتفرج على التاسكات كزائر، وسجّل دخولك لمشاهدة التسليمات.";
+
+ $("statOpen").textContent=tasks.filter(t=>t.status!=="done").length;
+ $("statDone").textContent=tasks.filter(t=>t.status==="done").length;
+ $("statSubs").textContent=submissions.length;
+
+ renderTasks();
+ renderMySubs();
+
+ if(isAdmin())await loadAdminSubs();
 }
+
 function setFilter(f){filter=f;document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b.dataset.filter===f));renderTasks()}
 
 function renderTasks(){
@@ -481,7 +523,21 @@ async function deleteSubmission(id){
  toast("تم حذف التسليم.");
 }
  
-function renderMySubs(){$("mySubmissions").innerHTML=!currentUser?'<div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div>':submissions.length?submissions.map(s=>submissionHTML(s,false)).join(""):'<div class="empty">لسه مسلّمتش أي شغل.</div>'}
+
+function renderMySubs(){
+ $("mySubmissions").innerHTML=!currentUser
+  ?'<div class="empty">سجّل دخولك عشان تشوف تسليمات الأعضاء.</div>'
+  :submissions.length
+   ?submissions.map(s=>`
+    <div style="margin-bottom:16px">
+     <div style="font-weight:700;margin-bottom:6px">
+      👤 ${esc(s.member_name||"عضو")}
+     </div>
+     ${submissionHTML(s,false)}
+    </div>
+   `).join("")
+   :'<div class="empty">لسه مفيش أي تسليمات.</div>';
+}
 async function downloadSubmission(id){const s=submissions.find(x=>x.id===id);if(!s)return toast("مش لاقي الملف.");const {data,error}=await sb.storage.from("submissions").createSignedUrl(s.file_path,60);if(error)return toast("مش قادر أفتح الملف: "+error.message);window.open(data.signedUrl,"_blank","noopener")}
 async function loadAdminSubs(){if(!isAdmin())return;const {data,error}=await sb.from("submissions").select("*, tasks(title), profiles(display_name,email)").order("created_at",{ascending:false}).limit(100);if(error){$("adminSubmissions").innerHTML='<div class="empty">تعذّر تحميل التسليمات. راجع سياسات قاعدة البيانات.</div>';return}const all=data||[];$("adminSubmissions").innerHTML=all.length?all.map(s=>`<div class="submission"><div class="submissionhead"><b>${esc(s.tasks?.title||"تاسك")}</b><span class="muted small">${esc(s.profiles?.display_name||s.profiles?.email||"عضو")}</span></div>${submissionHTML(s,true)}</div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>'}
 async function updateSubmission(id){if(!isAdmin())return;const status=$("status_"+id).value,admin_feedback=$("feedback_"+id).value.trim();const {error}=await sb.from("submissions").update({status,admin_feedback,reviewed_by:currentUser.id}).eq("id",id);if(error)return toast("فشل تحديث التسليم: "+error.message);await loadData();toast("تم حفظ مراجعة التسليم")}
