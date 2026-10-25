@@ -53,8 +53,48 @@ function updateAuthUI(){
  $("adminAdd").classList.toggle("hidden",!isAdmin());$("adminAddTop").classList.toggle("hidden",!isAdmin());$("adminSection").classList.toggle("hidden",!isAdmin());
 }
 async function init(){
- if(!ready()){$("connectionNotice").className="notice error";$("connectionNotice").textContent="لسه بيانات Supabase مش متضافة. الموقع هيفتح، لكن تسجيل الدخول والتخزين الأونلاين مش هيشتغلوا قبل إكمال خطوات الإعداد في README."; $("tasksGrid").innerHTML='<div class="empty">بعد ربط Supabase هتظهر التاسكات الحقيقية هنا.</div>';updateAuthUI();return}
- try{const {data:{session}}=await sb.auth.getSession();currentUser=session?.user||null;if(currentUser)await loadProfile();updateAuthUI();await loadData();sb.auth.onAuthStateChange(async(_event,session)=>{currentUser=session?.user||null;profile=null;if(currentUser)await loadProfile();updateAuthUI();await loadData()})}catch(e){toast("حصل خطأ في الاتصال: "+e.message)}
+ 
+if(!ready()){
+  $("connectionNotice").className="notice error";
+  $("connectionNotice").textContent="لسه بيانات Supabase مش متضافة. الموقع هيفتح، لكن تسجيل الدخول والتخزين الأونلاين مش هيشتغلوا قبل إكمال خطوات الإعداد في README.";
+  $("tasksGrid").innerHTML='<div class="empty">بعد ربط Supabase هتظهر التاسكات الحقيقية هنا.</div>';
+  updateAuthUI();
+  return;
+}
+
+try{
+  const {data:{session}}=await sb.auth.getSession();
+  currentUser=session?.user||null;
+
+  if(currentUser) await loadProfile();
+
+  updateAuthUI();
+  await loadData();
+
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==="PASSWORD_RECOVERY"){
+      currentUser=session?.user||null;
+      updateAuthUI();
+      openRecovery();
+      return;
+    }
+
+    currentUser=session?.user||null;
+    profile=null;
+
+    if(currentUser) await loadProfile();
+
+    updateAuthUI();
+    await loadData();
+  });
+
+  if(location.hash.includes("type=recovery")){
+    openRecovery();
+  }
+
+}catch(e){
+  toast("حصل خطأ في الاتصال: "+e.message);
+}
 }
 async function loadProfile(){const {data,error}=await sb.from("profiles").select("id,display_name,role").eq("id",currentUser.id).maybeSingle();if(error)console.error(error);profile=data||{id:currentUser.id,display_name:currentUser.email,role:"member"}}
 async function loadData(){
