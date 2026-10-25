@@ -107,11 +107,34 @@ async function loadData(){
  renderTasks();renderMySubs();if(isAdmin())await loadAdminSubs();
 }
 function setFilter(f){filter=f;document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b.dataset.filter===f));renderTasks()}
+
 function renderTasks(){
  const q=($("search")?.value||"").trim().toLowerCase();
  const list=tasks.filter(t=>(!q||(t.title+" "+(t.description||"")).toLowerCase().includes(q))&&(filter==="all"||(filter==="open"&&t.status!=="done")||(filter==="done"&&t.status==="done")||(filter==="archive"&&t.status==="done")));
- $("tasksGrid").innerHTML=list.length?list.map(t=>{const [lab,cls]=statusLabel(t);return `<article class="task"><div class="tasktop"><span class="muted small">مهمة #${esc(t.id.slice(0,8))}</span><span class="badge ${cls}">${lab}</span></div><h3>${esc(t.title)}</h3><p>${esc(t.description||"مفيش تفاصيل إضافية.")}</p><div class="taskbottom"><span class="muted small">📅 ${fmtDate(t.due_date)}</span><div class="actions"><button class="btn secondary" onclick="openTask('${t.id}')">التفاصيل</button>${isAdmin()?`<button class="btn secondary" onclick="openTaskForm('${t.id}')">تعديل</button>`:""}</div></div></article>`}).join(""):'<div class="empty">مفيش تاسكات مطابقة دلوقتي.</div>'
+
+ $("tasksGrid").innerHTML=list.length?list.map(t=>{
+  const [lab,cls]=statusLabel(t);
+  return `<article class="task">
+   <div class="tasktop">
+    <span class="muted small">مهمة #${esc(t.id.slice(0,8))}</span>
+    <span class="badge ${cls}">${lab}</span>
+   </div>
+   <h3>${esc(t.title)}</h3>
+   <p>${esc(t.description||"مفيش تفاصيل إضافية.")}</p>
+   <div class="taskbottom">
+    <span class="muted small">📅 ${fmtDate(t.due_date)}</span>
+    <div class="actions">
+     <button class="btn secondary" onclick="openTask('${t.id}')">التفاصيل</button>
+     ${isAdmin()?`
+      <button class="btn secondary" onclick="openTaskForm('${t.id}')">تعديل</button>
+      <button class="btn danger" onclick="deleteTask('${t.id}')">🗑️ حذف</button>
+     `:""}
+    </div>
+   </div>
+  </article>`;
+ }).join(""):'<div class="empty">مفيش تاسكات مطابقة دلوقتي.</div>';
 }
+
 function scrollToTasks(){$("tasksSection").scrollIntoView({behavior:"smooth"})}
 function openAuth(){
   if(!ready()){
@@ -354,6 +377,7 @@ async function submitWork(taskId){
 }
 
 
+
 function submissionHTML(s,admin){
  const st={"submitted":"مستلم","reviewing":"قيد المراجعة","accepted":"مقبول","revision":"محتاج تعديل"}[s.status]||s.status;
 
@@ -362,16 +386,101 @@ function submissionHTML(s,admin){
  <b>${esc(s.tasks?.title||"تسليم")}</b>
  <span class="badge ${s.status==="accepted"?"done":""}">${st}</span>
  </div>
+
  ${s.submission_text?`<div style="margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><b>الحل المكتوب:</b><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px;line-height:1.8">${esc(s.submission_text)}</div></div>`:""}
  ${s.note?`<p>${esc(s.note)}</p>`:""}
  ${s.link_url?`<p class="linkline">🔗 <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer">فتح لينك التسليم</a></p>`:""}
  ${s.file_path?`<p class="linkline">📎 <button class="btn secondary" onclick="downloadSubmission('${s.id}')">تحميل الملف: ${esc(s.file_name||"ملف")}</button></p>`:""}
  ${s.admin_feedback?`<p>ملاحظة المسؤول: ${esc(s.admin_feedback)}</p>`:""}
- ${admin?`<div class="formrow"><select class="field" id="status_${s.id}"><option value="submitted" ${s.status==="submitted"?"selected":""}>مستلم</option><option value="reviewing" ${s.status==="reviewing"?"selected":""}>قيد المراجعة</option><option value="accepted" ${s.status==="accepted"?"selected":""}>مقبول</option><option value="revision" ${s.status==="revision"?"selected":""}>محتاج تعديل</option></select><input class="field" id="feedback_${s.id}" placeholder="ملاحظة للمُسلِّم" value="${esc(s.admin_feedback||"")}"></div><button class="btn secondary" style="margin-top:8px" onclick="updateSubmission('${s.id}')">حفظ المراجعة</button>`:""}
+
+ ${admin?`
+ <div class="formrow">
+ <select class="field" id="status_${s.id}">
+ <option value="submitted" ${s.status==="submitted"?"selected":""}>مستلم</option>
+ <option value="reviewing" ${s.status==="reviewing"?"selected":""}>قيد المراجعة</option>
+ <option value="accepted" ${s.status==="accepted"?"selected":""}>مقبول</option>
+ <option value="revision" ${s.status==="revision"?"selected":""}>محتاج تعديل</option>
+ </select>
+ <input class="field" id="feedback_${s.id}" placeholder="ملاحظة للمُسلِّم" value="${esc(s.admin_feedback||"")}">
+ </div>
+ <div class="actions" style="margin-top:8px">
+ <button class="btn secondary" onclick="updateSubmission('${s.id}')">حفظ المراجعة</button>
+ <button class="btn secondary" onclick="editSubmission('${s.id}')">✏️ تعديل التسليم</button>
+ <button class="btn danger" onclick="deleteSubmission('${s.id}')">🗑️ حذف التسليم</button>
+ </div>
+ `:""}
+
  <div class="muted small" style="margin-top:7px">${new Date(s.created_at).toLocaleString("ar-EG")}</div>
  </div>`;
 }
 
+async function editSubmission(id){
+ if(!isAdmin())return toast("مش مسموح لك بالتعديل.");
+
+ const {data:s,error}=await sb
+  .from("submissions")
+  .select("*")
+  .eq("id",id)
+  .single();
+
+ if(error||!s)return toast("مش قادر أجيب بيانات التسليم.");
+
+ const newText=prompt("عدّل الحل المكتوب:",s.submission_text||"");
+ if(newText===null)return;
+
+ const newLink=prompt("عدّل اللينك أو سيبه فاضي:",s.link_url||"");
+ if(newLink===null)return;
+
+ const newNote=prompt("عدّل الملاحظة:",s.note||"");
+ if(newNote===null)return;
+
+ const {error:updateError}=await sb
+  .from("submissions")
+  .update({
+   submission_text:newText.trim()||null,
+   link_url:newLink.trim()||null,
+   note:newNote.trim()||null
+  })
+  .eq("id",id);
+
+ if(updateError)return toast("فشل التعديل: "+updateError.message);
+
+ await loadData();
+ toast("تم تعديل التسليم بنجاح.");
+}
+
+async function deleteSubmission(id){
+ if(!isAdmin())return toast("مش مسموح لك بالحذف.");
+
+ if(!confirm("متأكد إنك عايز تحذف التسليم ده نهائيًا؟"))return;
+
+ const {data:s,error:readError}=await sb
+  .from("submissions")
+  .select("id,file_path")
+  .eq("id",id)
+  .single();
+
+ if(readError||!s)return toast("مش قادر أجيب بيانات التسليم.");
+
+ const {error}=await sb
+  .from("submissions")
+  .delete()
+  .eq("id",id);
+
+ if(error)return toast("فشل الحذف: "+error.message);
+
+ if(s.file_path){
+  const {error:fileError}=await sb.storage
+   .from("submissions")
+   .remove([s.file_path]);
+
+  if(fileError)console.error("تعذر حذف الملف المرفق:",fileError.message);
+ }
+
+ await loadData();
+ toast("تم حذف التسليم.");
+}
+ 
 function renderMySubs(){$("mySubmissions").innerHTML=!currentUser?'<div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div>':submissions.length?submissions.map(s=>submissionHTML(s,false)).join(""):'<div class="empty">لسه مسلّمتش أي شغل.</div>'}
 async function downloadSubmission(id){const s=submissions.find(x=>x.id===id);if(!s)return toast("مش لاقي الملف.");const {data,error}=await sb.storage.from("submissions").createSignedUrl(s.file_path,60);if(error)return toast("مش قادر أفتح الملف: "+error.message);window.open(data.signedUrl,"_blank","noopener")}
 async function loadAdminSubs(){if(!isAdmin())return;const {data,error}=await sb.from("submissions").select("*, tasks(title), profiles(display_name,email)").order("created_at",{ascending:false}).limit(100);if(error){$("adminSubmissions").innerHTML='<div class="empty">تعذّر تحميل التسليمات. راجع سياسات قاعدة البيانات.</div>';return}const all=data||[];$("adminSubmissions").innerHTML=all.length?all.map(s=>`<div class="submission"><div class="submissionhead"><b>${esc(s.tasks?.title||"تاسك")}</b><span class="muted small">${esc(s.profiles?.display_name||s.profiles?.email||"عضو")}</span></div>${submissionHTML(s,true)}</div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>'}
