@@ -238,6 +238,7 @@ async function createMember() {
 }
 
  
+
 async function loadMembersList() {
   const list = $("membersList");
 
@@ -255,9 +256,9 @@ async function loadMembersList() {
       .order("display_name");
 
     if (error) {
-      console.error("Load members error:", error);
+      console.error(error);
       list.innerHTML =
-        '<div class="empty">تعذر تحميل الأعضاء. راجع صلاحيات قاعدة البيانات.</div>';
+        '<div class="empty">تعذر تحميل الأعضاء.</div>';
       return;
     }
 
@@ -271,9 +272,15 @@ async function loadMembersList() {
       <div class="submission">
         <div class="submissionhead">
           <strong>${escapeHtml(member.display_name || "عضو")}</strong>
-          <span class="badge">عضو</span>
+          <button
+            class="btn danger"
+            onclick="deleteMember('${escapeHtml(member.username || "")}')">
+            🗑️ حذف العضو
+          </button>
         </div>
-        <p>اسم المستخدم: <strong dir="ltr">${escapeHtml(member.username || "غير محدد")}</strong></p>
+        <p>اسم المستخدم:
+          <strong dir="ltr">${escapeHtml(member.username || "غير محدد")}</strong>
+        </p>
       </div>
     `).join("");
 
@@ -281,6 +288,46 @@ async function loadMembersList() {
     console.error(err);
     list.innerHTML =
       '<div class="empty">حصل خطأ أثناء تحميل القائمة.</div>';
+  }
+}
+
+async function deleteMember(username) {
+  if (!isAdmin()) {
+    return toast("مش مسموح لك بالعملية دي.");
+  }
+
+  if (!username) {
+    return toast("اسم المستخدم غير موجود.");
+  }
+
+  const confirmed = confirm(
+    `متأكد إنك عايز تحذف العضو "${username}"؟ لن يتمكن من تسجيل الدخول بعد الحذف.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const { data, error } = await sb.functions.invoke(
+      "manage-members",
+      {
+        body: {
+          action: "delete_member",
+          username
+        }
+      }
+    );
+
+    if (error || !data?.ok) {
+      console.error(error, data);
+      return toast(data?.error || "تعذر حذف العضو.");
+    }
+
+    toast(`تم حذف العضو ${username} بنجاح.`);
+    await loadMembersList();
+
+  } catch (err) {
+    console.error(err);
+    toast("حصل خطأ أثناء الحذف. حاول تاني.");
   }
 }
 
