@@ -588,13 +588,22 @@ async function loadData(){
  tasks=tr.data||[];
 
   const profiles=pr.data||[];
- const names={};
- const roles={};
+const names={};
+const roles={};
 
- profiles.forEach(p=>{
-  names[p.id]=p.display_name||"عضو";
-  roles[p.id]=p.role||"member";
- });
+console.log("Profiles:", profiles);
+console.log("Submissions:", sr.data);
+
+profiles.forEach(p=>{
+ names[p.id]=p.display_name||p.username||"اسم غير معروف";
+ roles[p.id]=p.role||"member";
+});
+
+submissions=(sr.data||[]).map(s=>({
+ ...s,
+ member_name:names[s.user_id]||"ID: "+s.user_id,
+ member_role:roles[s.user_id]||"member"
+}));
 
  submissions=(sr.data||[]).map(s=>({
   ...s,
