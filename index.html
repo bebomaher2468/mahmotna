@@ -135,6 +135,7 @@ function updateAuthUI(){
  $("authBtn").classList.toggle("hidden",!!currentUser);$("logoutBtn").classList.toggle("hidden",!currentUser);
  $("userChip").textContent=currentUser?(profile?.display_name||currentUser.email)+(isAdmin()?" • مسؤول":" • عضو"):"زائر";
  $("adminAdd").classList.toggle("hidden",!isAdmin());$("adminAddTop").classList.toggle("hidden",!isAdmin());$("adminSection").classList.toggle("hidden",!isAdmin());
+ $("changePasswordSection").classList.toggle("hidden",!currentUser);
 }
  
 async function createMember() {
