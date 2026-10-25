@@ -587,13 +587,19 @@ async function loadData(){
 
  tasks=tr.data||[];
 
- const profiles=pr.data||[];
+  const profiles=pr.data||[];
  const names={};
- profiles.forEach(p=>{names[p.id]=p.display_name||"عضو";});
+ const roles={};
+
+ profiles.forEach(p=>{
+  names[p.id]=p.display_name||"عضو";
+  roles[p.id]=p.role||"member";
+ });
 
  submissions=(sr.data||[]).map(s=>({
   ...s,
-  member_name:names[s.user_id]||"عضو"
+  member_name:names[s.user_id]||"عضو",
+  member_role:roles[s.user_id]||"member"
  }));
 
  $("connectionNotice").className="notice good";
@@ -1099,14 +1105,14 @@ function renderMySubs(){
    ? all.map(s => `
     <div style="margin-bottom:16px">
      <p class="muted small">
-      صاحب التسليم: ${esc(s.member_name || "عضو")}
+      ناشر التسليم: ${esc(s.member_name || "عضو")}
+      • ${s.member_role === "admin" ? "مسؤول" : "عضو"}
      </p>
      ${submissionHTML(s, false)}
     </div>
    `).join("")
    : '<div class="empty">لسه مفيش أي تسليمات.</div>';
 }
-
 
 function renderAchievementDashboard(){
  const section=$("achievementDashboard");
