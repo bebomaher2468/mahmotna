@@ -35,8 +35,8 @@
 <div id="modalRoot"></div><div id="toast" class="hidden"></div>
 <script>
 // 1) بعد إنشاء مشروع Supabase، ضع بيانات المشروع هنا. لا تضع service_role key هنا أبداً.
-const SUPABASE_URL = "PASTE_SUPABASE_PROJECT_URL_HERE";
-const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
+const SUPABASE_URL = "https://gxoddlgmxgkojfloxpon.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "sb_publishable_Cky_TTKUC8ETzn7ffNrOAQ_lgQr07hr";
 const CONFIGURED = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("PASTE_") && SUPABASE_ANON_KEY.length > 30 && !SUPABASE_ANON_KEY.includes("PASTE_");
 let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], filter = "all", currentTask = null;
 if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
