@@ -568,13 +568,10 @@ async function loadProfile(){const {data,error}=await sb.from("profiles").select
 async function loadData(){
  if(!sb)return;
 
- const [tr,sr,pr]=await Promise.all([
+ const [tr,sr]=await Promise.all([
   sb.from("tasks").select("*").order("created_at",{ascending:false}),
   currentUser
    ?sb.from("submissions").select("*, tasks(title)").order("created_at",{ascending:false})
-   :Promise.resolve({data:[],error:null}),
-  currentUser
-   ?sb.from("profiles").select("id, display_name, role")
    :Promise.resolve({data:[],error:null})
  ]);
 
@@ -591,18 +588,28 @@ async function loadData(){
 
  tasks=tr.data||[];
 
-  const profiles=pr.data||[];
+  const rawSubmissions=sr.data||[];
+  const userIds=[...new Set(rawSubmissions.map(s=>s.user_id).filter(Boolean))];
+  let profiles=[];
+  if(currentUser && userIds.length){
+   const {data:profileData,error:profileError}=await sb
+    .from("profiles")
+    .select("id, display_name, username, role")
+    .in("id",userIds);
+   if(profileError)console.error("تعذّر تحميل أسماء أصحاب التسليمات:",profileError.message);
+   profiles=profileData||[];
+  }
+
   const names={};
   const roles={};
-
   profiles.forEach(p=>{
-   names[p.id]=p.display_name||"اسم غير معروف";
+   names[p.id]=p.display_name||p.username||"اسم غير معروف";
    roles[p.id]=p.role||"member";
   });
 
-  submissions=(sr.data||[]).map(s=>({
+  submissions=rawSubmissions.map(s=>({
    ...s,
-   member_name:names[s.user_id]||"عضو",
+   member_name:names[s.user_id]||"اسم غير متاح",
    member_role:roles[s.user_id]||"member"
   }));
 
