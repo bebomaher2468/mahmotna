@@ -540,7 +540,11 @@ try{
   const {data:{session}}=await sb.auth.getSession();
   currentUser=session?.user||null;
 
-  if(currentUser) await loadProfile();
+  if(currentUser){
+    const allowed=await claimThisDevice(currentUser);
+    if(!allowed){currentUser=null;profile=null;}
+    else await loadProfile();
+  }
 
   updateAuthUI();
   await loadData();
@@ -557,7 +561,11 @@ try{
     currentUser=session?.user||null;
     profile=null;
 
-    if(currentUser) await loadProfile();
+    if(currentUser){
+      const allowed=await claimThisDevice(currentUser);
+      if(!allowed){currentUser=null;profile=null;}
+      else await loadProfile();
+    }
 
     updateAuthUI();
     subscribeNotifications();
@@ -896,6 +904,47 @@ async function resetPassword(){
 }
 
 
+function deviceTokenForUser(userId){
+  const key="mahmotna_device_"+userId;
+  let token=localStorage.getItem(key);
+  if(!token){
+    token=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2));
+    localStorage.setItem(key,token);
+  }
+  return token;
+}
+let deviceHeartbeatTimer=null;
+let deviceSessionBlocked=false;
+async function claimThisDevice(user){
+  if(!user||!sb)return false;
+  const token=deviceTokenForUser(user.id);
+  const {data,error}=await sb.rpc("claim_device_session",{p_device_token:token});
+  if(error){
+    console.error("تعذّر التحقق من جلسة الجهاز:",error);
+    toast("ميزة منع فتح الحساب على جهازين محتاجة تفعيل إعداداتها في Supabase أولًا.");
+    return false;
+  }
+  if(data!==true){
+    deviceSessionBlocked=true;
+    await sb.auth.signOut();
+    toast("الحساب مفتوح بالفعل على هاتف أو جهاز تاني. اقفل الجلسة هناك وجرب تاني.");
+    return false;
+  }
+  deviceSessionBlocked=false;
+  if(deviceHeartbeatTimer)clearInterval(deviceHeartbeatTimer);
+  deviceHeartbeatTimer=setInterval(async()=>{
+    if(!currentUser||currentUser.id!==user.id)return;
+    const result=await sb.rpc("heartbeat_device_session",{p_device_token:token});
+    if(result.error)console.error("تعذّر تحديث جلسة الجهاز:",result.error);
+    else if(result.data!==true){
+      deviceSessionBlocked=true;
+      clearInterval(deviceHeartbeatTimer);
+      await sb.auth.signOut();
+      toast("تم فتح الحساب على جهاز آخر، فتم تسجيل خروجك لحماية الحساب.");
+    }
+  },25000);
+  return true;
+}
 async function signIn(){
   const login = $("authEmail").value.trim();
   const password = $("authPassword").value;
@@ -908,13 +957,14 @@ async function signIn(){
     ? login
     : `${login.toLowerCase()}@members.invalid`;
 
-  const { error } = await sb.auth.signInWithPassword({
-    email,
-    password
-  });
-
+  const { data, error } = await sb.auth.signInWithPassword({email,password});
   if(error) return toast("تعذر تسجيل الدخول. راجع البيانات وحاول تاني.");
 
+  const allowed=await claimThisDevice(data.user);
+  if(!allowed){
+    if(!deviceSessionBlocked)await sb.auth.signOut();
+    return;
+  }
   closeModal();
   showWelcomeOverlay();
 }
