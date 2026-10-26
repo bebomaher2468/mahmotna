@@ -631,6 +631,79 @@ async function compressImageForUpload(file,maxBytes){
  }
 }
 
+async function compressVideoForUpload(file){
+ if(!file||!/^video\//i.test(file.type||""))return file;
+ if(!("MediaRecorder" in window)||!HTMLCanvasElement.prototype.captureStream)return file;
+ let video=null,canvas=null,sourceUrl=null,canvasStream=null,sourceStream=null,recorder=null;
+ try{
+  sourceUrl=URL.createObjectURL(file);
+  video=document.createElement("video");
+  video.preload="auto";
+  video.playsInline=true;
+  video.muted=false;
+  video.src=sourceUrl;
+  await new Promise((resolve,reject)=>{
+   video.onloadedmetadata=resolve;
+   video.onerror=()=>reject(new Error("تعذّر فتح الفيديو"));
+   video.load();
+  });
+  if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>600)return file;
+  const scale=Math.min(1,1280/Math.max(video.videoWidth||1,video.videoHeight||1));
+  canvas=document.createElement("canvas");
+  canvas.width=Math.max(2,Math.round(video.videoWidth*scale/2)*2);
+  canvas.height=Math.max(2,Math.round(video.videoHeight*scale/2)*2);
+  const ctx=canvas.getContext("2d");
+  if(!ctx)return file;
+  canvasStream=canvas.captureStream(24);
+  const tracks=[...canvasStream.getVideoTracks()];
+  if(typeof video.captureStream==="function"){
+   sourceStream=video.captureStream();
+   tracks.push(...sourceStream.getAudioTracks());
+  }else if(typeof video.mozCaptureStream==="function"){
+   sourceStream=video.mozCaptureStream();
+   tracks.push(...sourceStream.getAudioTracks());
+  }
+  const stream=new MediaStream(tracks);
+  const mimeTypes=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
+  if(!mimeType)return file;
+  const chunks=[];
+  recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:1200000,audioBitsPerSecond:96000});
+  const finished=new Promise((resolve,reject)=>{
+   recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+   recorder.onerror=()=>reject(new Error("تعذّر ضغط الفيديو"));
+   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||"video/webm"}));
+  });
+  recorder.start(1000);
+  const drawFrame=()=>{
+   if(video.ended||video.paused)return;
+   try{ctx.drawImage(video,0,0,canvas.width,canvas.height)}catch(_){}
+   requestAnimationFrame(drawFrame);
+  };
+  await video.play();
+  drawFrame();
+  await new Promise(resolve=>{
+   video.onended=resolve;
+   video.onerror=resolve;
+  });
+  if(recorder.state!=="inactive")recorder.stop();
+  const blob=await finished;
+  stream.getTracks().forEach(track=>track.stop());
+  if(!blob.size||blob.size>=file.size)return file;
+  const base=file.name.replace(/\.[^.]+$/,"")||"video";
+  return new File([blob],base+".webm",{type:"video/webm",lastModified:Date.now()});
+ }catch(err){
+  console.warn("تعذّر ضغط الفيديو، سيتم استخدام الأصل:",err);
+  if(recorder&&recorder.state!=="inactive"){try{recorder.stop()}catch(_){}}
+  return file;
+ }finally{
+  if(canvasStream)canvasStream.getTracks().forEach(track=>track.stop());
+  if(sourceStream)sourceStream.getTracks().forEach(track=>track.stop());
+  if(video){video.pause();video.removeAttribute("src");video.load();}
+  if(sourceUrl)URL.revokeObjectURL(sourceUrl);
+ }
+}
+
 async function uploadMyAvatar(event){
  let file=event.target.files&&event.target.files[0];event.target.value="";if(!file)return;
  if(!currentUser)return toast("سجّل دخولك الأول.");
@@ -1060,6 +1133,10 @@ if(submittingWork)return toast("إيه يا نجم 😂 مستعجل على إي
   if(imageExt.includes(ext)){
    toast("جاري ضغط الصورة وتجهيزها...");
    file=await compressImageForUpload(file,5*1024*1024);
+   ext=(file.name.split(".").pop()||"").toLowerCase();
+  }else if(videoExt.includes(ext)){
+   toast("جاري ضغط الفيديو؛ قد يستغرق وقتًا حسب مدته وجهازك...");
+   file=await compressVideoForUpload(file);
    ext=(file.name.split(".").pop()||"").toLowerCase();
   }
   const maxSize=imageExt.includes(ext)?5*1024*1024:videoExt.includes(ext)?50*1024*1024:15*1024*1024;
