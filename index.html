@@ -56,6 +56,41 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 #submissionPlayer:fullscreen #playerStage,#submissionPlayer:-webkit-full-screen #playerStage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
 #submissionPlayer:fullscreen #submissionPreviewVideo,#submissionPlayer:-webkit-full-screen #submissionPreviewVideo{width:100%;height:100%;max-height:none!important;aspect-ratio:auto;object-fit:contain;}
 #submissionPlayer:fullscreen>div:last-of-type,#submissionPlayer:-webkit-full-screen>div:last-of-type{flex-shrink:0;padding-bottom:max(14px,env(safe-area-inset-bottom));}
+.header-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.header-action,.profile-chip,.header-account-btn{position:relative;isolation:isolate;display:flex;align-items:center;gap:10px;min-height:54px;padding:8px 12px;border:1px solid #ffffff17;border-radius:16px;color:var(--text);font:inherit;text-align:right;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.header-action{min-width:146px;background:linear-gradient(135deg,#172640,#111a2e)}
+.header-action::before,.profile-chip::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 100% 0%,#72e0d122,transparent 58%);z-index:-1}
+.achievement-action::before{background:radial-gradient(circle at 100% 0%,#f5ca7b22,transparent 58%)}
+.header-action:hover,.profile-chip:hover,.header-account-btn:hover{transform:translateY(-2px);border-color:#72e0d177;box-shadow:0 10px 28px #0004}
+.header-action:focus-visible,.profile-chip:focus-visible,.header-account-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.header-action-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:12px;background:#72e0d115;border:1px solid #72e0d128;font-size:18px}
+.achievement-action .header-action-icon{background:#f5ca7b15;border-color:#f5ca7b30}
+.header-action-copy,.profile-chip-copy{display:flex;flex-direction:column;gap:1px;min-width:0}
+.header-action-copy strong,.profile-chip-copy strong{font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-action-meta,.profile-chip-copy small{color:var(--muted);font-size:10px;line-height:1.45;white-space:nowrap}
+.header-action-spark{margin-inline-start:auto;color:var(--cyan);font-size:13px;opacity:.75}
+.achievement-action .header-action-spark{color:var(--gold)}
+.profile-chip{min-width:155px;max-width:220px;background:linear-gradient(135deg,#1a2943,#111a2e);border-color:#72e0d133}
+.header-avatar{display:block;flex:0 0 38px;width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--cyan);background:#17223a;box-shadow:0 0 0 3px #72e0d114}
+.profile-chevron{color:var(--cyan);font-size:17px;margin-inline-start:auto}
+.header-account-btn{justify-content:center;min-width:88px;background:#ffffff08;border-color:var(--line);font-size:12px;font-weight:800}
+.logout-action{min-width:66px;color:#ffb4bc;background:#ff8f9b0d;border-color:#ff8f9b2b}
+@media(max-width:720px){
+ .top{flex-direction:column;align-items:stretch;gap:12px;padding:12px 0}
+ .brand{align-self:flex-start}
+ .header-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+ .header-action,.profile-chip,.header-account-btn{width:100%;min-width:0;min-height:52px;padding:7px 9px;border-radius:14px}
+ .header-action-icon{flex-basis:34px;width:34px;height:34px;font-size:16px}
+ .profile-chip{max-width:none;justify-content:flex-start}
+ .header-avatar{flex-basis:34px;width:34px;height:34px}
+ .profile-chip-copy{flex:1}
+ #authBtn{grid-column:1/-1}
+}
+@media(max-width:370px){
+ .header-action{gap:7px;padding-inline:7px}
+ .header-action-copy strong,.profile-chip-copy strong{font-size:11px}
+ .header-action-meta,.profile-chip-copy small{font-size:9px}
+}
 </style></head>
 <body>
 <header class="container top">
@@ -68,7 +103,25 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
     <small>مجموعة القديس فيلبس الرسول</small>
   </div>
 </div>
- <div class="actions"><button id="notificationToggle" class="btn secondary" onclick="toggleNotificationPanel()" aria-label="مركز الإشعارات">🔔 <span id="notificationUnread" class="badge">0 جديد</span></button><button id="achievementToggle" class="btn secondary" onclick="toggleAchievementPanel()" aria-label="لوحة الإنجازات">🏆 إنجازاتي</button><span id="userChip" class="muted small"></span><button id="authBtn" class="btn secondary" onclick="openAuth()">تسجيل الدخول</button><button id="myProfileBtn" class="btn secondary hidden" onclick="openMyProfile()">👤 صفحتي</button><button id="logoutBtn" class="btn secondary hidden" onclick="logout()">خروج</button></div>
+ <div class="header-actions">
+  <button id="notificationToggle" class="header-action" onclick="toggleNotificationPanel()" aria-label="مركز الإشعارات">
+   <span class="header-action-icon" aria-hidden="true">🔔</span>
+   <span class="header-action-copy"><strong>الإشعارات</strong><small id="notificationUnread" class="header-action-meta">0 جديد</small></span>
+   <span class="header-action-spark" aria-hidden="true">✦</span>
+  </button>
+  <button id="achievementToggle" class="header-action achievement-action" onclick="toggleAchievementPanel()" aria-label="لوحة الإنجازات">
+   <span class="header-action-icon" aria-hidden="true">🏆</span>
+   <span class="header-action-copy"><strong>الإنجازات</strong><small class="header-action-meta">تابع تقدمك</small></span>
+   <span class="header-action-spark" aria-hidden="true">✦</span>
+  </button>
+  <button id="myProfileBtn" class="profile-chip hidden" onclick="openMyProfile()">
+   <img id="headerAvatar" class="header-avatar" src="default-avatar.webp" alt="صورة الحساب">
+   <span class="profile-chip-copy"><strong id="userChip"></strong><small id="headerRole"></small></span>
+   <span class="profile-chevron" aria-hidden="true">⌄</span>
+  </button>
+  <button id="authBtn" class="header-account-btn" onclick="openAuth()">دخول للحساب <span aria-hidden="true">↗</span></button>
+  <button id="logoutBtn" class="header-account-btn logout-action hidden" onclick="logout()">خروج <span aria-hidden="true">⇥</span></button>
+ </div>
 </header>
 <main class="container">
  <section id="appView">
@@ -220,7 +273,10 @@ function ready(){return !!sb}
 function updateAuthUI(){
  $("authBtn").classList.toggle("hidden",!!currentUser);$("logoutBtn").classList.toggle("hidden",!currentUser);$("myProfileBtn").classList.toggle("hidden",!currentUser);
  const visibleName = currentUser ? displayMemberName((profile?.display_name === currentUser.email ? "" : profile?.display_name) || currentUser.email?.split("@")[0] || "") : "";
- $("userChip").textContent=currentUser?visibleName+(isAdmin()?" • مسؤول":" • عضو"):"زائر";
+ $("userChip").textContent=currentUser?visibleName:"";
+ $("headerRole").textContent=currentUser?(isAdmin()?"مسؤول":"عضو"):"";
+ const headerAvatar=$("headerAvatar");
+ if(headerAvatar){headerAvatar.src=currentUser?(profile?.avatar_url||defaultAvatarData()):defaultAvatarData();headerAvatar.alt=currentUser?"صورة "+visibleName:"صورة الحساب";headerAvatar.onerror=()=>{headerAvatar.onerror=null;headerAvatar.src=defaultAvatarData();};}
  $("adminAdd").classList.toggle("hidden",!isAdmin());$("adminAddTop").classList.toggle("hidden",!isAdmin());$("adminSection").classList.toggle("hidden",!isAdmin());
  $("changePasswordSection").classList.toggle("hidden",!currentUser);
 }
@@ -755,7 +811,7 @@ async function uploadMyAvatar(event){
   if(!verify.error&&verify.data?.avatar_url!==pub.data.publicUrl){const {error:cleanupError}=await sb.storage.from("avatars").remove([path]);if(cleanupError)console.error("تعذر تنظيف الصورة الجديدة:",cleanupError.message);}
   return toast("الصورة اترفعت إلى التخزين لكن لم يُحفظ رابطها في profiles. راجع سياسة UPDATE وصلاحية SELECT.");
  }
- profile=res.data;memberProfiles=memberProfiles.filter(p=>p.id!==res.data.id).concat(res.data);
+ profile=res.data;memberProfiles=memberProfiles.filter(p=>p.id!==res.data.id).concat(res.data);updateAuthUI();
  if(oldAvatarPath&&oldAvatarPath!==path){
   const {error:removeError}=await sb.storage.from("avatars").remove([oldAvatarPath]);
   if(removeError){console.error("تعذر حذف الصورة الشخصية القديمة:",removeError.message);toast("تم تحديث الصورة، لكن تعذّر حذف القديمة. راجع صلاحية حذف ملفات avatars.");}
