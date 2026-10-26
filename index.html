@@ -897,12 +897,24 @@ async function signUp(){
 }
 
 async function logout(){
-  if(sb) await sb.auth.signOut();
+  if(sb){
+    const {error}=await sb.auth.signOut();
+    if(error){console.error(error);return toast("تعذّر تسجيل الخروج، حاول تاني.");}
+  }
   currentUser=null;
   profile=null;
   updateAuthUI();
   await loadData();
-  toast("تم تسجيل الخروج");
+  showLogoutOverlay();
+}
+
+function showLogoutOverlay(){
+  const old=document.getElementById("welcomeOverlay");if(old)old.remove();
+  const overlay=document.createElement("div");overlay.id="welcomeOverlay";overlay.className="welcome-overlay";
+  overlay.innerHTML='<div class="welcome-card" role="status" aria-live="polite"><span class="welcome-icon">👋</span><h2>تم تسجيل الخروج بنجاح!</h2><p>نشوفك على خير ✨<br>خدلك بريك وارجع كمّل إنجازاتك لما تكون جاهز.</p><button class="btn primary" onclick="dismissWelcomeOverlay()">تمام 👌</button></div>';
+  overlay.addEventListener("click",function(e){if(e.target===overlay)dismissWelcomeOverlay()});
+  document.body.appendChild(overlay);
+  window.setTimeout(()=>{if(document.getElementById("welcomeOverlay"))dismissWelcomeOverlay()},4200);
 }
 
 
