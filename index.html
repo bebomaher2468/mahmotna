@@ -1595,11 +1595,16 @@ function formatPlayerTime(seconds){
 }
 function initSubmissionVideoPlayer(){
  const v=$("submissionPreviewVideo");if(!v)return;
+ const getKnownDuration=()=>{
+  if(Number.isFinite(v.duration)&&v.duration>0)return v.duration;
+  try{if(v.seekable&&v.seekable.length){const end=v.seekable.end(v.seekable.length-1);if(Number.isFinite(end)&&end>0)return end;}}catch(e){}
+  return 0;
+ };
  const sync=()=>{
-  const duration=Number.isFinite(v.duration)&&v.duration>0?v.duration:0;
+  const duration=getKnownDuration();
   const current=$("playerCurrent"),total=$("playerDuration"),seek=$("playerSeek"),play=$("playerPlayBtn"),big=$("playerBigPlay"),status=$("playerStatus");
   if(current)current.textContent=formatPlayerTime(v.currentTime);
-  if(total)total.textContent=duration?formatPlayerTime(duration):(v.readyState>=1?"غير متاحة":"تحميل...");
+  if(total)total.textContent=duration?formatPlayerTime(duration):"جارٍ تحديد المدة...";
   if(seek&&!seek.matches(":active"))seek.value=duration?String(Math.round(v.currentTime/duration*1000)):0;
   if(play)play.textContent=v.paused?"▶ تشغيل":"❚❚ إيقاف";
   if(big){big.style.display=v.paused?"block":"none";big.textContent=v.ended?"↻":"▶";}
@@ -1607,7 +1612,7 @@ function initSubmissionVideoPlayer(){
   const vol=$("playerVolume");if(vol&&document.activeElement!==vol)vol.value=v.volume;
   const mute=$("playerMute");if(mute)mute.textContent=v.muted||v.volume===0?"🔇":"🔊";
  };
- ["loadedmetadata","durationchange","loadeddata","canplay","timeupdate","play","pause","ended","volumechange","ratechange","error"].forEach(e=>v.addEventListener(e,sync));
+ ["loadedmetadata","durationchange","loadeddata","canplay","progress","timeupdate","play","pause","ended","volumechange","ratechange","error"].forEach(e=>v.addEventListener(e,sync));
  try{v.load()}catch(e){}
  v.addEventListener("error",()=>{const n=$("playerNotice");if(n){n.style.display="block";n.textContent="المتصفح مش قادر يشغّل الصيغة دي. جرّب تحميل الملف أو فتحه في نافذة جديدة."}});
  const stage=$("playerStage");if(stage)stage.addEventListener("dblclick",fullscreenSubmissionVideo);
