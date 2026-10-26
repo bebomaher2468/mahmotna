@@ -616,7 +616,7 @@ async function loadData(){
   if(currentUser){
    // Admin achievement selector needs members even if they have no submissions.
    if(isAdmin()){
-    const {data:allProfiles,error:allProfilesError}=await sb.from("profiles").select("id, display_name, username, role, avatar_url").eq("role","member").order("display_name",{ascending:true});
+    const {data:allProfiles,error:allProfilesError}=await sb.from("profiles").select("id, display_name, username, role, avatar_url").in("role",["member","admin"]).order("display_name",{ascending:true});
     if(allProfilesError)console.error("تعذّر تحميل قائمة الأعضاء:",allProfilesError.message);
     memberProfiles=allProfiles||[];
    }
@@ -1184,12 +1184,12 @@ function renderAchievementDashboard(){
  // Visibility is controlled by toggleAchievementPanel(); keep the panel hidden until clicked.
  const picker=$("achievementAdminPicker");
  picker.classList.toggle("hidden",!isAdmin());
- const members=(memberProfiles||[]).filter(m=>m.role==="member");
+ const achievementProfiles=(memberProfiles||[]).filter(m=>m.role==="member"||m.role==="admin");
  const select=$("achievementMember");
  if(isAdmin()){
   const previous=select.value;
   const ownName=profile?.display_name||currentUser.email?.split("@")[0]||"حسابي";
-  select.innerHTML=`<option value="${esc(currentUser.id)}">🏆 إنجازاتي (${esc(ownName)})</option>`+members.filter(m=>m.id!==currentUser.id).map(m=>`<option value="${esc(m.id)}">${esc(m.display_name||"عضو")}</option>`).join("");
+  select.innerHTML=`<option value="${esc(currentUser.id)}">🏆 إنجازاتي (${esc(ownName)})</option>`+achievementProfiles.filter(m=>m.id!==currentUser.id).map(m=>`<option value="${esc(m.id)}">${m.role==="admin"?"🛡️ ":""}${esc(m.display_name||m.username||"عضو")}${m.role==="admin"?" (مسؤول)":""}</option>`).join("");
   select.value=previous&&Array.from(select.options).some(o=>o.value===previous)?previous:currentUser.id;
  }
  const targetId=isAdmin()?(select.value||currentUser.id):currentUser.id;
