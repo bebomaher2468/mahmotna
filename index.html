@@ -947,26 +947,30 @@ function deviceTokenForUser(userId){
 let deviceHeartbeatTimer=null;
 let deviceSessionBlocked=false;
 const deviceClaimPromises=new Map();
+const verifiedDeviceSessions=new Set();
 async function claimThisDevice(user){
   if(!user||!sb)return false;
-  // Sign-in and onAuthStateChange can fire together; share one claim attempt.
+  const token=deviceTokenForUser(user.id);
+  // Avoid a second network round-trip when signIn and auth-state events overlap.
+  if(verifiedDeviceSessions.has(user.id+":"+token))return true;
   if(deviceClaimPromises.has(user.id))return deviceClaimPromises.get(user.id);
   const attempt=(async()=>{
-    const token=deviceTokenForUser(user.id);
     const {data,error}=await sb.rpc("claim_device_session",{p_device_token:token});
     if(error){
       deviceSessionBlocked=false;
       console.error("تعذّر التحقق من جلسة الجهاز:",error);
-      toast("خطأ Supabase: "+(error.message||error.code||"تعذّر التحقق من الجلسة")+" — افتح Console لمعرفة التفاصيل.");
+      toast("تعذّر التحقق من جلسة الجهاز. حاول مرة أخرى.");
       return false;
     }
     if(data!==true){
       deviceSessionBlocked=true;
+      verifiedDeviceSessions.delete(user.id+":"+token);
       await sb.auth.signOut();
       toast("الحساب مفتوح بالفعل على هاتف أو جهاز تاني. اقفل الجلسة هناك وجرب تاني.");
       return false;
     }
     deviceSessionBlocked=false;
+    verifiedDeviceSessions.add(user.id+":"+token);
     if(deviceHeartbeatTimer)clearInterval(deviceHeartbeatTimer);
     deviceHeartbeatTimer=setInterval(async()=>{
       if(!currentUser||currentUser.id!==user.id)return;
@@ -974,7 +978,9 @@ async function claimThisDevice(user){
       if(result.error)console.error("تعذّر تحديث جلسة الجهاز:",result.error);
       else if(result.data!==true){
         deviceSessionBlocked=true;
+        verifiedDeviceSessions.delete(user.id+":"+token);
         clearInterval(deviceHeartbeatTimer);
+        deviceHeartbeatTimer=null;
         await sb.auth.signOut();
         toast("تم فتح الحساب على جهاز آخر، فتم تسجيل خروجك لحماية الحساب.");
       }
@@ -1112,6 +1118,12 @@ async function signUp(){
 }
 
 async function logout(){
+  const userId=currentUser?.id;
+  if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
+  if(userId){
+    const token=deviceTokenForUser(userId);
+    verifiedDeviceSessions.delete(userId+":"+token);
+  }
   if(sb){
     const {error}=await sb.auth.signOut();
     if(error){console.error(error);return toast("تعذّر تسجيل الخروج، حاول تاني.");}
@@ -1119,8 +1131,9 @@ async function logout(){
   currentUser=null;
   profile=null;
   updateAuthUI();
-  await loadData();
+  // Show completion immediately; refresh public data without blocking the UI.
   showLogoutOverlay();
+  loadData().catch(error=>console.error("تعذّر تحديث البيانات بعد تسجيل الخروج:",error));
 }
 
 function showLogoutOverlay(){
