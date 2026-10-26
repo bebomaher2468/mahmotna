@@ -35,7 +35,9 @@ self.addEventListener("notificationclick", event => {
 
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const appPath = new URL(self.registration.scope).pathname;
     for (const client of windows) {
+      if (!new URL(client.url).pathname.startsWith(appPath)) continue;
       if ("focus" in client) {
         if ("navigate" in client) await client.navigate(url);
         return client.focus();
