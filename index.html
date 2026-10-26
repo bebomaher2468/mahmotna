@@ -655,14 +655,14 @@ async function compressVideoForUpload(file){
   const ctx=canvas.getContext("2d");
   if(!ctx)return file;
   canvasStream=canvas.captureStream(24);
-  const tracks=[...canvasStream.getVideoTracks()];
   if(typeof video.captureStream==="function"){
    sourceStream=video.captureStream();
-   tracks.push(...sourceStream.getAudioTracks());
   }else if(typeof video.mozCaptureStream==="function"){
    sourceStream=video.mozCaptureStream();
-   tracks.push(...sourceStream.getAudioTracks());
+  }else{
+   return file;
   }
+  const tracks=[...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()];
   const stream=new MediaStream(tracks);
   const mimeTypes=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
   const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
