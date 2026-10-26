@@ -604,7 +604,7 @@ async function openMemberProfile(memberId){
  let member=memberId===currentUser.id?profile:memberProfiles.find(p=>p.id===memberId);
  if(!member){const r=await sb.from("profiles").select("id,display_name,role,avatar_url,username").eq("id",memberId).maybeSingle();if(r.error||!r.data)return toast("تعذّر تحميل بيانات العضو.");member=r.data}
  const rows=submissions.filter(s=>s.user_id===memberId), accepted=rows.filter(s=>s.status==="accepted");
- const history=rows.map(s=>'<article class="submission"><div class="submissionhead"><strong>'+esc(s.tasks?.title||"تسليم مهمة")+'</strong><span class="badge '+(s.status==="accepted"?"done":s.status==="rejected"?"late":"")+'">'+esc(submissionStatusLabel(s.status))+'</span></div><p>📅 '+esc(new Date(s.created_at).toLocaleString("ar-EG"))+'</p>'+(s.file_name?'<p>📎 '+esc(s.file_name)+'</p>':"")+(s.link_url?'<p><a href="'+esc(s.link_url)+'" target="_blank" rel="noopener">فتح رابط التسليم</a></p>':"")+(s.submission_text?'<p>'+esc(s.submission_text)+'</p>':"")+(s.admin_feedback?'<p>ملاحظات المسؤول: '+esc(s.admin_feedback)+'</p>':"")+'</article>').join("");
+ const history=rows.map(s=>'<article class="submission"><div class="submissionhead"><strong>'+esc(s.tasks?.title||"تسليم مهمة")+'</strong><span class="badge '+(s.status==="accepted"?"done":s.status==="rejected"?"late":"")+'">'+esc(submissionStatusLabel(s.status))+'</span></div><p>📅 '+esc(new Date(s.created_at).toLocaleString("ar-EG"))+'</p>'+(s.file_path?'<p>📎 '+getSubmissionFiles(s).map(f=>esc(f.name)).join('، ')+'</p>':"")+(s.link_url?'<p><a href="'+esc(s.link_url)+'" target="_blank" rel="noopener">فتح رابط التسليم</a></p>':"")+(s.submission_text?'<p>'+esc(s.submission_text)+'</p>':"")+(s.admin_feedback?'<p>ملاحظات المسؤول: '+esc(s.admin_feedback)+'</p>':"")+'</article>').join("");
  $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>👤 صفحة العضو</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="profile-hero"><img class="member-avatar" src="'+esc(member.avatar_url||defaultAvatarData())+'" alt="الصورة الشخصية" onerror="this.src=defaultAvatarData()"><div><h2 style="margin:0 0 4px">'+esc(displayMemberName(member.display_name||member.username||"عضو"))+'</h2><div class="muted small">'+(member.role==="admin"?"مسؤول":"عضو")+'</div>'+(memberId===currentUser.id?'<button class="btn secondary" style="margin-top:10px" onclick="document.getElementById(\'avatarFileInput\').click()">📷 تغيير الصورة <span class="small muted">(بحد أقصى 3 ميجابايت)</span></button>':"")+'</div></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px"><div class="profile-stat"><div class="muted small">إجمالي التسليمات</div><h2>'+rows.length+'</h2></div><div class="profile-stat"><div class="muted small">المقبولة</div><h2>'+accepted.length+'</h2></div><div class="profile-stat"><div class="muted small">مهام مقبولة مختلفة</div><h2>'+new Set(accepted.map(s=>s.task_id)).size+'</h2></div></div><h3>📋 سجل التسليمات</h3><div class="submissions">'+(history||'<div class="empty">مفيش تسليمات مسجلة لحد دلوقتي.</div>')+'</div></div></div>';
 }
 async function compressImageForUpload(file,maxBytes){
@@ -729,6 +729,13 @@ async function compressVideoForUpload(file){
  }
 }
 
+function getPublicStorageObjectPath(publicUrl,bucket){
+ try{
+  const parsed=new URL(publicUrl),project=new URL(SUPABASE_URL),prefix="/storage/v1/object/public/"+bucket+"/";
+  if(parsed.origin!==project.origin||!parsed.pathname.startsWith(prefix))return null;
+  return parsed.pathname.slice(prefix.length).split("/").map(part=>decodeURIComponent(part)).join("/");
+ }catch(_){return null;}
+}
 async function uploadMyAvatar(event){
  let file=event.target.files&&event.target.files[0];event.target.value="";if(!file)return;
  if(!currentUser)return toast("سجّل دخولك الأول.");
@@ -736,13 +743,25 @@ async function uploadMyAvatar(event){
  toast("جاري تجهيز وضغط الصورة...");
  file=await compressImageForUpload(file,3*1024*1024);
  if(file.size>3*1024*1024)return toast("حجم الصورة أكبر من 3 ميجابايت حتى بعد الضغط. جرّب صورة أصغر.");
+ const oldAvatarPath=getPublicStorageObjectPath(profile?.avatar_url,"avatars");
  const ext=file.type==="image/webp"?"webp":file.type==="image/png"?"png":"jpg",path=currentUser.id+"/avatar-"+Date.now()+"."+ext;
- const up=await sb.storage.from("avatars").upload(path,file,{upsert:true,contentType:file.type});
+ const up=await sb.storage.from("avatars").upload(path,file,{upsert:false,contentType:file.type});
  if(up.error){console.error(up.error);return toast("تعذّر رفع الصورة. راجع صلاحيات مساحة avatars.");}
  const pub=sb.storage.from("avatars").getPublicUrl(path);
  const res=await sb.from("profiles").update({avatar_url:pub.data.publicUrl}).eq("id",currentUser.id).select("id,display_name,role,avatar_url,username").maybeSingle();
- if(res.error||!res.data){console.error(res.error);return toast("الصورة اترفعت لكن حفظ الملف الشخصي فشل. راجع صلاحيات تحديث profiles.");}
- profile=res.data;memberProfiles=memberProfiles.filter(p=>p.id!==res.data.id).concat(res.data);toast("تم تحديث الصورة الشخصية.");openMyProfile();if(isAdmin())await loadMembersList();
+ if(res.error||!res.data){
+  console.error("Profile update after avatar upload failed:",res.error);
+  const verify=await sb.from("profiles").select("avatar_url").eq("id",currentUser.id).maybeSingle();
+  if(!verify.error&&verify.data?.avatar_url!==pub.data.publicUrl){const {error:cleanupError}=await sb.storage.from("avatars").remove([path]);if(cleanupError)console.error("تعذر تنظيف الصورة الجديدة:",cleanupError.message);}
+  return toast("الصورة اترفعت إلى التخزين لكن لم يُحفظ رابطها في profiles. راجع سياسة UPDATE وصلاحية SELECT.");
+ }
+ profile=res.data;memberProfiles=memberProfiles.filter(p=>p.id!==res.data.id).concat(res.data);
+ if(oldAvatarPath&&oldAvatarPath!==path){
+  const {error:removeError}=await sb.storage.from("avatars").remove([oldAvatarPath]);
+  if(removeError){console.error("تعذر حذف الصورة الشخصية القديمة:",removeError.message);toast("تم تحديث الصورة، لكن تعذّر حذف القديمة. راجع صلاحية حذف ملفات avatars.");}
+  else toast("تم تحديث الصورة الشخصية.");
+ }else toast("تم تحديث الصورة الشخصية.");
+ openMyProfile();if(isAdmin())await loadMembersList();
 }
 
 async function loadProfile(){const {data,error}=await sb.from("profiles").select("id,display_name,role,avatar_url,username").eq("id",currentUser.id).maybeSingle();if(error)console.error(error);profile=data||{id:currentUser.id,display_name:currentUser.email,role:"member",avatar_url:null}}
@@ -1292,7 +1311,7 @@ async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عاي�
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
  const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ لرفع أسرع، يفضّل حجم كل صورة يكون ≤ 5 ميجابايت.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"><p class="muted small">📎 PDF بنحاول نحسّنه تلقائيًا؛ ملفات Word وPowerPoint بتترفع بدون تغيير للحفاظ على التنسيق والأنيميشن. الحد الأقصى 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ لرفع أسرع، يفضّل حجم كل صورة يكون ≤ 5 ميجابايت.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 PDF بنحاول نحسّنه تلقائيًا؛ ملفات Word وPowerPoint بتترفع بدون تغيير للحفاظ على التنسيق والأنيميشن. الحد الأقصى 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
@@ -1408,7 +1427,7 @@ async function submitWork(taskId){
   if(expected==="image"&&!imageExt.includes(ext))return toast("خانة الصور تقبل الصور فقط.");
   if(expected==="video"&&!videoExt.includes(ext))return toast("خانة الفيديوهات تقبل الفيديوهات فقط.");
   if(expected==="document"&&!docExt.includes(ext))return toast("خانة الملفات تقبل المستندات فقط.");
-  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&s.file_name===f.name);
+  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&getSubmissionFiles(s).some(file=>file.name===f.name));
   if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\\n"+f.name+" اتسلّم قبل كده في نفس المهمة. تكمل؟"))return toast("تم إلغاء التسليم عشان الملف متكرر.");
   seen.add(f.name);
   // لا نرفض حسب الحجم الأصلي؛ جرّب الضغط أولًا ثم افحص الحجم النهائي قبل الرفع.
@@ -1417,9 +1436,10 @@ async function submitWork(taskId){
  const submitButton=$("modalRoot").querySelector('button[onclick^="submitWork"]');
  if(submitButton){submitButton.disabled=true;submitButton.textContent="جاري الرفع...";}
  let filePath=null,fileName=null;
+ const uploadedPaths=[];
+ const uploadedNames=[];
+ let submissionSaved=false;
  try{
-  let filePath=null,fileName=null;
-  const uploadedPaths=[];
   for(let i=0;i<files.length;i++){
    let uploadFile=files[i];
    let ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
@@ -1445,29 +1465,41 @@ async function submitWork(taskId){
    if(uploadFile.size>limit*1024*1024)throw new Error("حجم الملف "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد محاولة الضغط. جرّب ضغطه أو تصديره بحجم أقل.");
    const safe=uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
    const path=currentUser.id+"/"+taskId+"/"+Date.now()+"_"+i+"_"+safe;
-   await uploadSubmissionFileWithProgress(uploadFile,path);
    uploadedPaths.push(path);
+   uploadedNames.push(uploadFile.name);
+   await uploadSubmissionFileWithProgress(uploadFile,path);
    if(!filePath){filePath=path;fileName=uploadFile.name;}
   }
-  const {error}=await sb.from("submissions").insert({task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:filePath,file_name:fileName,note,status:"submitted"});
+  const {error}=await sb.from("submissions").insert({task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:uploadedPaths.length>1?JSON.stringify(uploadedPaths):filePath,file_name:uploadedNames.length>1?JSON.stringify(uploadedNames):fileName,note,status:"submitted"});
   if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
+  submissionSaved=true;
   updateUploadProgress(100,"التسليم اكتمل بنجاح!","تم رفع الملف وحفظ بيانات التسليم.");
   toast("اتسلّم شغلك بنجاح يا نجم!");
   await loadData();
   await openTask(taskId);
  }catch(err){
-  if(typeof uploadedPaths!=="undefined"&&uploadedPaths.length){
+  let cleanupFailed=false;
+  if(!submissionSaved&&uploadedPaths.length){
    const {error:cleanupError}=await sb.storage.from("submissions").remove(uploadedPaths);
-   if(cleanupError)console.error("تعذر تنظيف الملفات:",cleanupError.message);
+   if(cleanupError){console.error("تعذر تنظيف الملفات:",cleanupError.message);cleanupFailed=true;}
   }
   $("uploadProgressBox")?.classList.add("hidden");
-  toast(err.message||"حصل خطأ أثناء إرسال التسليم.");
+  toast(cleanupFailed?"فشل التسليم وتعذّر تنظيف الملفات المؤقتة. راجع صلاحية حذف ملفات submissions في التخزين.":(err.message||"حصل خطأ أثناء إرسال التسليم."));
  }finally{
   submittingWork=false;activeUploadXHR=null;
   if(submitButton){submitButton.disabled=false;submitButton.textContent="إرسال التسليم";}
  }
 }
 
+
+function getSubmissionFiles(s){
+ if(!s?.file_path)return [];
+ try{
+  const paths=JSON.parse(s.file_path),names=JSON.parse(s.file_name||"null");
+  if(Array.isArray(paths))return paths.map((path,index)=>({path:String(path||""),name:String(Array.isArray(names)?names[index]||("ملف "+(index+1)):"ملف "+(index+1))})).filter(file=>file.path);
+ }catch(_){}
+ return [{path:String(s.file_path),name:String(s.file_name||"ملف")}];
+}
 
 function submissionHTML(s,admin){
  const st={"submitted":"مستلم","reviewing":"قيد المراجعة","accepted":"مقبول","revision":"محتاج تعديل"}[s.status]||s.status;
@@ -1481,7 +1513,7 @@ function submissionHTML(s,admin){
  ${s.submission_text?`<div style="margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><b>الحل المكتوب:</b><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px;line-height:1.8">${esc(s.submission_text)}</div></div>`:""}
  ${s.note?`<p>${esc(s.note)}</p>`:""}
  ${s.link_url?`<p class="linkline">🔗 <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer">فتح لينك التسليم</a></p>`:""}
- ${s.file_path?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="viewSubmission('${s.id}')">👁️ مشاهدة</button><button class="btn secondary" onclick="downloadSubmission('${s.id}')">⬇️ تحميل ${esc(s.file_name||"الملف")}</button></div>`:""}
+ ${s.file_path?`<div class="actions" style="margin-top:10px">${getSubmissionFiles(s).map((f,i)=>`<span class="actions"><button class="btn primary" onclick="viewSubmission('${s.id}',${i})">👁️ ${esc(f.name)}</button><button class="btn secondary" onclick="downloadSubmission('${s.id}',${i})">⬇️ تحميل</button></span>`).join("")}</div>`:""}
  ${s.admin_feedback?`<p>ملاحظة المسؤول: ${esc(s.admin_feedback)}</p>`:""}
 
  ${admin?`
@@ -1547,7 +1579,7 @@ async function deleteSubmission(id){
 
  const {data:s,error:readError}=await sb
   .from("submissions")
-  .select("id,file_path")
+  .select("id,file_path,file_name")
   .eq("id",id)
   .single();
 
@@ -1560,12 +1592,10 @@ async function deleteSubmission(id){
 
  if(error)return toast("فشل الحذف: "+error.message);
 
- if(s.file_path){
-  const {error:fileError}=await sb.storage
-   .from("submissions")
-   .remove([s.file_path]);
-
-  if(fileError)console.error("تعذر حذف الملف المرفق:",fileError.message);
+ const filePaths=getSubmissionFiles(s).map(file=>file.path);
+ if(filePaths.length){
+  const {error:fileError}=await sb.storage.from("submissions").remove(filePaths);
+  if(fileError){console.error("تعذر حذف الملفات المرفقة:",fileError.message);await loadData();return toast("اتحذف سجل التسليم، لكن تعذّر حذف ملفاته من التخزين. راجع صلاحية حذف ملفات submissions.");}
  }
 
  await loadData();
@@ -1648,18 +1678,19 @@ function renderAchievementDashboard(){
   </div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>';
 }
 
-async function getSubmissionFile(id){
+async function getSubmissionFile(id,index=0){
  if(!currentUser)return {error:"سجّل دخولك الأول."};
  const {data:s,error:readError}=await sb.from("submissions").select("id,file_path,file_name").eq("id",id).single();
  if(readError||!s)return {error:"مش قادر أجيب بيانات الملف."};
- if(!s.file_path)return {error:"التسليم ده مفيهوش ملف."};
- const {data,error}=await sb.storage.from("submissions").createSignedUrl(s.file_path,300);
+ const file=getSubmissionFiles(s)[index];
+ if(!file)return {error:"الملف مش موجود في التسليم."};
+ const {data,error}=await sb.storage.from("submissions").createSignedUrl(file.path,300);
  if(error||!data?.signedUrl)return {error:"مش قادر أفتح الملف: "+(error?.message||"حاول تاني")};
- return {url:data.signedUrl,file_name:s.file_name||"ملف"};
+ return {url:data.signedUrl,file_name:file.name};
 }
 
-async function viewSubmission(id){
- const f=await getSubmissionFile(id);if(f.error)return toast(f.error);
+async function viewSubmission(id,index=0){
+ const f=await getSubmissionFile(id,index);if(f.error)return toast(f.error);
  const url=esc(f.url),name=esc(f.file_name),ext=(f.file_name.split(".").pop()||"").toLowerCase();
  const isImage=["jpg","jpeg","png","webp","gif","avif","bmp"].includes(ext);
  const isVideo=["mp4","webm","m4v","mov","ogv","ogg"].includes(ext);
@@ -1669,7 +1700,7 @@ async function viewSubmission(id){
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else if(["ppt","pptx","pps","ppsx"].includes(ext))preview='<iframe title="'+name+'" src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(f.url)+'" style="width:100%;height:70vh;border:0;border-radius:8px" allowfullscreen></iframe><p class="muted small">معاينة PowerPoint بتحتاج إن خدمة Microsoft تقدر توصل للملف. لو المعاينة ما ظهرتش، استخدم التحميل.</p>';
  else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
- $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\')">تحميل ⬇️</button></div></div></div>';
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\','+index+')">تحميل ⬇️</button></div></div></div>';
  if(isVideo)initSubmissionVideoPlayer();
 }
 
@@ -1770,8 +1801,8 @@ document.addEventListener("keydown",function(e){
 
 function openSubmissionFile(url){window.open(url,"_blank","noopener,noreferrer");}
 
-async function downloadSubmission(id){
- const f=await getSubmissionFile(id);if(f.error)return toast(f.error);
+async function downloadSubmission(id,index=0){
+ const f=await getSubmissionFile(id,index);if(f.error)return toast(f.error);
  try{
   const response=await fetch(f.url);
   if(!response.ok)throw new Error("تعذر تنزيل الملف");
