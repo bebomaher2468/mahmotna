@@ -552,7 +552,7 @@ function scheduleLiveRefresh(){
  liveRefreshTimer=setTimeout(async()=>{
   await loadData();
   if(currentUser)await loadNotifications();
- },350);
+ },800);
 }
 
 async function init(){
@@ -567,41 +567,14 @@ if(!ready()){
 
 try{
   const {data:{session}}=await sb.auth.getSession();
-  currentUser=session?.user||null;
-
-  if(currentUser){
-    const allowed=await claimThisDevice(currentUser);
-    if(!allowed){currentUser=null;profile=null;}
-    else await loadProfile();
-  }
-
+  if(session?.user)await activateSession(session.user);
   updateAuthUI();
   await loadData();
 
   subscribeNotifications();
   subscribeLiveData();
-  sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==="PASSWORD_RECOVERY"){
-      currentUser=session?.user||null;
-      updateAuthUI();
-      openRecovery();
-      return;
-    }
-
-    currentUser=session?.user||null;
-    profile=null;
-
-    if(currentUser){
-      const allowed=await claimThisDevice(currentUser);
-      if(!allowed){currentUser=null;profile=null;}
-      else await loadProfile();
-    }
-
-    updateAuthUI();
-    subscribeNotifications();
-    subscribeLiveData();
-    await loadData();
-  });
+  if(currentUser)loadNotifications();
+  sb.auth.onAuthStateChange(onAuthEvent);
 
   if(location.hash.includes("type=recovery")){
     openRecovery();
@@ -774,7 +747,17 @@ async function uploadMyAvatar(event){
 
 async function loadProfile(){const {data,error}=await sb.from("profiles").select("id,display_name,role,avatar_url,username").eq("id",currentUser.id).maybeSingle();if(error)console.error(error);profile=data||{id:currentUser.id,display_name:currentUser.email,role:"member",avatar_url:null}}
 
-async function loadData(){
+// أي طلبات تحميل متداخلة بتتدمج في تحميل واحد بدل ما كل واحد يشتغل لوحده.
+let loadDataPromise=null,loadDataQueued=false;
+function loadData(){
+ if(loadDataPromise){loadDataQueued=true;return loadDataPromise;}
+ loadDataPromise=(async()=>{
+  try{do{loadDataQueued=false;await loadDataNow();}while(loadDataQueued);}
+  finally{loadDataPromise=null;}
+ })();
+ return loadDataPromise;
+}
+async function loadDataNow(){
  if(!sb)return;
 
  const [tr,sr]=await Promise.all([
@@ -948,6 +931,62 @@ let deviceHeartbeatTimer=null;
 let deviceSessionBlocked=false;
 const deviceClaimPromises=new Map();
 const verifiedDeviceSessions=new Set();
+// حالة الدخول: شغل الدخول والخروج بيتعمل بره الـ callback بتاع Supabase عشان ما يتعطّلش.
+let authHandledUserId=null,authBusy=false,signingIn=false,logoutPromise=null;
+function clearStoredAuthTokens(){
+  try{Object.keys(localStorage).filter(k=>k.startsWith("sb-")&&k.endsWith("-auth-token")).forEach(k=>localStorage.removeItem(k));}catch(_){}
+}
+// تفعيل الجلسة: التحقق من الجهاز وتحميل الملف الشخصي بالتوازي (رحلة شبكة واحدة بدل اتنين).
+async function activateSession(user,opts={}){
+  authBusy=true;
+  try{
+    currentUser=user;profile=null;
+    const [allowed]=await Promise.all([claimThisDevice(user),loadProfile()]);
+    if(!allowed){
+      currentUser=null;profile=null;authHandledUserId=null;
+      // scope:"local" مهم: الافتراضي "global" بيقفل جلسات الحساب كلها، حتى على الجهاز الأول.
+      if(deviceSessionBlocked||opts.fresh)await sb.auth.signOut({scope:"local"});
+      updateAuthUI();
+      return false;
+    }
+    authHandledUserId=user.id;
+    updateAuthUI();
+    return true;
+  }finally{authBusy=false;}
+}
+function afterAuthRefresh(){
+  subscribeNotifications();
+  subscribeLiveData();
+  loadData().then(()=>{if(currentUser)return loadNotifications();}).catch(err=>console.error("تعذّر تحديث البيانات بعد الدخول:",err));
+}
+// الـ callback لازم يرجع فورًا: أي await لدالة Supabase جواه بيعطّل signIn/signOut لحد ما يخلص.
+function onAuthEvent(event,session){
+  setTimeout(()=>{handleAuthEvent(event,session).catch(err=>console.error("Auth event error:",err));},0);
+}
+async function handleAuthEvent(event,session){
+  if(event==="PASSWORD_RECOVERY"){
+    currentUser=session?.user||null;
+    updateAuthUI();
+    openRecovery();
+    return;
+  }
+  const user=session?.user||null;
+  if(!user||event==="SIGNED_OUT"){
+    if(!currentUser&&authHandledUserId===null)return; // الخروج اتعمل محليًا بالفعل
+    currentUser=null;profile=null;authHandledUserId=null;
+    if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
+    updateAuthUI();
+    subscribeNotifications();
+    loadNotifications();
+    await loadData();
+    return;
+  }
+  if(signingIn||authBusy||logoutPromise)return;
+  // تجديد التوكن أو رجوع التاب للشاشة: نفس المستخدم، مفيش داعي لإعادة تحميل كل حاجة.
+  if(user.id===authHandledUserId){currentUser=user;return;}
+  if(await activateSession(user))afterAuthRefresh();
+  else await loadData();
+}
 async function claimThisDevice(user){
   if(!user||!sb)return false;
   const token=deviceTokenForUser(user.id);
@@ -965,7 +1004,6 @@ async function claimThisDevice(user){
     if(data!==true){
       deviceSessionBlocked=true;
       verifiedDeviceSessions.delete(user.id+":"+token);
-      await sb.auth.signOut();
       toast("الحساب مفتوح بالفعل على هاتف أو جهاز تاني. اقفل الجلسة هناك وجرب تاني.");
       return false;
     }
@@ -975,13 +1013,14 @@ async function claimThisDevice(user){
     deviceHeartbeatTimer=setInterval(async()=>{
       if(!currentUser||currentUser.id!==user.id)return;
       const result=await sb.rpc("heartbeat_device_session",{p_device_token:token});
+      if(!currentUser||currentUser.id!==user.id)return; // المستخدم خرج أثناء الطلب
       if(result.error)console.error("تعذّر تحديث جلسة الجهاز:",result.error);
       else if(result.data!==true){
         deviceSessionBlocked=true;
         verifiedDeviceSessions.delete(user.id+":"+token);
         clearInterval(deviceHeartbeatTimer);
         deviceHeartbeatTimer=null;
-        await sb.auth.signOut();
+        await sb.auth.signOut({scope:"local"});
         toast("تم فتح الحساب على جهاز آخر، فتم تسجيل خروجك لحماية الحساب.");
       }
     },25000);
@@ -992,6 +1031,7 @@ async function claimThisDevice(user){
   finally{deviceClaimPromises.delete(user.id);}
 }
 async function signIn(){
+  if(signingIn)return;
   const login = $("authEmail").value.trim();
   const password = $("authPassword").value;
 
@@ -1003,16 +1043,28 @@ async function signIn(){
     ? login
     : `${login.toLowerCase()}@members.invalid`;
 
-  const { data, error } = await sb.auth.signInWithPassword({email,password});
-  if(error) return toast("تعذر تسجيل الدخول. راجع البيانات وحاول تاني.");
-
-  const allowed=await claimThisDevice(data.user);
-  if(!allowed){
-    if(!deviceSessionBlocked)await sb.auth.signOut();
-    return;
+  signingIn=true;
+  const btn=document.querySelector('#modalRoot button[onclick="signIn()"]');
+  const btnText=btn?btn.textContent:"";
+  if(btn){btn.disabled=true;btn.textContent="جاري الدخول...";}
+  try{
+    if(logoutPromise)await logoutPromise;
+    const { data, error } = await sb.auth.signInWithPassword({email,password});
+    if(error) return toast("تعذر تسجيل الدخول. راجع البيانات وحاول تاني.");
+    // التحقق من الجهاز وتحميل الملف الشخصي بالتوازي، وبعدها الواجهة تتحدث فورًا.
+    const allowed=await activateSession(data.user,{fresh:true});
+    if(!allowed)return;
+    closeModal();
+    showWelcomeOverlay();
+    // تحميل التاسكات والتسليمات في الخلفية من غير ما نعطّل شاشة الترحيب.
+    afterAuthRefresh();
+  }catch(err){
+    console.error(err);
+    toast("حصل خطأ في الاتصال. حاول تاني.");
+  }finally{
+    signingIn=false;
+    if(btn&&btn.isConnected){btn.disabled=false;btn.textContent=btnText;}
   }
-  closeModal();
-  showWelcomeOverlay();
 }
 
 
@@ -1117,23 +1169,44 @@ async function signUp(){
   toast("لو تأكيد الإيميل مفعّل، افتح رسالة التأكيد وبعدين سجّل دخولك.");
 }
 
-async function logout(){
+function logout(){
+  if(logoutPromise)return logoutPromise;
   const userId=currentUser?.id;
   if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
-  if(userId){
-    const token=deviceTokenForUser(userId);
-    verifiedDeviceSessions.delete(userId+":"+token);
-  }
-  if(sb){
-    const {error}=await sb.auth.signOut();
-    if(error){console.error(error);return toast("تعذّر تسجيل الخروج، حاول تاني.");}
-  }
-  currentUser=null;
-  profile=null;
+  if(userId)verifiedDeviceSessions.delete(userId+":"+deviceTokenForUser(userId));
+  // الواجهة بتتحدث فورًا من غير ما تستنى الشبكة.
+  currentUser=null;profile=null;authHandledUserId=null;submissions=[];memberProfiles=[];
+  $("notificationCenter")?.classList.add("hidden");
+  $("achievementDashboard")?.classList.add("hidden");
   updateAuthUI();
-  // Show completion immediately; refresh public data without blocking the UI.
+  subscribeNotifications();
+  loadNotifications();
+  renderTasks();
+  renderMySubs();
   showLogoutOverlay();
-  loadData().catch(error=>console.error("تعذّر تحديث البيانات بعد تسجيل الخروج:",error));
+  // scope:"local": يقفل الجلسة دي بس (الافتراضي "global" بيقفل كل جلسات الحساب).
+  logoutPromise=(async()=>{
+    try{
+      if(sb){
+        if(userId){
+          // تحرير حجز الجهاز في الداتابيز قبل قفل الجلسة، عشان الحساب يتفتح على جهاز تاني فورًا.
+          // لو الدالة لسه ما اتضافتش أو فشلت، بنكمل خروج عادي.
+          await Promise.race([
+            sb.rpc("release_device_session",{p_device_token:deviceTokenForUser(userId)}).then(()=>{},()=>{}),
+            new Promise(resolve=>setTimeout(resolve,3000))
+          ]);
+        }
+        const {error}=await sb.auth.signOut({scope:"local"});
+        if(error){console.error(error);clearStoredAuthTokens();}
+      }
+    }catch(err){
+      console.error(err);clearStoredAuthTokens();
+    }finally{
+      logoutPromise=null;
+    }
+    loadData().catch(error=>console.error("تعذّر تحديث البيانات بعد تسجيل الخروج:",error));
+  })();
+  return logoutPromise;
 }
 
 function showLogoutOverlay(){
