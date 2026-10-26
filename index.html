@@ -594,12 +594,51 @@ async function openMemberProfile(memberId){
  const history=rows.map(s=>'<article class="submission"><div class="submissionhead"><strong>'+esc(s.tasks?.title||"تسليم مهمة")+'</strong><span class="badge '+(s.status==="accepted"?"done":s.status==="rejected"?"late":"")+'">'+esc(submissionStatusLabel(s.status))+'</span></div><p>📅 '+esc(new Date(s.created_at).toLocaleString("ar-EG"))+'</p>'+(s.file_name?'<p>📎 '+esc(s.file_name)+'</p>':"")+(s.link_url?'<p><a href="'+esc(s.link_url)+'" target="_blank" rel="noopener">فتح رابط التسليم</a></p>':"")+(s.submission_text?'<p>'+esc(s.submission_text)+'</p>':"")+(s.admin_feedback?'<p>ملاحظات المسؤول: '+esc(s.admin_feedback)+'</p>':"")+'</article>').join("");
  $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>👤 صفحة العضو</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="profile-hero"><img class="member-avatar" src="'+esc(member.avatar_url||defaultAvatarData())+'" alt="الصورة الشخصية" onerror="this.src=defaultAvatarData()"><div><h2 style="margin:0 0 4px">'+esc(displayMemberName(member.display_name||member.username||"عضو"))+'</h2><div class="muted small">'+(member.role==="admin"?"مسؤول":"عضو")+'</div>'+(memberId===currentUser.id?'<button class="btn secondary" style="margin-top:10px" onclick="document.getElementById(\'avatarFileInput\').click()">📷 تغيير الصورة <span class="small muted">(بحد أقصى 3 ميجابايت)</span></button>':"")+'</div></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px"><div class="profile-stat"><div class="muted small">إجمالي التسليمات</div><h2>'+rows.length+'</h2></div><div class="profile-stat"><div class="muted small">المقبولة</div><h2>'+accepted.length+'</h2></div><div class="profile-stat"><div class="muted small">مهام مقبولة مختلفة</div><h2>'+new Set(accepted.map(s=>s.task_id)).size+'</h2></div></div><h3>📋 سجل التسليمات</h3><div class="submissions">'+(history||'<div class="empty">مفيش تسليمات مسجلة لحد دلوقتي.</div>')+'</div></div></div>';
 }
+async function compressImageForUpload(file,maxBytes){
+ if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type||""))return file;
+ try{
+  let bitmap;
+  if("createImageBitmap" in window)bitmap=await createImageBitmap(file);
+  else{
+   bitmap=await new Promise((resolve,reject)=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("تعذّر قراءة الصورة"))};
+    img.src=url;
+   });
+  }
+  const maxDimension=1920,scale=Math.min(1,maxDimension/Math.max(bitmap.width,bitmap.height));
+  const canvas=document.createElement("canvas");
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+  canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const ctx=canvas.getContext("2d");
+  if(!ctx)throw new Error("Canvas unavailable");
+  ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+  if(typeof bitmap.close==="function")bitmap.close();
+  let quality=.84,blob=null;
+  do{
+   blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",quality));
+   if(!blob)throw new Error("Image compression failed");
+   if(blob.size<=maxBytes||quality<=.5)break;
+   quality-=.1;
+  }while(quality>=.5);
+  if(blob.size>=file.size)return file;
+  const base=file.name.replace(/\.[^.]+$/,"")||"image";
+  return new File([blob],base+".webp",{type:"image/webp",lastModified:Date.now()});
+ }catch(err){
+  console.warn("تعذّر ضغط الصورة، سيتم استخدام الأصل:",err);
+  return file;
+ }
+}
+
 async function uploadMyAvatar(event){
- const file=event.target.files&&event.target.files[0];event.target.value="";if(!file)return;
+ let file=event.target.files&&event.target.files[0];event.target.value="";if(!file)return;
  if(!currentUser)return toast("سجّل دخولك الأول.");
  if(!["image/jpeg","image/png","image/webp"].includes(file.type))return toast("اختار صورة PNG أو JPG أو WEBP.");
- if(file.size>3*1024*1024)return toast("حجم الصورة لازم يكون 3 ميجابايت أو أقل.");
- const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg",path=currentUser.id+"/avatar-"+Date.now()+"."+ext;
+ toast("جاري تجهيز وضغط الصورة...");
+ file=await compressImageForUpload(file,3*1024*1024);
+ if(file.size>3*1024*1024)return toast("حجم الصورة أكبر من 3 ميجابايت حتى بعد الضغط. جرّب صورة أصغر.");
+ const ext=file.type==="image/webp"?"webp":file.type==="image/png"?"png":"jpg",path=currentUser.id+"/avatar-"+Date.now()+"."+ext;
  const up=await sb.storage.from("avatars").upload(path,file,{upsert:true,contentType:file.type});
  if(up.error){console.error(up.error);return toast("تعذّر رفع الصورة. راجع صلاحيات مساحة avatars.");}
  const pub=sb.storage.from("avatars").getPublicUrl(path);
@@ -1004,7 +1043,7 @@ if(submittingWork)return toast("إيه يا نجم 😂 مستعجل على إي
  const t=tasks.find(x=>x.id===taskId);
  if(!t||t.status==="done")return toast("التاسك مقفولة.");
 
- const file=$("submitFile")?.files?.[0]||null;
+ let file=$("submitFile")?.files?.[0]||null;
  const link=$("submitLink")?.value.trim()||null;
  const submissionText=$("submitText")?.value.trim()||"";
  const note=$("submitNote")?.value.trim()||"";
@@ -1012,16 +1051,20 @@ if(submittingWork)return toast("إيه يا نجم 😂 مستعجل على إي
  if(!file&&!link&&!submissionText)
   return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
 
-
  if(file){
-  const ext=(file.name.split(".").pop()||"").toLowerCase();
+  let ext=(file.name.split(".").pop()||"").toLowerCase();
   const imageExt=["jpg","jpeg","png","webp"];
   const videoExt=["mp4","webm","mov","m4v","avi"];
   const allowedExt=[...imageExt,...videoExt,"pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
   if(!allowedExt.includes(ext))return toast("نوع الملف ده مش مسموح بيه.");
+  if(imageExt.includes(ext)){
+   toast("جاري ضغط الصورة وتجهيزها...");
+   file=await compressImageForUpload(file,5*1024*1024);
+   ext=(file.name.split(".").pop()||"").toLowerCase();
+  }
   const maxSize=imageExt.includes(ext)?5*1024*1024:videoExt.includes(ext)?50*1024*1024:15*1024*1024;
   const maxLabel=imageExt.includes(ext)?"5":videoExt.includes(ext)?"50":"15";
-  if(file.size>maxSize)return toast("الحد الأقصى للنوع ده "+maxLabel+" ميجابايت.");
+  if(file.size>maxSize)return toast("حجم الملف أكبر من "+maxLabel+" ميجابايت حتى بعد الضغط.");
  }
 
  submittingWork=true;
