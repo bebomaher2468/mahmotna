@@ -135,6 +135,15 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   <div class="stats"><div class="stat"><strong id="statOpen">—</strong><span>تاسكات مفتوحة</span></div><div class="stat"><strong id="statDone">—</strong><span>تاسكات مكتملة</span></div><div class="stat"><strong id="statSubs">—</strong><span>إجمالي التسليمات</span></div></div>
   <section id="notificationCenter" class="notification-popover panel hidden" aria-label="مركز الإشعارات">
     <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🔔 الإشعارات</h2><p>آخر تحديثات مهامك</p></div><div class="actions"><button class="btn secondary" onclick="markAllNotificationsRead()">قراءة الكل</button><button class="xbtn" onclick="toggleNotificationPanel(false)" aria-label="إغلاق">✕</button></div></div>
+    <div id="pushControls" class="notice hidden" style="margin:0 0 12px">
+      <p style="margin:0 0 9px">فعّل تنبيهات الجهاز عشان توصلك المهام الجديدة حتى لو الموقع مقفول.</p>
+      <div class="actions">
+        <button id="enablePushBtn" class="btn primary" onclick="enablePushNotifications()">🔔 تفعيل على الجهاز</button>
+        <button id="testPushBtn" class="btn secondary hidden" onclick="sendTestPush()">إرسال إشعار تجريبي</button>
+        <button id="disablePushBtn" class="btn danger hidden" onclick="disablePushNotifications()">إيقاف على الجهاز</button>
+      </div>
+      <p id="pushStatusText" class="small muted" style="margin:8px 0 0"></p>
+    </div>
     <div id="notificationsList" class="submissions"><div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div></div>
   </section>
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
@@ -554,8 +563,86 @@ async function changeMyPassword() {
 
 function toggleAchievementPanel(force){const panel=$("achievementDashboard");if(!panel)return;if(!currentUser)return toast("سجّل دخولك عشان تشوف إنجازاتك.");const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");$("notificationCenter")?.classList.add("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";renderAchievementDashboard();}}
 function toggleNotificationPanel(force){const panel=$("notificationCenter");if(!panel)return;const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");$("achievementDashboard")?.classList.add("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";loadNotifications();}}
+function pushBase64ToBytes(value){
+ const normalized=value.replace(/-/g,"+").replace(/_/g,"/");
+ const padded=normalized+"=".repeat((4-normalized.length%4)%4);
+ const raw=atob(padded),bytes=new Uint8Array(raw.length);
+ for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ return bytes;
+}
+function samePushKey(left,right){
+ if(!left)return false;
+ const a=new Uint8Array(left),b=right;
+ if(a.length!==b.length)return false;
+ for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;
+ return true;
+}
+async function updatePushControls(){
+ const box=$("pushControls");if(!box)return;
+ box.classList.toggle("hidden",!currentUser);
+ const enable=$("enablePushBtn"),test=$("testPushBtn"),disable=$("disablePushBtn"),status=$("pushStatusText");
+ if(!currentUser)return;
+ if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)){
+  status.textContent="المتصفح ده لا يدعم إشعارات الجهاز.";
+  enable.disabled=true;test.classList.add("hidden");disable.classList.add("hidden");return;
+ }
+ enable.disabled=Notification.permission==="denied";
+ let subscription=null;
+ try{const registration=await navigator.serviceWorker.getRegistration();if(registration)subscription=await registration.pushManager.getSubscription();}
+ catch(error){console.warn("تعذر فحص اشتراك الإشعارات:",error);}
+ const active=Notification.permission==="granted"&&!!subscription;
+ test.classList.toggle("hidden",!active);disable.classList.toggle("hidden",!active);
+ if(active){status.textContent="إشعارات الجهاز مفعّلة على هذا الجهاز.";enable.textContent="تحديث اشتراك الجهاز";}
+ else if(Notification.permission==="denied"){status.textContent="الإشعارات مرفوضة من المتصفح. اسمح بها من إعدادات الموقع ثم جرّب تاني.";enable.textContent="الإشعارات محظورة";}
+ else{status.textContent="الإشعارات غير مفعّلة على هذا الجهاز.";enable.textContent="🔔 تفعيل على الجهاز";}
+}
+async function enablePushNotifications(){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))return toast("المتصفح ده لا يدعم إشعارات الجهاز.");
+ const button=$("enablePushBtn");if(button)button.disabled=true;
+ try{
+  const permission=await Notification.requestPermission();
+  if(permission!=="granted")throw new Error(permission==="denied"?"اسمح بالإشعارات من إعدادات الموقع في المتصفح.":"لم يتم السماح بالإشعارات.");
+  const {data,error}=await sb.functions.invoke("send-push",{body:{action:"public_key"}});
+  if(error||!data?.publicKey)throw new Error(data?.error||"إعداد إشعارات الجهاز على الخادم لم يكتمل بعد.");
+  const appServerKey=pushBase64ToBytes(data.publicKey);
+  const appRoot=new URL("./",location.href);
+  await navigator.serviceWorker.register(new URL("./sw.js",location.href),{scope:appRoot.pathname});
+  const ready=await navigator.serviceWorker.ready;
+  let subscription=await ready.pushManager.getSubscription();
+  if(subscription&&!samePushKey(subscription.options?.applicationServerKey,appServerKey)){await subscription.unsubscribe();subscription=null;}
+  if(!subscription)subscription=await ready.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:appServerKey});
+  const details=subscription.toJSON();
+  if(!details.endpoint||!details.keys?.p256dh||!details.keys?.auth)throw new Error("المتصفح لم يرجع بيانات اشتراك كاملة.");
+  const {error:saveError}=await sb.rpc("save_push_subscription",{p_endpoint:details.endpoint,p_keys:details.keys});
+  if(saveError)throw saveError;
+  toast("اتفعّلت إشعارات الجهاز بنجاح.");
+ }catch(error){console.error("Push subscription:",error);toast(error?.message||"تعذر تفعيل إشعارات الجهاز.");}
+ finally{if(button)button.disabled=false;updatePushControls();}
+}
+async function sendTestPush(){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ try{
+  const {data,error}=await sb.functions.invoke("send-push",{body:{action:"send_test"}});
+  if(error||!data?.ok)throw new Error(data?.error||"تعذر إرسال الإشعار التجريبي.");
+  toast(data.sent?"بعتنا إشعارًا تجريبيًا للجهاز.":"مفيش اشتراك نشط على الجهاز ده.");
+ }catch(error){console.error("Test push:",error);toast(error?.message||"تعذر إرسال الإشعار التجريبي.");}
+}
+async function disablePushNotifications(){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ try{
+  const registration=await navigator.serviceWorker.getRegistration();
+  const subscription=registration?await registration.pushManager.getSubscription():null;
+  if(!subscription){toast("مفيش إشعار مفعّل على الجهاز ده.");updatePushControls();return;}
+  const {error}=await sb.from("push_subscriptions").delete().eq("endpoint",subscription.endpoint);
+  if(error)throw error;
+  await subscription.unsubscribe();
+  toast("اتوقفت إشعارات الجهاز ده.");
+ }catch(error){console.error("Disable push:",error);toast(error?.message||"تعذر إيقاف إشعارات الجهاز.");}
+ finally{updatePushControls();}
+}
 async function loadNotifications(){
- const list=$("notificationsList"); if(!list)return;
+ const list=$("notificationsList"); if(!list)return; updatePushControls();
  if(!currentUser){$("notificationUnread").textContent="0 جديد";list.innerHTML='<div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div>';return;}
  const {data,error}=await sb.from("notifications").select("id,title,body,kind,task_id,read_at,created_at").order("created_at",{ascending:false}).limit(30);
  if(error){console.error("Notifications:",error);list.innerHTML='<div class="notice">فعّل مركز الإشعارات بتشغيل ملف supabase/notifications.sql في Supabase SQL Editor.</div>';return;}
@@ -1360,9 +1447,19 @@ function openTaskForm(id=null){
  $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${t?"تعديل تاسك":"إضافة تاسك جديد"}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="formgrid"><div><label class="label">عنوان التاسك *</label><input id="taskTitle" class="field" maxlength="140" value="${esc(t?.title||"")}" placeholder="مثال: تجهيز عرض الاجتماع"></div><div><label class="label">التفاصيل</label><textarea id="taskDesc" class="field" rows="4" placeholder="اكتب المطلوب بوضوح...">${esc(t?.description||"")}</textarea></div><div class="formrow"><div><label class="label">آخر موعد</label><input id="taskDue" class="field" type="date" value="${esc(t?.due_date||"")}"></div><div><label class="label">حالة التاسك</label><select id="taskStatus" class="field"><option value="open" ${!t||t.status==="open"?"selected":""}>مفتوحة</option><option value="done" ${t?.status==="done"?"selected":""}>مكتملة / أرشيف</option></select></div></div><div><label class="label">لينك مرجعي (اختياري)</label><input id="taskLink" class="field" type="url" value="${esc(t?.reference_url||"")}" placeholder="https://..."></div><div><label class="label">طريقة التسليم المسموحة</label><select id="taskSubmission" class="field"><option value="both" ${!t||t.submission_type==="both"?"selected":""}>ملفات أو لينكات</option><option value="file" ${t?.submission_type==="file"?"selected":""}>ملفات فقط</option><option value="link" ${t?.submission_type==="link"?"selected":""}>لينكات فقط</option></select></div><button class="btn primary" onclick="saveTask('${id||""}')">حفظ التاسك</button>${t?`<button class="btn danger" onclick="deleteTask('${t.id}')">حذف التاسك</button>`:""}</div></div></div>`
 }
 async function saveTask(id){
- if(!isAdmin())return toast("الصلاحية دي للمسؤولين بس.");const title=$("taskTitle").value.trim();if(!title)return toast("عنوان التاسك مطلوب.");
+ if(!isAdmin())return toast("الصلاحية دي للمسؤولين بس.");
+ const title=$("taskTitle").value.trim();if(!title)return toast("عنوان التاسك مطلوب.");
  const payload={title,description:$("taskDesc").value.trim(),due_date:$("taskDue").value||null,status:$("taskStatus").value,reference_url:$("taskLink").value.trim()||null,submission_type:$("taskSubmission").value,created_by:currentUser.id};
- const {error}=id?await sb.from("tasks").update(payload).eq("id",id):await sb.from("tasks").insert(payload);if(error)return toast("فشل الحفظ: "+error.message);closeModal();await loadData();toast("اتحفظ التاسك بنجاح")}
+ const result=id?await sb.from("tasks").update(payload).eq("id",id):await sb.from("tasks").insert(payload).select("id").single();
+ if(result.error)return toast("فشل الحفظ: "+result.error.message);
+ const createdTaskId=id?null:result.data?.id;
+ closeModal();await loadData();
+ if(createdTaskId){
+  const {data,error}=await sb.functions.invoke("send-push",{body:{action:"task_created",task_id:createdTaskId}});
+  if(error||!data?.ok){console.error("Task push:",error||data);toast("اتحفظت التاسك، لكن تنبيه الأجهزة ما اتبعتش. راجع إعداد الإشعارات.");return;}
+ }
+ toast("اتحفظ التاسك بنجاح")
+}
 async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عايز تحذف التاسك؟ ده هيحذف بيانات التاسك المرتبطة بيه."))return;const {error}=await sb.from("tasks").delete().eq("id",id);if(error)return toast(error.message);closeModal();await loadData();toast("تم حذف التاسك")}
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
@@ -1923,7 +2020,18 @@ async function loadAdminSubs(){
     :'<div class="empty">لسه مفيش تسليمات.</div>';
 }
 
-async function updateSubmission(id){if(!isAdmin())return;const status=$("status_"+id).value,admin_feedback=$("feedback_"+id).value.trim();const {error}=await sb.from("submissions").update({status,admin_feedback,reviewed_by:currentUser.id}).eq("id",id);if(error)return toast("فشل تحديث التسليم: "+error.message);await loadData();toast("تم حفظ مراجعة التسليم")}
+async function updateSubmission(id){
+ if(!isAdmin())return;
+ const status=$("status_"+id).value,admin_feedback=$("feedback_"+id).value.trim();
+ const {error}=await sb.from("submissions").update({status,admin_feedback,reviewed_by:currentUser.id}).eq("id",id);
+ if(error)return toast("فشل تحديث التسليم: "+error.message);
+ await loadData();
+ if(status==="accepted"||status==="revision"){
+  const {data,error:pushError}=await sb.functions.invoke("send-push",{body:{action:"submission_status",submission_id:id}});
+  if(pushError||!data?.ok)console.error("Submission push:",pushError||data);
+ }
+ toast("تم حفظ مراجعة التسليم")
+}
 function setupScrollAnimations(){
  const selector=".hero,.stats,.sectionhead,.stat,.task,.panel,.submission,.hero-card";
  const seen=new WeakSet();
