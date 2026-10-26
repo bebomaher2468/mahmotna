@@ -1237,6 +1237,13 @@ function formatRemaining(seconds){
  if(seconds<60)return "فاضل حوالي "+seconds+" ثانية";
  return "فاضل حوالي "+Math.floor(seconds/60)+" دقيقة و"+(seconds%60)+" ثانية";
 }
+// ملفات Word وPowerPoint تُرفع كما هي للحفاظ على النصوص والتنسيق والصور والأنيميشن.
+function prepareOfficeFileForUpload(file){
+ if(!file)return file;
+ const ext=(file.name.split(".").pop()||"").toLowerCase();
+ return ["doc","docx","ppt","pptx"].includes(ext)?file:file;
+}
+
 async function compressPdfForUpload(file){
  if(!file||!(/\.pdf$/i.test(file.name)||file.type==="application/pdf"))return file;
  try{
@@ -1334,6 +1341,10 @@ async function submitWork(taskId){
    }else if(ext==="pdf"){
     updateUploadProgress(0,"جاري تحسين PDF "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressPdfForUpload(uploadFile);
+   }
+   else if(["doc","docx","ppt","pptx"].includes(ext)){
+    updateUploadProgress(0,"جاري تجهيز مستند Office "+(i+1)+" من "+files.length,"هنحافظ على الملف الأصلي بدون تغيير التنسيق أو المحتوى: "+uploadFile.name);
+    uploadFile=prepareOfficeFileForUpload(uploadFile);
    }
    ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
    // الصور 5MB، والفيديوهات والمستندات 50MB بعد محاولة تحسين PDF.
