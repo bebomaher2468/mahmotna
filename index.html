@@ -50,7 +50,13 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
- .notification-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:25;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.notification-popover .submissions{margin-top:8px}.notification-popover .submission{padding:12px}.notification-popover .submission p{margin:7px 0;line-height:1.7}.notification-popover .sectionhead{gap:8px}.notification-popover .sectionhead .actions{flex-wrap:nowrap}.notification-popover .btn{padding:7px 9px;font-size:12px}@media(max-width:580px){.notification-popover{top:74px;right:12px;max-height:75vh}.notification-popover #notificationsList .submissionhead{align-items:flex-start;flex-direction:column;gap:4px}} .achievement-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:24;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.achievement-popover .sectionhead{gap:8px}.achievement-popover .grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.achievement-popover .panel{min-width:0}.achievement-popover h2{overflow-wrap:anywhere}.achievement-popover .submissions{margin-top:8px}.achievement-popover .submission{padding:10px}@media(max-width:580px){.achievement-popover{top:74px;right:12px;max-height:75vh}.actions{gap:5px}.actions #achievementToggle{padding:8px;font-size:11px}}</style></head>
+ .notification-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:25;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.notification-popover .submissions{margin-top:8px}.notification-popover .submission{padding:12px}.notification-popover .submission p{margin:7px 0;line-height:1.7}.notification-popover .sectionhead{gap:8px}.notification-popover .sectionhead .actions{flex-wrap:nowrap}.notification-popover .btn{padding:7px 9px;font-size:12px}@media(max-width:580px){.notification-popover{top:74px;right:12px;max-height:75vh}.notification-popover #notificationsList .submissionhead{align-items:flex-start;flex-direction:column;gap:4px}} .achievement-popover{position:fixed;top:82px;right:max(12px,calc((100vw - 1180px)/2));width:min(430px,calc(100vw - 24px));max-height:72vh;overflow:auto;padding:16px;z-index:24;box-shadow:0 24px 70px #000a;backdrop-filter:blur(18px);border-color:#405579}.achievement-popover .sectionhead{gap:8px}.achievement-popover .grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.achievement-popover .panel{min-width:0}.achievement-popover h2{overflow-wrap:anywhere}.achievement-popover .submissions{margin-top:8px}.achievement-popover .submission{padding:10px}@media(max-width:580px){.achievement-popover{top:74px;right:12px;max-height:75vh}.actions{gap:5px}.actions #achievementToggle{padding:8px;font-size:11px}}
+/* Keep the full custom control bar visible while the entire player is fullscreen */
+#submissionPlayer:fullscreen,#submissionPlayer:-webkit-full-screen{width:100vw;height:100vh;max-width:none;max-height:none;border:0;border-radius:0;display:flex;flex-direction:column;background:#090b12;}
+#submissionPlayer:fullscreen #playerStage,#submissionPlayer:-webkit-full-screen #playerStage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#submissionPlayer:fullscreen #submissionPreviewVideo,#submissionPlayer:-webkit-full-screen #submissionPreviewVideo{width:100%;height:100%;max-height:none!important;aspect-ratio:auto;object-fit:contain;}
+#submissionPlayer:fullscreen>div:last-of-type,#submissionPlayer:-webkit-full-screen>div:last-of-type{flex-shrink:0;padding-bottom:max(14px,env(safe-area-inset-bottom));}
+</style></head>
 <body>
 <header class="container top">
  <div class="brand">
@@ -1617,9 +1623,14 @@ function setSubmissionVideoVolume(value){const v=$("submissionPreviewVideo");if(
 function toggleSubmissionMute(){const v=$("submissionPreviewVideo");if(v){v.muted=!v.muted;const vol=$("playerVolume");if(vol&&!v.muted&&v.volume===0){v.volume=.7;vol.value=.7;}}}
 function setSubmissionVideoSpeed(speed){const video=$("submissionPreviewVideo");if(video)video.playbackRate=Number(speed)||1;}
 async function fullscreenSubmissionVideo(){
- const el=$("playerStage")||$("submissionPreviewVideo");if(!el)return;
- try{if(document.fullscreenElement){await document.exitFullscreen()}else if(el.requestFullscreen){await el.requestFullscreen()}else if(el.webkitEnterFullscreen){el.webkitEnterFullscreen()}}
- catch(e){toast("ملء الشاشة مش متاح على المتصفح ده.");}
+ const player=$("submissionPlayer"),video=$("submissionPreviewVideo");if(!player)return;
+ try{
+  if(document.fullscreenElement||document.webkitFullscreenElement){if(document.exitFullscreen)await document.exitFullscreen();else if(document.webkitExitFullscreen)document.webkitExitFullscreen();return;}
+  if(player.requestFullscreen){await player.requestFullscreen();}
+  else if(player.webkitRequestFullscreen){player.webkitRequestFullscreen();}
+  else if(video&&video.webkitEnterFullscreen){video.webkitEnterFullscreen();}
+  else toast("ملء الشاشة مش مدعوم في المتصفح ده.");
+ }catch(e){toast("تعذّر فتح ملء الشاشة. جرّب الضغط على الزر مرة تانية.");}
 }
 async function pipSubmissionVideo(){
  const v=$("submissionPreviewVideo");if(!v)return;
