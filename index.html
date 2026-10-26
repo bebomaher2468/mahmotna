@@ -523,7 +523,30 @@ function subscribeNotifications(){
  if(notificationChannel&&sb)sb.removeChannel(notificationChannel);
  notificationChannel=null;
  if(!currentUser||!sb)return;
- notificationChannel=sb.channel("notifications-"+currentUser.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUser.id},()=>loadNotifications()).subscribe();
+ notificationChannel=sb.channel("notifications-"+currentUser.id)
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUser.id},()=>loadNotifications())
+  .subscribe();
+}
+
+// Keep the page in sync with changes made by admins or other devices.
+let liveDataChannel=null;
+let liveRefreshTimer=null;
+function subscribeLiveData(){
+ if(liveDataChannel&&sb)sb.removeChannel(liveDataChannel);
+ liveDataChannel=null;
+ if(!sb)return;
+ liveDataChannel=sb.channel("mahmotna-live-data")
+  .on("postgres_changes",{event:"*",schema:"public",table:"tasks"},scheduleLiveRefresh)
+  .on("postgres_changes",{event:"*",schema:"public",table:"submissions"},scheduleLiveRefresh)
+  .on("postgres_changes",{event:"*",schema:"public",table:"profiles"},scheduleLiveRefresh)
+  .subscribe((status)=>{if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")console.error("Realtime connection status:",status);});
+}
+function scheduleLiveRefresh(){
+ if(liveRefreshTimer)clearTimeout(liveRefreshTimer);
+ liveRefreshTimer=setTimeout(async()=>{
+  await loadData();
+  if(currentUser)await loadNotifications();
+ },350);
 }
 
 async function init(){
@@ -550,6 +573,7 @@ try{
   await loadData();
 
   subscribeNotifications();
+  subscribeLiveData();
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==="PASSWORD_RECOVERY"){
       currentUser=session?.user||null;
@@ -569,6 +593,7 @@ try{
 
     updateAuthUI();
     subscribeNotifications();
+    subscribeLiveData();
     await loadData();
   });
 
