@@ -921,7 +921,7 @@ async function claimThisDevice(user){
   const {data,error}=await sb.rpc("claim_device_session",{p_device_token:token});
   if(error){
     console.error("تعذّر التحقق من جلسة الجهاز:",error);
-    toast("ميزة منع فتح الحساب على جهازين محتاجة تفعيل إعداداتها في Supabase أولًا.");
+    toast("خطأ Supabase: "+(error.message||error.code||"تعذّر التحقق من الجلسة")+" — افتح Console لمعرفة التفاصيل.");
     return false;
   }
   if(data!==true){
