@@ -1188,10 +1188,11 @@ function renderAchievementDashboard(){
  const select=$("achievementMember");
  if(isAdmin()){
   const previous=select.value;
-  select.innerHTML=members.map(m=>`<option value="${esc(m.id)}">${esc(m.display_name||"عضو")}</option>`).join("");
-  if(members.some(m=>m.id===previous))select.value=previous;
+  const ownName=profile?.display_name||currentUser.email?.split("@")[0]||"حسابي";
+  select.innerHTML=`<option value="${esc(currentUser.id)}">🏆 إنجازاتي (${esc(ownName)})</option>`+members.filter(m=>m.id!==currentUser.id).map(m=>`<option value="${esc(m.id)}">${esc(m.display_name||"عضو")}</option>`).join("");
+  select.value=previous&&Array.from(select.options).some(o=>o.value===previous)?previous:currentUser.id;
  }
- const targetId=isAdmin()?(select.value||members[0]?.id||currentUser.id):currentUser.id;
+ const targetId=isAdmin()?(select.value||currentUser.id):currentUser.id;
  const acceptedTaskIds=new Set(submissions.filter(s=>s.user_id===targetId&&s.status==="accepted").map(s=>s.task_id));
  const accepted=tasks.filter(t=>acceptedTaskIds.has(t.id)).length;
  const remaining=Math.max(0,tasks.length-accepted);
