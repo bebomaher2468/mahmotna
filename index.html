@@ -472,7 +472,8 @@ async function removeAdminRole(memberId) {
 
 async function deleteMemberById(memberId) {
   if (!isAdmin()) return toast("مش مسموح لك بالعملية دي.");
-  if (!memberId) return toast("معرّف العضو غير موجود.");
+  if (!memberId) return toast("معرّف الحساب غير موجود.");
+  if (memberId === currentUser.id) return toast("ماينفعش تحذف حسابك الحالي من هنا.");
 
   const confirmed = confirm(
     "ده حذف كامل للحساب. صاحبه مش هيقدر يسجل دخول بعد الحذف. متأكد؟"
@@ -493,10 +494,10 @@ async function deleteMemberById(memberId) {
 
     if (error || !data?.ok) {
       console.error("Delete member error:", error, data);
-      return toast(data?.error || "تعذر حذف العضو.");
+      return toast(data?.error || "تعذر حذف الحساب.");
     }
 
-    toast("تم حذف العضو بنجاح.");
+    toast("تم حذف الحساب بالكامل.");
     await loadMembersList();
 
   } catch (err) {
