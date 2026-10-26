@@ -580,9 +580,9 @@ function samePushKey(left,right){
 }
 async function updatePushControls(){
  const box=$("pushControls");if(!box)return;
- box.classList.toggle("hidden",!currentUser);
+ box.classList.toggle("hidden",!currentUser||!isAdmin());
  const enable=$("enablePushBtn"),test=$("testPushBtn"),disable=$("disablePushBtn"),status=$("pushStatusText");
- if(!currentUser)return;
+ if(!currentUser||!isAdmin())return;
  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)){
   status.textContent="المتصفح ده لا يدعم إشعارات الجهاز.";
   enable.disabled=true;test.classList.add("hidden");disable.classList.add("hidden");return;
