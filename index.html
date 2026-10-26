@@ -608,20 +608,23 @@ async function compressImageForUpload(file,maxBytes){
     img.src=url;
    });
   }
-  // نحول الصورة إلى JPEG لأنه مدعوم بالفعل في إعدادات التخزين، مع خلفية بيضاء للصور الشفافة.
+  // WebP عادةً يعطي حجمًا أقل؛ نحافظ على الشفافية ونستخدم JPEG كخطة بديلة.
   let scale=Math.min(1,1920/Math.max(bitmap.width,bitmap.height));
-  let canvas=document.createElement("canvas"),ctx=canvas.getContext("2d"),blob=null;
+  let canvas=document.createElement("canvas"),ctx=canvas.getContext("2d"),blob=null,outputType="image/webp";
   if(!ctx)throw new Error("Canvas unavailable");
-  for(let pass=0;pass<6;pass++){
+  for(let pass=0;pass<7;pass++){
    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
    ctx=canvas.getContext("2d");
-   ctx.fillStyle="#ffffff";
-   ctx.fillRect(0,0,canvas.width,canvas.height);
+   ctx.clearRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-   for(const quality of [.90,.84,.78,.72,.66,.60,.54,.48,.42,.36]){
-    blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality));
+   for(const quality of [.86,.82,.78,.74,.70,.66,.62,.58,.54,.50,.46,.42]){
+    blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,quality));
     if(!blob)throw new Error("Image compression failed");
+    if(outputType==="image/webp"&&blob.type!=="image/webp"){
+     outputType="image/jpeg";
+     blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,quality));
+    }
     if(blob.size<=maxBytes)break;
    }
    if(blob&&blob.size<=maxBytes)break;
@@ -631,7 +634,8 @@ async function compressImageForUpload(file,maxBytes){
   if(!blob)throw new Error("Image compression failed");
   if(blob.size>=file.size&&file.size<=maxBytes)return file;
   const base=file.name.replace(/\.[^.]+$/,"")||"image";
-  return new File([blob],base+".jpg",{type:"image/jpeg",lastModified:Date.now()});
+  const ext=outputType==="image/webp"?"webp":"jpg";
+  return new File([blob],base+"."+ext,{type:outputType,lastModified:Date.now()});
  }catch(err){
   console.warn("تعذّر ضغط الصورة، سيتم استخدام الأصل:",err);
   return file;
@@ -675,7 +679,9 @@ async function compressVideoForUpload(file){
   const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
   if(!mimeType)return file;
   const chunks=[];
-  recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:1200000,audioBitsPerSecond:96000});
+  // خفض معدل البت حسب مدة الفيديو لاستهداف حجم أقل من 45MB.
+  const targetBitsPerSecond=Math.max(300000,Math.min(1200000,Math.floor((44*1024*1024*8)/video.duration)-64000));
+  recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:targetBitsPerSecond,audioBitsPerSecond:64000});
   const finished=new Promise((resolve,reject)=>{
    recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
    recorder.onerror=()=>reject(new Error("تعذّر ضغط الفيديو"));
