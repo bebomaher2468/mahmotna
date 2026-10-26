@@ -1573,14 +1573,69 @@ async function viewSubmission(id){
  const isVideo=["mp4","webm","m4v","mov","ogv","ogg"].includes(ext);
  let preview="";
  if(isImage)preview='<div style="text-align:center;padding:10px"><img src="'+url+'" alt="'+name+'" style="display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:auto;border-radius:10px"></div>';
- else if(isVideo)preview='<video id="submissionPreviewVideo" controls playsinline preload="metadata" style="display:block;width:100%;max-height:65vh;background:#000;border-radius:10px" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px"><label for="submissionVideoSpeed" class="muted small">سرعة التشغيل</label><select id="submissionVideoSpeed" class="field" style="width:auto;min-width:120px" onchange="setSubmissionVideoSpeed(this.value)"><option value="0.25">×0.25</option><option value="0.5">×0.5</option><option value="1" selected>×1 (العادي)</option><option value="1.25">×1.25</option><option value="1.5">×1.5</option><option value="1.75">×1.75</option><option value="2">×2</option></select></div><p class="muted small">لو الفيديو مش شغال، جرّب فتحه في نافذة جديدة أو تحميله؛ دعم الصيغ بيختلف حسب المتصفح والجهاز.</p>';
+ else if(isVideo)preview='<div id="submissionPlayer" style="--player-accent:#7c5cff;background:#090b12;border:1px solid #272a38;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px #0003;color:#fff"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;background:linear-gradient(110deg,#17172b,#10131d)"><div style="min-width:0"><div style="font-weight:800;font-size:14px">▶ مشغّل مهمتنا</div><div style="font-size:11px;color:#a9aec4;margin-top:3px;overflow-wrap:anywhere">' + name + '</div></div><span id="playerStatus" style="font-size:11px;color:#c7c2ff;white-space:nowrap">جاهز للتشغيل</span></div><div id="playerStage" style="position:relative;background:#000;line-height:0"><video id="submissionPreviewVideo" playsinline preload="metadata" style="display:block;width:100%;max-height:68vh;aspect-ratio:16/9;object-fit:contain;background:#000" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><button id="playerBigPlay" aria-label="تشغيل الفيديو" onclick="toggleSubmissionVideo()" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border:1px solid #ffffff70;border-radius:50%;background:#7c5cffdd;color:white;font-size:30px;cursor:pointer;box-shadow:0 8px 35px #0008">▶</button><div id="playerNotice" style="display:none;position:absolute;inset:auto 12px 12px;padding:10px 12px;background:#171923eF;border:1px solid #ffffff24;border-radius:10px;font-size:12px;line-height:1.6"></div></div><div style="padding:12px 14px 14px;background:linear-gradient(#11131d,#0b0d14)"><div style="display:flex;align-items:center;gap:10px"><span id="playerCurrent" style="font:12px ui-monospace,monospace;color:#d8d9e8;min-width:42px">00:00</span><input id="playerSeek" aria-label="موضع الفيديو" type="range" min="0" max="1000" value="0" oninput="seekSubmissionVideo(this.value)" style="flex:1;accent-color:#9a86ff;cursor:pointer;min-width:0"><span id="playerDuration" style="font:12px ui-monospace,monospace;color:#a9aec4;min-width:42px">--:--</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><button class="btn secondary" style="min-width:42px;padding:8px 11px" onclick="skipSubmissionVideo(-10)" title="رجوع 10 ثوانٍ">↶ 10</button><button id="playerPlayBtn" class="btn primary" style="min-width:92px;padding:9px 14px" onclick="toggleSubmissionVideo()">▶ تشغيل</button><button class="btn secondary" style="min-width:42px;padding:8px 11px" onclick="skipSubmissionVideo(10)" title="تقديم 10 ثوانٍ">10 ↷</button><button class="btn secondary" style="padding:8px 11px" onclick="toggleSubmissionMute()" title="كتم الصوت">🔊</button><input id="playerVolume" aria-label="مستوى الصوت" type="range" min="0" max="1" step="0.05" value="1" oninput="setSubmissionVideoVolume(this.value)" style="width:76px;accent-color:#9a86ff"></div><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><select id="submissionVideoSpeed" aria-label="سرعة التشغيل" class="field" style="width:auto;min-width:95px;padding:8px;background:#191c29;color:#fff;border-color:#383b4d" onchange="setSubmissionVideoSpeed(this.value)"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× عادي</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select><button class="btn secondary" style="padding:8px 11px" onclick="pipSubmissionVideo()" title="صورة داخل صورة">▣</button><button class="btn secondary" style="padding:8px 11px" onclick="fullscreenSubmissionVideo()" title="ملء الشاشة">⛶ ملء الشاشة</button></div></div><div style="font-size:11px;color:#858ba4;margin-top:10px">اختصارات: Space تشغيل/إيقاف · ←/→ تقديم أو رجوع 5 ثوانٍ · ↑/↓ الصوت · F ملء الشاشة · M كتم الصوت</div></div></div><p class="muted small">لو الصيغة مش مدعومة على جهازك، جرّب تحميل الفيديو أو فتحه في نافذة جديدة.</p>';
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else if(["ppt","pptx","pps","ppsx"].includes(ext))preview='<iframe title="'+name+'" src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(f.url)+'" style="width:100%;height:70vh;border:0;border-radius:8px" allowfullscreen></iframe><p class="muted small">معاينة PowerPoint بتحتاج إن خدمة Microsoft تقدر توصل للملف. لو المعاينة ما ظهرتش، استخدم التحميل.</p>';
  else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
  $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\')">تحميل ⬇️</button></div></div></div>';
+ if(isVideo)initSubmissionVideoPlayer();
 }
 
+function formatPlayerTime(seconds){
+ if(!Number.isFinite(seconds)||seconds<0)return "--:--";
+ seconds=Math.floor(seconds);
+ const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;
+ return h?String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0"):String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+function initSubmissionVideoPlayer(){
+ const v=$("submissionPreviewVideo");if(!v)return;
+ const sync=()=>{
+  const duration=Number.isFinite(v.duration)?v.duration:0;
+  const current=$("playerCurrent"),total=$("playerDuration"),seek=$("playerSeek"),play=$("playerPlayBtn"),big=$("playerBigPlay"),status=$("playerStatus");
+  if(current)current.textContent=formatPlayerTime(v.currentTime);
+  if(total)total.textContent=formatPlayerTime(duration);
+  if(seek&&!seek.matches(":active"))seek.value=duration?String(Math.round(v.currentTime/duration*1000)):0;
+  if(play)play.textContent=v.paused?"▶ تشغيل":"❚❚ إيقاف";
+  if(big){big.style.display=v.paused?"block":"none";big.textContent=v.ended?"↻":"▶";}
+  if(status)status.textContent=v.error?"تعذّر تشغيل الملف":v.ended?"انتهى الفيديو":v.paused?"متوقف":"يعمل الآن";
+  const vol=$("playerVolume");if(vol&&document.activeElement!==vol)vol.value=v.volume;
+  const mute=$("playerMute");if(mute)mute.textContent=v.muted||v.volume===0?"🔇":"🔊";
+ };
+ ["loadedmetadata","durationchange","timeupdate","play","pause","ended","volumechange","ratechange","error"].forEach(e=>v.addEventListener(e,sync));
+ v.addEventListener("error",()=>{const n=$("playerNotice");if(n){n.style.display="block";n.textContent="المتصفح مش قادر يشغّل الصيغة دي. جرّب تحميل الملف أو فتحه في نافذة جديدة."}});
+ const stage=$("playerStage");if(stage)stage.addEventListener("dblclick",fullscreenSubmissionVideo);
+ sync();
+}
+function toggleSubmissionVideo(){
+ const v=$("submissionPreviewVideo");if(!v)return;
+ if(v.paused){const p=v.play();if(p&&p.catch)p.catch(()=>{const n=$("playerNotice");if(n){n.style.display="block";n.textContent="التشغيل التلقائي اتمنع. اضغط تشغيل مرة تانية."}})}else v.pause();
+}
+function seekSubmissionVideo(value){const v=$("submissionPreviewVideo");if(v&&Number.isFinite(v.duration))v.currentTime=(Number(value)/1000)*v.duration;}
+function skipSubmissionVideo(seconds){const v=$("submissionPreviewVideo");if(v&&Number.isFinite(v.duration))v.currentTime=Math.max(0,Math.min(v.duration,v.currentTime+seconds));}
+function setSubmissionVideoVolume(value){const v=$("submissionPreviewVideo");if(v){v.volume=Math.max(0,Math.min(1,Number(value)));v.muted=v.volume===0;}}
+function toggleSubmissionMute(){const v=$("submissionPreviewVideo");if(v){v.muted=!v.muted;const vol=$("playerVolume");if(vol&&!v.muted&&v.volume===0){v.volume=.7;vol.value=.7;}}}
 function setSubmissionVideoSpeed(speed){const video=$("submissionPreviewVideo");if(video)video.playbackRate=Number(speed)||1;}
+async function fullscreenSubmissionVideo(){
+ const el=$("playerStage")||$("submissionPreviewVideo");if(!el)return;
+ try{if(document.fullscreenElement){await document.exitFullscreen()}else if(el.requestFullscreen){await el.requestFullscreen()}else if(el.webkitEnterFullscreen){el.webkitEnterFullscreen()}}
+ catch(e){toast("ملء الشاشة مش متاح على المتصفح ده.");}
+}
+async function pipSubmissionVideo(){
+ const v=$("submissionPreviewVideo");if(!v)return;
+ try{if(document.pictureInPictureElement)await document.exitPictureInPicture();else if(document.pictureInPictureEnabled&&v.requestPictureInPicture)await v.requestPictureInPicture();else toast("ميزة صورة داخل صورة مش مدعومة في المتصفح ده.")}
+ catch(e){toast("تعذّر تشغيل صورة داخل صورة.");}
+}
+document.addEventListener("keydown",function(e){
+ const v=$("submissionPreviewVideo"),player=$("submissionPlayer");
+ if(!v||!player||!player.isConnected||!player.contains(document.activeElement)||["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
+ if(e.code==="Space"){e.preventDefault();toggleSubmissionVideo()}
+ else if(e.key==="ArrowLeft"){e.preventDefault();skipSubmissionVideo(-5)}
+ else if(e.key==="ArrowRight"){e.preventDefault();skipSubmissionVideo(5)}
+ else if(e.key==="ArrowUp"){e.preventDefault();v.volume=Math.min(1,v.volume+.1);v.muted=false;const vol=$("playerVolume");if(vol)vol.value=v.volume}
+ else if(e.key==="ArrowDown"){e.preventDefault();v.volume=Math.max(0,v.volume-.1);const vol=$("playerVolume");if(vol)vol.value=v.volume}
+ else if(e.key.toLowerCase()==="m")toggleSubmissionMute()
+ else if(e.key.toLowerCase()==="f")fullscreenSubmissionVideo();
+});
 
 function openSubmissionFile(url){window.open(url,"_blank","noopener,noreferrer");}
 
