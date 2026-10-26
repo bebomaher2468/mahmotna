@@ -382,7 +382,7 @@ async function loadMembersList() {
       sb
         .from("profiles")
         .select("id, username, display_name, role, avatar_url")
-        .eq("role", "member")
+        .in("role", ["member", "admin"])
         .order("display_name", { ascending: true }),
 
       new Promise((_, reject) => {
@@ -406,14 +406,23 @@ async function loadMembersList() {
       return;
     }
 
-    list.innerHTML = data.map(member => `
-      <div class="submission">
-        <div class="submissionhead">
-          <div class="member-row"><img class="member-avatar" src="${escapeHTML(member.avatar_url || defaultAvatarData())}" alt="" onerror="this.src=defaultAvatarData()"><div class="member-info"><strong>${escapeHTML(member.display_name || "عضو")}</strong><p class="small muted">اسم المستخدم: <strong dir="ltr">${escapeHTML(member.username || "غير محدد")}</strong></p></div><button class="btn secondary" onclick="openMemberProfile('${escapeHTML(member.id)}')">👤 الصفحة</button></div>
-          <button class="btn danger" onclick="deleteMemberById('${escapeHTML(member.id)}')">🗑️ حذف العضو</button>
-        </div>
-      </div>
-    `).join("");
+    list.innerHTML = data.map(member => {
+      const memberId = escapeHTML(member.id);
+      const isAdminMember = member.role === "admin";
+      const isCurrentAccount = member.id === currentUser.id;
+      const roleBadge = isAdminMember
+        ? "<span class='badge' style='background:#f5ca7b18;color:#f5ca7b'>🛡️ مسؤول</span>"
+        : "<span class='badge'>عضو</span>";
+      const actions = isCurrentAccount
+        ? "<span class='small muted'>حسابك الحالي</span>"
+        : isAdminMember
+          ? "<button class='btn secondary' onclick='removeAdminRole(&quot;" + memberId + "&quot;)'>إزالة من مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف خالص</button>"
+          : "<button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف العضو</button>";
+      return "<div class='submission'><div class='submissionhead' style='align-items:flex-start'>" +
+        "<div class='member-row'><img class='member-avatar' src='" + escapeHTML(member.avatar_url || defaultAvatarData()) + "' alt='' onerror='this.src=defaultAvatarData()'><div class='member-info'><strong>" + escapeHTML(member.display_name || "عضو") + "</strong><p class='small muted'>اسم المستخدم: <strong dir='ltr'>" + escapeHTML(member.username || "غير محدد") + "</strong></p>" + roleBadge + "</div></div>" +
+        "<div class='actions' style='justify-content:flex-end;flex-wrap:wrap'><button class='btn secondary' onclick='openMemberProfile(&quot;" + memberId + "&quot;)'>👤 الصفحة</button>" + actions + "</div>" +
+        "</div></div>";
+    }).join("");
 
   } catch (err) {
     console.error("Members list exception:", err);
@@ -427,12 +436,46 @@ async function loadMembersList() {
 
 
 
+async function removeAdminRole(memberId) {
+  if (!isAdmin()) return toast("مش مسموح لك بالعملية دي.");
+  if (!memberId) return toast("معرّف المسؤول غير موجود.");
+  if (memberId === currentUser.id) return toast("ماينفعش تشيل صلاحية المسؤول من حسابك الحالي.");
+
+  const confirmed = confirm(
+    "متأكد إنك عايز ترجع الحساب ده عضو عادي؟ هيفقد صلاحيات المسؤول."
+  );
+  if (!confirmed) return;
+
+  try {
+    const { data, error } = await sb
+      .from("profiles")
+      .update({ role: "member" })
+      .eq("id", memberId)
+      .eq("role", "admin")
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      console.error("Remove admin role error:", error);
+      return toast("تعذر إزالة صلاحية المسؤول. راجع صلاحيات تحديث profiles.");
+    }
+    if (!data) return toast("المسؤول مش موجود أو صلاحياته اتغيرت بالفعل.");
+
+    toast("تمت إزالة صلاحية المسؤول وإرجاع الحساب عضوًا.");
+    await loadMembersList();
+  } catch (err) {
+    console.error("Remove admin role exception:", err);
+    toast("حصل خطأ أثناء تغيير الصلاحية. حاول تاني.");
+  }
+}
+
+
 async function deleteMemberById(memberId) {
   if (!isAdmin()) return toast("مش مسموح لك بالعملية دي.");
   if (!memberId) return toast("معرّف العضو غير موجود.");
 
   const confirmed = confirm(
-    "متأكد إنك عايز تحذف العضو ده؟ لن يتمكن من تسجيل الدخول بعد الحذف."
+    "ده حذف كامل للحساب. صاحبه مش هيقدر يسجل دخول بعد الحذف. متأكد؟"
   );
 
   if (!confirmed) return;
