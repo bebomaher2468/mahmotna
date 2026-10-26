@@ -270,6 +270,7 @@ const SUPABASE_URL = "https://gxoddlgmxgkojfloxpon.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Cky_TTKUC8ETzn7ffNrOAQ_lgQr07hr";
 const CONFIGURED = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("PASTE_") && SUPABASE_ANON_KEY.length > 30 && !SUPABASE_ANON_KEY.includes("PASTE_");
 let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], memberProfiles = [], filter = "all", currentTask = null, notificationChannel = null;
+let pushSubscriptionSyncedUserId = null;
 if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -592,7 +593,15 @@ async function updatePushControls(){
  catch(error){console.warn("تعذر فحص اشتراك الإشعارات:",error);}
  const active=Notification.permission==="granted"&&!!subscription;
  test.classList.toggle("hidden",!active);disable.classList.toggle("hidden",!active);
- if(active){status.textContent="إشعارات الجهاز مفعّلة على هذا الجهاز.";enable.textContent="تحديث اشتراك الجهاز";}
+ if(active){
+  status.textContent="إشعارات الجهاز مفعّلة على هذا الجهاز.";enable.textContent="تحديث اشتراك الجهاز";
+  if(pushSubscriptionSyncedUserId!==currentUser.id){
+   const details=subscription.toJSON();
+   const {error}=await sb.rpc("save_push_subscription",{p_endpoint:details.endpoint,p_keys:details.keys});
+   if(error){status.textContent="الإشعار مفعّل في المتصفح لكن تعذّر ربطه بالحساب.";console.error("Sync push subscription:",error);}
+   else pushSubscriptionSyncedUserId=currentUser.id;
+  }
+ }
  else if(Notification.permission==="denied"){status.textContent="الإشعارات مرفوضة من المتصفح. اسمح بها من إعدادات الموقع ثم جرّب تاني.";enable.textContent="الإشعارات محظورة";}
  else{status.textContent="الإشعارات غير مفعّلة على هذا الجهاز.";enable.textContent="🔔 تفعيل على الجهاز";}
 }
@@ -1456,7 +1465,7 @@ async function saveTask(id){
  closeModal();await loadData();
  if(createdTaskId){
   const {data,error}=await sb.functions.invoke("send-push",{body:{action:"task_created",task_id:createdTaskId}});
-  if(error||!data?.ok){console.error("Task push:",error||data);toast("اتحفظت التاسك، لكن تنبيه الأجهزة ما اتبعتش. راجع إعداد الإشعارات.");return;}
+  if(error||!data?.ok){console.error("Task push:",error||data);toast("اتحفظت التاسك، لكن تنبيه الأجهزة ما اتبعتش. راجع إعداد الإشعارات.");return;} if(!data.sent){toast("اتحفظت التاسك، بس مفيش جهاز مفعّل يستقبل إشعاراتها.");return;}
  }
  toast("اتحفظ التاسك بنجاح")
 }
