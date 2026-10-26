@@ -1378,7 +1378,7 @@ function submissionHTML(s,admin){
  ${s.submission_text?`<div style="margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><b>الحل المكتوب:</b><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px;line-height:1.8">${esc(s.submission_text)}</div></div>`:""}
  ${s.note?`<p>${esc(s.note)}</p>`:""}
  ${s.link_url?`<p class="linkline">🔗 <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer">فتح لينك التسليم</a></p>`:""}
- ${s.file_path?`<p class="linkline">📎 <button class="btn secondary" onclick="downloadSubmission('${s.id}')">تحميل الملف: ${esc(s.file_name||"ملف")}</button></p>`:""}
+ ${s.file_path?`<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="viewSubmission('${s.id}')">👁️ مشاهدة</button><button class="btn secondary" onclick="downloadSubmission('${s.id}')">⬇️ تحميل ${esc(s.file_name||"الملف")}</button></div>`:""}
  ${s.admin_feedback?`<p>ملاحظة المسؤول: ${esc(s.admin_feedback)}</p>`:""}
 
  ${admin?`
@@ -1545,26 +1545,35 @@ function renderAchievementDashboard(){
   </div>`).join(""):'<div class="empty">لسه مفيش تسليمات.</div>';
 }
 
+async function getSubmissionFile(id){
+ if(!currentUser)return {error:"سجّل دخولك الأول."};
+ const {data:s,error:readError}=await sb.from("submissions").select("id,file_path,file_name").eq("id",id).single();
+ if(readError||!s)return {error:"مش قادر أجيب بيانات الملف."};
+ if(!s.file_path)return {error:"التسليم ده مفيهوش ملف."};
+ const {data,error}=await sb.storage.from("submissions").createSignedUrl(s.file_path,300);
+ if(error||!data?.signedUrl)return {error:"مش قادر أفتح الملف: "+(error?.message||"حاول تاني")};
+ return {url:data.signedUrl,file_name:s.file_name||"ملف"};
+}
+
+async function viewSubmission(id){
+ const f=await getSubmissionFile(id);if(f.error)return toast(f.error);
+ const url=esc(f.url),name=esc(f.file_name),ext=(f.file_name.split(".").pop()||"").toLowerCase();
+ const isImage=["jpg","jpeg","png","webp","gif","avif","bmp"].includes(ext);
+ const isVideo=["mp4","webm","m4v","mov","ogv","ogg"].includes(ext);
+ let preview="";
+ if(isImage)preview='<div style="text-align:center;padding:10px"><img src="'+url+'" alt="'+name+'" style="display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:auto;border-radius:10px"></div>';
+ else if(isVideo)preview='<video controls playsinline preload="metadata" style="display:block;width:100%;max-height:65vh;background:#000;border-radius:10px" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><p class="muted small">لو الفيديو مش شغال، جرّب فتحه في نافذة جديدة أو تحميله؛ دعم الصيغ بيختلف حسب المتصفح والجهاز.</p>';
+ else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
+ else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\')">تحميل ⬇️</button></div></div></div>';
+}
+
+function openSubmissionFile(url){window.open(url,"_blank","noopener,noreferrer");}
+
 async function downloadSubmission(id){
- if(!currentUser)return toast("سجّل دخولك الأول.");
-
- const {data:s,error:readError}=await sb
-  .from("submissions")
-  .select("id,file_path")
-  .eq("id",id)
-  .single();
-
- if(readError||!s)return toast("مش قادر أجيب بيانات الملف.");
-
- if(!s.file_path)return toast("التسليم ده مفيهوش ملف.");
-
- const {data,error}=await sb.storage
-  .from("submissions")
-  .createSignedUrl(s.file_path,60);
-
- if(error)return toast("مش قادر أفتح الملف: "+error.message);
-
- window.open(data.signedUrl,"_blank","noopener");
+ const f=await getSubmissionFile(id);if(f.error)return toast(f.error);
+ const a=document.createElement("a");a.href=f.url;a.download=f.file_name;a.target="_blank";a.rel="noopener";
+ document.body.appendChild(a);a.click();a.remove();
 }
 
 
