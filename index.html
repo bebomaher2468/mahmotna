@@ -613,15 +613,21 @@ async function loadData(){
   const rawSubmissions=sr.data||[];
   const userIds=[...new Set(rawSubmissions.map(s=>s.user_id).filter(Boolean))];
   let profiles=[];
-  if(currentUser && userIds.length){
-   const {data:profileData,error:profileError}=await sb
-    .from("profiles")
-    .select("id, display_name, username, role")
-    .in("id",userIds);
-   if(profileError)console.error("تعذّر تحميل أسماء أصحاب التسليمات:",profileError.message);
-   profiles=profileData||[];memberProfiles=profiles;
+  if(currentUser){
+   // Admin achievement selector needs members even if they have no submissions.
+   if(isAdmin()){
+    const {data:allProfiles,error:allProfilesError}=await sb.from("profiles").select("id, display_name, username, role, avatar_url").eq("role","member").order("display_name",{ascending:true});
+    if(allProfilesError)console.error("تعذّر تحميل قائمة الأعضاء:",allProfilesError.message);
+    memberProfiles=allProfiles||[];
+   }
+   if(userIds.length){
+    const {data:profileData,error:profileError}=await sb.from("profiles").select("id, display_name, username, role, avatar_url").in("id",userIds);
+    if(profileError)console.error("تعذّر تحميل أسماء أصحاب التسليمات:",profileError.message);
+    profiles=profileData||[];
+   }
+   const combined=new Map([...(memberProfiles||[]),...profiles].map(p=>[p.id,p]));
+   memberProfiles=[...combined.values()];
   }
-
   const names={};
   const roles={};
   profiles.forEach(p=>{
