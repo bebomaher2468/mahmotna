@@ -608,29 +608,30 @@ async function compressImageForUpload(file,maxBytes){
     img.src=url;
    });
   }
-  // نبدأ بدقة عالية، ثم نقلل الأبعاد والجودة تدريجيًا فقط إذا احتجنا.
+  // نحول الصورة إلى JPEG لأنه مدعوم بالفعل في إعدادات التخزين، مع خلفية بيضاء للصور الشفافة.
   let scale=Math.min(1,1920/Math.max(bitmap.width,bitmap.height));
   let canvas=document.createElement("canvas"),ctx=canvas.getContext("2d"),blob=null;
   if(!ctx)throw new Error("Canvas unavailable");
-  for(let pass=0;pass<5;pass++){
+  for(let pass=0;pass<6;pass++){
    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
    ctx=canvas.getContext("2d");
-   ctx.clearRect(0,0,canvas.width,canvas.height);
+   ctx.fillStyle="#ffffff";
+   ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-   for(const quality of [.88,.82,.76,.70,.64,.58,.52,.46,.40]){
-    blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",quality));
+   for(const quality of [.90,.84,.78,.72,.66,.60,.54,.48,.42,.36]){
+    blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality));
     if(!blob)throw new Error("Image compression failed");
     if(blob.size<=maxBytes)break;
    }
    if(blob&&blob.size<=maxBytes)break;
-   scale*=.82;
+   scale*=.78;
   }
   if(typeof bitmap.close==="function")bitmap.close();
   if(!blob)throw new Error("Image compression failed");
   if(blob.size>=file.size&&file.size<=maxBytes)return file;
   const base=file.name.replace(/\.[^.]+$/,"")||"image";
-  return new File([blob],base+".webp",{type:"image/webp",lastModified:Date.now()});
+  return new File([blob],base+".jpg",{type:"image/jpeg",lastModified:Date.now()});
  }catch(err){
   console.warn("تعذّر ضغط الصورة، سيتم استخدام الأصل:",err);
   return file;
