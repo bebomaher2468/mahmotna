@@ -1562,11 +1562,13 @@ async function viewSubmission(id){
  const isVideo=["mp4","webm","m4v","mov","ogv","ogg"].includes(ext);
  let preview="";
  if(isImage)preview='<div style="text-align:center;padding:10px"><img src="'+url+'" alt="'+name+'" style="display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:auto;border-radius:10px"></div>';
- else if(isVideo)preview='<video controls playsinline preload="metadata" style="display:block;width:100%;max-height:65vh;background:#000;border-radius:10px" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><p class="muted small">لو الفيديو مش شغال، جرّب فتحه في نافذة جديدة أو تحميله؛ دعم الصيغ بيختلف حسب المتصفح والجهاز.</p>';
+ else if(isVideo)preview='<video id="submissionPreviewVideo" controls playsinline preload="metadata" style="display:block;width:100%;max-height:65vh;background:#000;border-radius:10px" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px"><label for="submissionVideoSpeed" class="muted small">سرعة التشغيل</label><select id="submissionVideoSpeed" class="field" style="width:auto;min-width:120px" onchange="setSubmissionVideoSpeed(this.value)"><option value="0.25">×0.25</option><option value="0.5">×0.5</option><option value="1" selected>×1 (العادي)</option><option value="1.25">×1.25</option><option value="1.5">×1.5</option><option value="1.75">×1.75</option><option value="2">×2</option></select></div><p class="muted small">لو الفيديو مش شغال، جرّب فتحه في نافذة جديدة أو تحميله؛ دعم الصيغ بيختلف حسب المتصفح والجهاز.</p>';
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
  $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\')">تحميل ⬇️</button></div></div></div>';
 }
+
+function setSubmissionVideoSpeed(speed){const video=$("submissionPreviewVideo");if(video)video.playbackRate=Number(speed)||1;}
 
 function openSubmissionFile(url){window.open(url,"_blank","noopener,noreferrer");}
 
