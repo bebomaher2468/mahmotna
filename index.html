@@ -1103,7 +1103,7 @@ async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عاي�
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
  const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">رفع ملف (اختياري حسب المطلوب)</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.xlsx,.txt,.mp4,.webm,.mov,.m4v,.avi"></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">صور فقط • يمكن اختيار أكتر من صورة</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">فيديوهات فقط • يمكن اختيار أكتر من فيديو</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"><p class="muted small">PDF وWord وPowerPoint وZIP وExcel وTXT</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
@@ -1193,47 +1193,59 @@ async function submitWork(taskId){
  if(!currentUser)return toast("سجّل دخولك الأول.");
  const t=tasks.find(x=>x.id===taskId);
  if(!t||t.status==="done")return toast("التاسك مقفولة.");
- let file=$("submitFile")?.files?.[0]||null;
+ const selectedImages=Array.from($("submitImages")?.files||[]);
+ const selectedVideos=Array.from($("submitVideos")?.files||[]);
+ const selectedDocs=Array.from($("submitFile")?.files||[]);
+ const files=[...selectedImages,...selectedVideos,...selectedDocs];
+ const file=files[0]||null;
  const link=$("submitLink")?.value.trim()||null;
  const submissionText=$("submitText")?.value.trim()||"";
  const note=$("submitNote")?.value.trim()||"";
- if(!file&&!link&&!submissionText)return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
+ if(!files.length&&!link&&!submissionText)return toast("اكتب الحل أو ارفع صورة أو فيديو أو ملف أو حط لينك.");
 
- if(file){
-  let ext=(file.name.split(".").pop()||"").toLowerCase();
-  const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"];
-  const allowedExt=[...imageExt,...videoExt,"pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
-  if(!allowedExt.includes(ext))return toast("نوع الملف ده مش مسموح بيه.");
-  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&s.file_name===file.name);
-  if(duplicate&&!confirm("الملف متكرر يا نجم 😎\nسلّمت ملف بنفس الاسم للمهمة دي قبل كده. تحب ترفعه برضه؟"))return toast("تم إلغاء الرفع عشان الملف متكرر.");
-  updateUploadProgress(0,"جاري تجهيز الملف...","الضغط والتحسين قبل الرفع");
-  if(imageExt.includes(ext)){
-   toast("جاري ضغط الصورة وتجهيزها...");
-   file=await compressImageForUpload(file,5*1024*1024);
-  }else if(videoExt.includes(ext)){
-   toast("جاري ضغط الفيديو؛ قد يستغرق وقتًا حسب مدته وجهازك...");
-   file=await compressVideoForUpload(file);
-  }else if(ext==="pdf"){
-   toast("جاري تحسين وضغط ملف PDF...");
-   const before=file.size;
-   file=await compressPdfForUpload(file);
-   if(file.size<before)toast("اتضغط ملف PDF من "+(before/1024/1024).toFixed(1)+" إلى "+(file.size/1024/1024).toFixed(1)+" ميجابايت.");
-  }
-  ext=(file.name.split(".").pop()||"").toLowerCase();
-  const maxSize=imageExt.includes(ext)?5*1024*1024:videoExt.includes(ext)?50*1024*1024:15*1024*1024;
-  const maxLabel=imageExt.includes(ext)?"5":videoExt.includes(ext)?"50":"15";
-  if(file.size>maxSize){$("uploadProgressBox")?.classList.add("hidden");return toast("حجم الملف أكبر من "+maxLabel+" ميجابايت حتى بعد الضغط أو التحسين.");}
+ const seen=new Set();
+ for(const f of files){
+  const ext=(f.name.split(".").pop()||"").toLowerCase();
+  const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"],docExt=["pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
+  if(![...imageExt,...videoExt,...docExt].includes(ext))return toast("نوع الملف ده مش مسموح بيه: "+f.name);
+  const expected=selectedImages.includes(f)?"image":selectedVideos.includes(f)?"video":"document";
+  if(expected==="image"&&!imageExt.includes(ext))return toast("خانة الصور تقبل الصور فقط.");
+  if(expected==="video"&&!videoExt.includes(ext))return toast("خانة الفيديوهات تقبل الفيديوهات فقط.");
+  if(expected==="document"&&!docExt.includes(ext))return toast("خانة الملفات تقبل المستندات فقط.");
+  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&s.file_name===f.name);
+  if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\\n"+f.name+" اتسلّم قبل كده في نفس المهمة. تكمل؟"))return toast("تم إلغاء التسليم عشان الملف متكرر.");
+  seen.add(f.name);
+  if(f.size>(imageExt.includes(ext)?5:videoExt.includes(ext)?50:15)*1024*1024)return toast("الملف "+f.name+" أكبر من الحد المسموح.");
  }
  submittingWork=true;
  const submitButton=$("modalRoot").querySelector('button[onclick^="submitWork"]');
  if(submitButton){submitButton.disabled=true;submitButton.textContent="جاري الرفع...";}
  let filePath=null,fileName=null;
  try{
-  if(file){
-   const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-   filePath=currentUser.id+"/"+taskId+"/"+Date.now()+"_"+safe;
-   await uploadSubmissionFileWithProgress(file,filePath);
-   fileName=file.name;
+  let filePath=null,fileName=null;
+  const uploadedPaths=[];
+  for(let i=0;i<files.length;i++){
+   let uploadFile=files[i];
+   let ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
+   const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"];
+   if(imageExt.includes(ext)){
+    updateUploadProgress(0,"جاري ضغط الصورة "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
+    uploadFile=await compressImageForUpload(uploadFile,5*1024*1024);
+   }else if(videoExt.includes(ext)){
+    updateUploadProgress(0,"جاري ضغط الفيديو "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
+    uploadFile=await compressVideoForUpload(uploadFile);
+   }else if(ext==="pdf"){
+    updateUploadProgress(0,"جاري تحسين PDF "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
+    uploadFile=await compressPdfForUpload(uploadFile);
+   }
+   ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
+   const limit=imageExt.includes(ext)?5:videoExt.includes(ext)?50:15;
+   if(uploadFile.size>limit*1024*1024)throw new Error("حجم الملف "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد الضغط.");
+   const safe=uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+   const path=currentUser.id+"/"+taskId+"/"+Date.now()+"_"+i+"_"+safe;
+   await uploadSubmissionFileWithProgress(uploadFile,path);
+   uploadedPaths.push(path);
+   if(!filePath){filePath=path;fileName=uploadFile.name;}
   }
   const {error}=await sb.from("submissions").insert({task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:filePath,file_name:fileName,note,status:"submitted"});
   if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
@@ -1242,9 +1254,9 @@ async function submitWork(taskId){
   await loadData();
   await openTask(taskId);
  }catch(err){
-  if(filePath){
-   const {error:cleanupError}=await sb.storage.from("submissions").remove([filePath]);
-   if(cleanupError)console.error("تعذر تنظيف الملف:",cleanupError.message);
+  if(typeof uploadedPaths!=="undefined"&&uploadedPaths.length){
+   const {error:cleanupError}=await sb.storage.from("submissions").remove(uploadedPaths);
+   if(cleanupError)console.error("تعذر تنظيف الملفات:",cleanupError.message);
   }
   $("uploadProgressBox")?.classList.add("hidden");
   toast(err.message||"حصل خطأ أثناء إرسال التسليم.");
