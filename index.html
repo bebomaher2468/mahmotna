@@ -1312,8 +1312,7 @@ async function submitWork(taskId){
   const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&s.file_name===f.name);
   if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\\n"+f.name+" اتسلّم قبل كده في نفس المهمة. تكمل؟"))return toast("تم إلغاء التسليم عشان الملف متكرر.");
   seen.add(f.name);
-  // الصور تتضغط بعد اختيارها؛ لا نرفض حجمها الأصلي قبل محاولة الضغط. الفيديوهات والمستندات لها حد مبدئي.
-  if(!imageExt.includes(ext)&&f.size>(videoExt.includes(ext)?50:15)*1024*1024)return toast("الملف "+f.name+" أكبر من الحد المسموح.");
+  // لا نرفض حسب الحجم الأصلي؛ جرّب الضغط أولًا ثم افحص الحجم النهائي قبل الرفع.
  }
  submittingWork=true;
  const submitButton=$("modalRoot").querySelector('button[onclick^="submitWork"]');
@@ -1337,8 +1336,10 @@ async function submitWork(taskId){
     uploadFile=await compressPdfForUpload(uploadFile);
    }
    ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
-   const limit=imageExt.includes(ext)?5:videoExt.includes(ext)?50:15;
-   if(uploadFile.size>limit*1024*1024)throw new Error("حجم الملف "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد الضغط.");
+   // الصور 5MB، والفيديوهات والمستندات 50MB بعد محاولة تحسين PDF.
+   // ملفات Office وZIP لا يمكن ضغطها بأمان من المتصفح دون تغيير محتواها.
+   const limit=imageExt.includes(ext)?5:50;
+   if(uploadFile.size>limit*1024*1024)throw new Error("حجم الملف "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد محاولة الضغط. جرّب ضغطه أو تصديره بحجم أقل.");
    const safe=uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
    const path=currentUser.id+"/"+taskId+"/"+Date.now()+"_"+i+"_"+safe;
    await uploadSubmissionFileWithProgress(uploadFile,path);
