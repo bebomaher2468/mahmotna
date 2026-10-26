@@ -275,6 +275,7 @@ if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(msg){$("toast").textContent=msg;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),3500)}
+const SITE_OWNER_USERNAME = "bebomaher2468";
 function isAdmin(){return profile?.role==="admin"}
 function displayMemberName(name){return name==="bebomaher2468"?"Abanoub Maher":name} 
 function fmtDate(d){if(!d)return "من غير موعد";return new Date(d+"T12:00:00").toLocaleDateString("ar-EG",{year:"numeric",month:"short",day:"numeric"})}
@@ -401,12 +402,15 @@ async function loadMembersList() {
       return;
     }
 
-    if (!Array.isArray(data) || data.length === 0) {
+    const visibleMembers = (data || []).filter(
+      member => String(member.username || "").toLowerCase() !== SITE_OWNER_USERNAME
+    );
+    if (!visibleMembers.length) {
       list.textContent = "مفيش أعضاء لعرضهم.";
       return;
     }
 
-    list.innerHTML = data.map(member => {
+    list.innerHTML = visibleMembers.map(member => {
       const memberId = escapeHTML(member.id);
       const isAdminMember = member.role === "admin";
       const isCurrentAccount = member.id === currentUser.id;
