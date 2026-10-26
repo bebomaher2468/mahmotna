@@ -1012,9 +1012,6 @@ if(submittingWork)return toast("إيه يا نجم 😂 مستعجل على إي
  if(!file&&!link&&!submissionText)
   return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
 
- if(file&&["video/mp4","video/webm","video/quicktime","video/x-m4v","video/x-msvideo"].includes(file.type)===false && /\.(mp4|webm|mov|m4v|avi)$/i.test(file.name)){
-  return toast("نوع الفيديو ده محتاج مراجعة إعدادات التخزين في Supabase.");
- }
 
  if(file&&file.size>50*1024*1024)
   return toast("أقصى حجم للملف 50 ميجابايت.");
