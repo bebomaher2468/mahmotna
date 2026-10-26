@@ -991,7 +991,7 @@ async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عاي�
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
  const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">رفع ملف (اختياري حسب المطلوب)</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip,.xlsx,.txt,.mp4,.webm,.mov,.m4v,.avi"></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">رفع ملف (اختياري حسب المطلوب)</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.xlsx,.txt,.mp4,.webm,.mov,.m4v,.avi"></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
@@ -1013,8 +1013,16 @@ if(submittingWork)return toast("إيه يا نجم 😂 مستعجل على إي
   return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
 
 
- if(file&&file.size>50*1024*1024)
-  return toast("أقصى حجم للملف 50 ميجابايت.");
+ if(file){
+  const ext=(file.name.split(".").pop()||"").toLowerCase();
+  const imageExt=["jpg","jpeg","png","webp"];
+  const videoExt=["mp4","webm","mov","m4v","avi"];
+  const allowedExt=[...imageExt,...videoExt,"pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
+  if(!allowedExt.includes(ext))return toast("نوع الملف ده مش مسموح بيه.");
+  const maxSize=imageExt.includes(ext)?5*1024*1024:videoExt.includes(ext)?50*1024*1024:15*1024*1024;
+  const maxLabel=imageExt.includes(ext)?"5":videoExt.includes(ext)?"50":"15";
+  if(file.size>maxSize)return toast("الحد الأقصى للنوع ده "+maxLabel+" ميجابايت.");
+ }
 
  submittingWork=true;
  toast("جاري إرسال التسليم، استنى من فضلك...");
