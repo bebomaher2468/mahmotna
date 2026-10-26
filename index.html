@@ -6,7 +6,7 @@
 <title>مهمتنا | مجموعة القديس فيلبس الرسول</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <style>
 :root{--bg:#0b1020;--panel:#111a2e;--panel2:#17223a;--line:#283650;--text:#f4f7ff;--muted:#9aa9c4;--blue:#78a8ff;--cyan:#72e0d1;--gold:#f5ca7b;--green:#75dfaa;--red:#ff8f9b;--radius:20px}
 *{box-sizing:border-box}
@@ -1108,90 +1108,151 @@ async function openTask(id){
 
 
 let submittingWork = false;
+let activeUploadXHR = null;
+
+function ensureUploadProgressUI(){
+ let box=$("uploadProgressBox");
+ if(box)return box;
+ const root=$("modalRoot");
+ if(!root)return null;
+ box=document.createElement("div");
+ box.id="uploadProgressBox";
+ box.className="notice hidden";
+ box.style.marginTop="12px";
+ box.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px"><strong id="uploadProgressLabel">جاري تجهيز الملف...</strong><span id="uploadProgressPercent">0%</span></div><div style="height:10px;background:var(--line);border-radius:99px;overflow:hidden"><div id="uploadProgressFill" style="height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:99px;transition:width .2s"></div></div><div id="uploadProgressMeta" class="small" style="margin-top:7px">بنجهز الملف للرفع</div>';
+ const form=root.querySelector(".modal .formgrid");
+ if(form)form.appendChild(box);
+ else root.querySelector(".modal")?.appendChild(box);
+ return box;
+}
+function updateUploadProgress(percent,label,meta){
+ const box=ensureUploadProgressUI();if(!box)return;
+ box.classList.remove("hidden");box.classList.add("good");
+ const p=Math.max(0,Math.min(100,Math.round(percent||0)));
+ if($("uploadProgressLabel"))$("uploadProgressLabel").textContent=label||"جاري رفع الملف...";
+ if($("uploadProgressPercent"))$("uploadProgressPercent").textContent=p+"%";
+ if($("uploadProgressFill"))$("uploadProgressFill").style.width=p+"%";
+ if($("uploadProgressMeta"))$("uploadProgressMeta").textContent=meta||"";
+}
+function formatRemaining(seconds){
+ if(!Number.isFinite(seconds)||seconds<0)return "بنحسب الوقت المتبقي...";
+ seconds=Math.ceil(seconds);
+ if(seconds<60)return "فاضل حوالي "+seconds+" ثانية";
+ return "فاضل حوالي "+Math.floor(seconds/60)+" دقيقة و"+(seconds%60)+" ثانية";
+}
+async function compressPdfForUpload(file){
+ if(!file||!(/\.pdf$/i.test(file.name)||file.type==="application/pdf"))return file;
+ try{
+  if(!window.PDFLib?.PDFDocument)return file;
+  const bytes=await file.arrayBuffer();
+  const pdf=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true,updateMetadata:false});
+  const optimized=await pdf.save({useObjectStreams:true,addDefaultPage:false,objectsPerTick:50});
+  if(!optimized?.byteLength||optimized.byteLength>=file.size)return file;
+  return new File([optimized],file.name,{type:"application/pdf",lastModified:file.lastModified});
+ }catch(err){
+  console.warn("تعذّر تحسين PDF، سيتم استخدام الملف الأصلي:",err);
+  return file;
+ }
+}
+async function uploadSubmissionFileWithProgress(file,path){
+ const sessionResult=await sb.auth.getSession();
+ const accessToken=sessionResult.data?.session?.access_token;
+ if(!accessToken)throw new Error("انتهت الجلسة. سجّل دخولك وجرب تاني.");
+ return await new Promise((resolve,reject)=>{
+  const xhr=new XMLHttpRequest();
+  activeUploadXHR=xhr;
+  const startedAt=Date.now();
+  xhr.open("POST",SUPABASE_URL+"/storage/v1/object/submissions/"+path.split("/").map(encodeURIComponent).join("/"));
+  xhr.setRequestHeader("apikey",SUPABASE_ANON_KEY);
+  xhr.setRequestHeader("Authorization","Bearer "+accessToken);
+  xhr.setRequestHeader("Content-Type",file.type||"application/octet-stream");
+  xhr.setRequestHeader("x-upsert","false");
+  xhr.upload.onprogress=e=>{
+   if(!e.lengthComputable)return;
+   const percent=e.total?e.loaded/e.total*100:0;
+   const elapsed=(Date.now()-startedAt)/1000;
+   const rate=elapsed>0?e.loaded/elapsed:0;
+   updateUploadProgress(percent,"جاري رفع الملف...",formatRemaining(rate>0?(e.total-e.loaded)/rate:NaN)+" • "+(e.loaded/1024/1024).toFixed(1)+" من "+(e.total/1024/1024).toFixed(1)+" ميجابايت");
+  };
+  xhr.onload=()=>{
+   activeUploadXHR=null;
+   if(xhr.status>=200&&xhr.status<300){updateUploadProgress(100,"اكتمل رفع الملف!","تم رفع الملف بنجاح.");resolve(true);return;}
+   let message="تعذّر رفع الملف.";
+   try{const body=JSON.parse(xhr.responseText);message=body.message||body.error||message}catch(_){}
+   reject(new Error("فشل رفع الملف: "+message));
+  };
+  xhr.onerror=()=>{activeUploadXHR=null;reject(new Error("اتقطع الاتصال أثناء رفع الملف. جرّب تاني."))};
+  xhr.onabort=()=>{activeUploadXHR=null;reject(new Error("تم إلغاء رفع الملف."))};
+  updateUploadProgress(0,"جاري بدء الرفع...","بنجهز اتصال الرفع");
+  xhr.send(file);
+ });
+}
 
 async function submitWork(taskId){
-if(submittingWork)return toast("إيه يا نجم 😂 مستعجل على إيه؟ التسليم الأول لسه بيطلع!");
+ if(submittingWork)return toast("إيه يا نجم 😂 استنى لحد ما التسليم الأول يخلص!");
  if(!currentUser)return toast("سجّل دخولك الأول.");
-
  const t=tasks.find(x=>x.id===taskId);
  if(!t||t.status==="done")return toast("التاسك مقفولة.");
-
  let file=$("submitFile")?.files?.[0]||null;
  const link=$("submitLink")?.value.trim()||null;
  const submissionText=$("submitText")?.value.trim()||"";
  const note=$("submitNote")?.value.trim()||"";
-
- if(!file&&!link&&!submissionText)
-  return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
+ if(!file&&!link&&!submissionText)return toast("اكتب الحل أو ارفع ملف أو حط لينك.");
 
  if(file){
   let ext=(file.name.split(".").pop()||"").toLowerCase();
-  const imageExt=["jpg","jpeg","png","webp"];
-  const videoExt=["mp4","webm","mov","m4v","avi"];
+  const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"];
   const allowedExt=[...imageExt,...videoExt,"pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
   if(!allowedExt.includes(ext))return toast("نوع الملف ده مش مسموح بيه.");
+  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&s.file_name===file.name);
+  if(duplicate&&!confirm("الملف متكرر يا نجم 😎\nسلّمت ملف بنفس الاسم للمهمة دي قبل كده. تحب ترفعه برضه؟"))return toast("تم إلغاء الرفع عشان الملف متكرر.");
+  updateUploadProgress(0,"جاري تجهيز الملف...","الضغط والتحسين قبل الرفع");
   if(imageExt.includes(ext)){
    toast("جاري ضغط الصورة وتجهيزها...");
    file=await compressImageForUpload(file,5*1024*1024);
-   ext=(file.name.split(".").pop()||"").toLowerCase();
   }else if(videoExt.includes(ext)){
    toast("جاري ضغط الفيديو؛ قد يستغرق وقتًا حسب مدته وجهازك...");
    file=await compressVideoForUpload(file);
-   ext=(file.name.split(".").pop()||"").toLowerCase();
+  }else if(ext==="pdf"){
+   toast("جاري تحسين وضغط ملف PDF...");
+   const before=file.size;
+   file=await compressPdfForUpload(file);
+   if(file.size<before)toast("اتضغط ملف PDF من "+(before/1024/1024).toFixed(1)+" إلى "+(file.size/1024/1024).toFixed(1)+" ميجابايت.");
   }
+  ext=(file.name.split(".").pop()||"").toLowerCase();
   const maxSize=imageExt.includes(ext)?5*1024*1024:videoExt.includes(ext)?50*1024*1024:15*1024*1024;
   const maxLabel=imageExt.includes(ext)?"5":videoExt.includes(ext)?"50":"15";
-  if(file.size>maxSize)return toast("حجم الملف أكبر من "+maxLabel+" ميجابايت حتى بعد الضغط.");
+  if(file.size>maxSize){$("uploadProgressBox")?.classList.add("hidden");return toast("حجم الملف أكبر من "+maxLabel+" ميجابايت حتى بعد الضغط أو التحسين.");}
  }
-
  submittingWork=true;
- toast("جاري إرسال التسليم، استنى من فضلك...");
-
- let filePath=null;
- let fileName=null;
-
+ const submitButton=$("modalRoot").querySelector('button[onclick^="submitWork"]');
+ if(submitButton){submitButton.disabled=true;submitButton.textContent="جاري الرفع...";}
+ let filePath=null,fileName=null;
  try{
   if(file){
    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-   filePath=`${currentUser.id}/${taskId}/${Date.now()}_${safe}`;
-
-   const {error:upErr}=await sb.storage.from("submissions").upload(
-    filePath,file,
-    {upsert:false,contentType:file.type||"application/octet-stream"}
-   );
-
-   if(upErr)throw new Error("فشل رفع الملف: "+upErr.message);
+   filePath=currentUser.id+"/"+taskId+"/"+Date.now()+"_"+safe;
+   await uploadSubmissionFileWithProgress(file,filePath);
    fileName=file.name;
   }
-
-  const {error}=await sb.from("submissions").insert({
-   task_id:taskId,
-   user_id:currentUser.id,
-   submission_text:submissionText||null,
-   link_url:link,
-   file_path:filePath,
-   file_name:fileName,
-   note,
-   status:"submitted"
-  });
-
+  const {error}=await sb.from("submissions").insert({task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:filePath,file_name:fileName,note,status:"submitted"});
   if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
-
-  toast("اتسلّم شغلك بنجاح!");
+  updateUploadProgress(100,"التسليم اكتمل بنجاح!","تم رفع الملف وحفظ بيانات التسليم.");
+  toast("اتسلّم شغلك بنجاح يا نجم!");
   await loadData();
   await openTask(taskId);
-
  }catch(err){
   if(filePath){
    const {error:cleanupError}=await sb.storage.from("submissions").remove([filePath]);
    if(cleanupError)console.error("تعذر تنظيف الملف:",cleanupError.message);
   }
+  $("uploadProgressBox")?.classList.add("hidden");
   toast(err.message||"حصل خطأ أثناء إرسال التسليم.");
  }finally{
-  submittingWork=false;
+  submittingWork=false;activeUploadXHR=null;
+  if(submitButton){submitButton.disabled=false;submitButton.textContent="إرسال التسليم";}
  }
 }
-
 
 
 function submissionHTML(s,admin){
