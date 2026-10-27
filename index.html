@@ -176,6 +176,50 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
  @media(max-width:580px){.audio-modal{max-height:calc(100dvh - 32px)!important}}
 }
 
+
+/* Mobile layout refinements */
+.submission-preview-modal{width:min(900px,100%);max-height:92vh;overflow:auto}
+@media(max-width:720px){
+ .modalback{place-items:start center;padding:max(12px,env(safe-area-inset-top)) 10px max(12px,env(safe-area-inset-bottom))}
+ .modal{width:100%;max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:16px;border-radius:16px;overscroll-behavior:contain}
+ .auth{padding:18px}
+ .submission-preview-modal{width:100%;max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+ .modalhead{align-items:flex-start}
+ .modalhead h2{min-width:0;overflow-wrap:anywhere;line-height:1.45}
+ .modal .actions{gap:7px}
+ .modal .actions>.btn{min-height:42px}
+ .field,select.field,textarea.field{font-size:16px}
+ .sectionhead{align-items:flex-start;flex-wrap:wrap}
+ .sectionhead>div{min-width:0}
+ .sectionhead p{max-width:100%;line-height:1.7}
+ .taskbottom{align-items:stretch;flex-direction:column}
+ .taskbottom>.actions{width:100%}
+ .taskbottom .btn{min-height:42px;flex:1 1 auto}
+ .notification-popover,.achievement-popover{top:max(12px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));width:auto;max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:14px;overscroll-behavior:contain}
+ .notification-popover .sectionhead,.achievement-popover .sectionhead{align-items:flex-start}
+ .notification-popover .sectionhead .actions{flex-wrap:wrap;justify-content:flex-start;width:100%}
+ .profile-hero{align-items:flex-start}
+ .profile-hero .member-avatar{width:64px;height:64px}
+ #toast{bottom:max(18px,env(safe-area-inset-bottom))}
+}
+@media(max-width:420px){
+ .wrap{width:min(1180px,calc(100% - 24px))}
+ .stats{gap:6px}
+ .stat{min-width:0;padding:10px 7px}
+ .stat strong{font-size:20px}
+ .stat span{display:block;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+ .toolbar .search{flex:1 1 100%;min-width:0}
+ .toolbar .filters{width:100%}
+ .filters .filter{flex:1 1 calc(50% - 6px);min-height:42px}
+ .task{padding:14px}
+ .task h3{font-size:17px;overflow-wrap:anywhere}
+ .profile-hero{gap:10px;padding:12px}
+ .profile-hero .member-avatar{width:60px;height:60px}
+ .profile-hero>div{min-width:0;overflow-wrap:anywhere}
+ .modal{padding:14px}
+ .modalhead .btn{white-space:nowrap}
+}
+
 </style></head>
 <body>
 <header class="container top">
@@ -2229,8 +2273,8 @@ async function viewSubmission(id,index=0){
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else if(["ppt","pptx","pps","ppsx"].includes(ext))preview='<iframe title="'+name+'" src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(f.url)+'" style="width:100%;height:70vh;border:0;border-radius:8px" allowfullscreen></iframe><p class="muted small">معاينة PowerPoint بتحتاج إن خدمة Microsoft تقدر توصل للملف. لو المعاينة ما ظهرتش، استخدم التحميل.</p>';
  else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
- const modalClass=isAudio?"modal audio-modal":"modal";
- $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="'+modalClass+'" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\','+index+')">تحميل ⬇️</button></div></div></div>';
+ const modalClass=isAudio?"modal audio-modal":"modal submission-preview-modal";
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="'+modalClass+'"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\','+index+')">تحميل ⬇️</button></div></div></div>';
  if(isVideo)initSubmissionVideoPlayer();
  else if(isAudio)initSubmissionAudioPlayer();
 }
