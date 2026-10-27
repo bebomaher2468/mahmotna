@@ -2827,12 +2827,12 @@ async function submitWork(taskId){
     p_link_url:link,
     p_file_path:finalFilePath,
     p_file_name:finalFileName,
-    p_note:note||null,
+    p_note:note,
     p_cleanup_duplicates:cleanupOlderSubmissions
    });
    if(error)throw new Error("فشل تحديث التسليم الحالي: "+error.message+". لو ظهر إن الدالة غير موجودة، شغّل ملف replace_submission.sql المحدّث في Supabase.");
   }else{
-   const {error}=await sb.from("submissions").insert({id:submissionId,task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:finalFilePath,file_name:finalFileName,note:note||null,status:"submitted"});
+   const {error}=await sb.from("submissions").insert({id:submissionId,task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:finalFilePath,file_name:finalFileName,note:note,status:"submitted"});
    if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
   }
   submissionSaved=true;
@@ -3071,14 +3071,11 @@ async function saveSubmissionContent(id){
   let finalFiles=oldFiles;
   if(chosen.length){finalFiles=mode==="replace"?uploaded:[...oldFiles,...uploaded];}
   const paths=finalFiles.map(f=>f.path),names=finalFiles.map(f=>f.name);
-  if(!textValue&&!linkValue&&!paths.length){
-   throw new Error("لازم يفضل في التسليم نص أو رابط أو ملف واحد على الأقل. لو عايز تمسح التسليم بالكامل، استخدم زر حذف التسليم.");
-  }
   const pathValue=paths.length>1?JSON.stringify(paths):(paths[0]||null);
   const nameValue=names.length>1?JSON.stringify(names):(names[0]||null);
   const {error}=await sb.rpc("update_submission_content",{
    p_submission_id:id,p_submission_text:textValue||null,p_link_url:linkValue||null,
-   p_file_path:pathValue,p_file_name:nameValue,p_note:noteValue||null,
+   p_file_path:pathValue,p_file_name:nameValue,p_note:noteValue,
    p_admin_feedback:isAdmin()?feedbackValue:null
   });
   if(error)throw new Error("فشل حفظ التعديل: "+error.message+". تأكد من تشغيل ملف SQL المرفق.");
@@ -3108,22 +3105,8 @@ async function deleteSubmissionStoragePath(path){
 async function removeSubmissionAttachment(id,index){
  let s;try{s=await getSubmissionForEdit(id);}catch(e){return toast(e.message);}
  const files=getSubmissionFiles(s);const target=files[index];if(!target)return toast("المرفق مش موجود.");
- const next=files.filter((_,i)=>i!==index);
- const hasText=Boolean((s.submission_text||"").trim());
- const hasLink=Boolean((s.link_url||"").trim());
- // The database check constraint requires at least one piece of submission content.
- // If removing this file would leave the submission empty, delete the submission row explicitly.
- if(!next.length&&!hasText&&!hasLink){
-  if(!confirm("ده آخر مرفق في التسليم ومفيش نص أو رابط بديل. حذف المرفق هنا معناه حذف التسليم بالكامل. متأكد إنك عايز تكمل؟"))return;
-  const {error}=await sb.rpc("delete_submission",{p_submission_id:id});
-  if(error)return toast("تعذر حذف التسليم: "+error.message);
-  let storageFailed=false;
-  try{await deleteSubmissionStoragePath(target.path);}catch(e){storageFailed=true;console.error("Storage cleanup:",e);}
-  closeModal();await loadData();if(isAdmin())await loadAdminSubs();
-  toast(storageFailed?"اتحذف التسليم، لكن الملف ما اتحذفش من التخزين. راجع لوحة مساحة التخزين.":"اتحذف المرفق والتسليم بالكامل.");
-  return;
- }
- const paths=next.map(f=>f.path),names=next.map(f=>f.name);
+ if(!confirm("متأكد إنك عايز تحذف المرفق «"+target.name+"»؟"))return;
+ const next=files.filter((_,i)=>i!==index);const paths=next.map(f=>f.path),names=next.map(f=>f.name);
  const {error}=await sb.rpc("update_submission_content",{p_submission_id:id,p_submission_text:s.submission_text||null,p_link_url:s.link_url||null,p_file_path:paths.length>1?JSON.stringify(paths):(paths[0]||null),p_file_name:names.length>1?JSON.stringify(names):(names[0]||null),p_note:s.note||"",p_admin_feedback:isAdmin()?(s.admin_feedback||null):null});
  if(error)return toast("تعذر تحديث التسليم: "+error.message);
  try{await deleteSubmissionStoragePath(target.path);toast("اتحذف المرفق واتحدّث التسليم.");}
