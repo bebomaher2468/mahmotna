@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
 <style>
 :root{--bg:#0b1020;--panel:#111a2e;--panel2:#17223a;--line:#283650;--text:#f4f7ff;--muted:#9aa9c4;--blue:#78a8ff;--cyan:#72e0d1;--gold:#f5ca7b;--green:#75dfaa;--red:#ff8f9b;--radius:20px}
 *{box-sizing:border-box}
@@ -327,12 +327,187 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 @media(max-width:580px){.task-submission-summary{padding:12px 10px;gap:8px}.task-submission-folder{flex-basis:34px;width:34px;height:34px;font-size:17px}.task-submission-summary-copy strong{font-size:13px}.task-submission-summary-copy small{font-size:10px}.task-submission-count{font-size:10px;padding:5px 7px}.task-submission-content{padding:9px}.member-presence-pill{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.task-submission-chevron{transition:none}}
 
+
+/* Final responsive polish: calmer spacing, readable type and safe touch targets */
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overflow-x:clip;line-height:1.65}
+img,video,iframe,canvas,svg{max-width:100%}
+button,input,textarea,select{max-width:100%}
+button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch-action:manipulation}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.container{min-width:0}
+.grid,.hero,.stats,.toolbar,.submission-toolbar,.submissions,.panel,.task,.stat,.profile-hero,.member-row,.submission-card,.task-submission-accordion{min-width:0}
+.field{font-size:16px;min-height:44px}
+.btn,.filter,.xbtn{min-height:42px}
+.task p,.sectionhead p,.muted{overflow-wrap:anywhere}
+.sectionhead h2{font-size:clamp(18px,2.4vw,24px);line-height:1.4}
+.sectionhead{min-width:0}
+.task{min-height:0}
+.task h3,.task-submission-summary-copy strong,.submission-task-title{overflow-wrap:anywhere;word-break:normal}
+.submission,.submission-card,.submission-note,.submission-feedback,.submission-text-details{min-width:0;overflow-wrap:anywhere}
+.submissionhead,.submissionhead>*{min-width:0}
+.submission-member-line{min-width:0}
+.submission-file-actions .btn{white-space:normal;overflow-wrap:anywhere}
+.word-preview{overflow-wrap:anywhere}
+
+@media (max-width:850px){
+  .container{width:min(100% - 28px,720px)}
+  .hero{gap:14px;padding-top:24px}
+  .hero-card{padding:18px}
+  .grid{gap:11px}
+  .submission-toolbar{gap:8px}
+  .admin-submissions-heading{margin-top:22px}
+}
+
+@media (max-width:720px){
+  .container{width:calc(100% - 24px)}
+  .top{padding:12px 0;gap:10px}
+  .brand{gap:9px}
+  .brand .logo{width:40px;height:40px;border-radius:12px}
+  .brand b{font-size:15px}
+  .brand small{font-size:11px;line-height:1.5}
+  .time-greeting{white-space:normal;font-size:11px}
+  .header-actions{gap:7px}
+  .header-action,.profile-chip,.header-account-btn{min-height:48px;border-radius:13px;gap:8px}
+  .header-action{box-shadow:none}
+  .header-action-icon{flex-basis:30px;width:30px;height:30px;border-radius:10px}
+  .header-action-copy strong,.profile-chip-copy strong{font-size:12px}
+  .header-action-meta,.profile-chip-copy small{font-size:10px;white-space:normal}
+  .hero{padding:22px 0 14px;gap:12px}
+  h1{font-size:clamp(27px,7vw,36px);line-height:1.3;margin:9px 0}
+  .hero p{font-size:14px;line-height:1.8;margin-bottom:14px}
+  .hero-card{padding:16px;border-radius:17px}
+  .hero-card h2{font-size:18px;line-height:1.5}
+  .hero-card p{font-size:13px;line-height:1.8}
+  .notice{font-size:12px;line-height:1.75;padding:10px 11px}
+  .daily-verse{margin:4px 0 18px;padding:13px;border-radius:16px;box-shadow:none}
+  .stats{gap:7px;margin:8px 0 20px}
+  .stat{padding:11px 8px;border-radius:14px}
+  .stat strong{font-size:clamp(18px,5vw,22px);line-height:1.35}
+  .stat span{display:block;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+  .sectionhead{gap:9px;margin:22px 0 11px;align-items:flex-start}
+  .sectionhead h2{font-size:19px}
+  .sectionhead p{font-size:12px;line-height:1.7}
+  .toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;margin-bottom:12px}
+  .toolbar .search{width:100%;min-width:0}
+  .filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .filter{min-width:0;padding:9px 8px;font-size:12px;line-height:1.4;white-space:normal}
+  .grid{grid-template-columns:minmax(0,1fr);gap:10px}
+  .task{padding:14px;border-radius:16px}
+  .task h3{font-size:17px;line-height:1.5}
+  .task p{font-size:13px;line-height:1.75}
+  .tasktop{align-items:flex-start;flex-wrap:wrap}
+  .taskbottom{gap:9px;padding-top:10px}
+  .taskbottom>.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .taskbottom .btn{min-width:0;min-height:42px;padding:9px 8px;font-size:12px;white-space:normal;overflow-wrap:anywhere}
+  .empty{padding:20px 14px;font-size:13px;line-height:1.8}
+  .submission-summary{gap:6px;margin:7px 0 12px}
+  .submission-summary-chip{padding:7px 9px;font-size:11px}
+  .member-submission-group{padding:11px;border-radius:15px}
+  .member-submission-head{gap:8px}
+  .member-submission-identity h3{font-size:15px;line-height:1.5}
+  .member-submission-meta{font-size:11px;line-height:1.6}
+  .member-submission-list,.task-submission-content{gap:8px}
+  .task-submission-accordion{margin-bottom:10px;border-radius:14px;box-shadow:none}
+  .task-submission-summary{min-height:60px;padding:11px 9px;gap:7px}
+  .task-submission-folder{width:32px;height:32px;flex-basis:32px;border-radius:10px;font-size:16px}
+  .task-submission-summary-copy strong{font-size:13px;line-height:1.45}
+  .task-submission-summary-copy small{font-size:10px;line-height:1.45}
+  .task-submission-count{padding:5px 6px;font-size:10px;border-radius:8px}
+  .task-submission-chevron{font-size:17px}
+  .task-submission-content{padding:8px}
+  .submission-card{padding:10px;gap:8px;border-radius:13px}
+  .submissionhead{gap:8px}
+  .submission-member-line{font-size:12px;gap:7px}
+  .submission-member-avatar{width:30px;height:30px;flex-basis:30px}
+  .submission-meta{font-size:11px;line-height:1.65}
+  .submission-text-details,.submission-note,.submission-feedback{padding:9px 10px;border-radius:11px}
+  .submission-text{font-size:13px;line-height:1.75}
+  .submission-files{gap:8px}
+  .submission-file-row{padding:9px;gap:8px}
+  .submission-file-name{font-size:12px;line-height:1.6}
+  .submission-file-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .submission-file-actions .btn{min-height:42px;padding:8px;font-size:12px}
+  .submission-review-form{grid-template-columns:minmax(0,1fr);gap:9px}
+  .submission-admin-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .submission-admin-actions .btn{min-width:0;min-height:42px;padding:8px;font-size:12px;white-space:normal}
+  .profile-hero{gap:11px;padding:12px;border-radius:14px}
+  .profile-hero .member-avatar{width:56px;height:56px}
+  .profile-hero h2,.profile-hero h3{line-height:1.45;overflow-wrap:anywhere}
+  .profile-stat{padding:10px;border-radius:12px}
+  .formgrid{gap:10px}
+  .formrow{grid-template-columns:minmax(0,1fr);gap:10px}
+  .label{font-size:12px;line-height:1.6}
+  .field,select.field,textarea.field{width:100%;font-size:16px;min-height:44px;padding:10px 11px}
+  textarea.field{min-height:100px}
+  .panel{border-radius:16px}
+  .auth{padding:16px}
+  .modalback{place-items:start center;padding: max(10px,env(safe-area-inset-top)) 8px max(10px,env(safe-area-inset-bottom))}
+  .modal{width:100%;max-width:560px;padding:13px;border-radius:15px;max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+  .modalhead{gap:8px}
+  .modalhead h2{font-size:18px;line-height:1.45}
+  .modal .actions{display:flex;flex-wrap:wrap;gap:7px}
+  .modal .actions>.btn{flex:1 1 130px;min-width:0;min-height:42px;white-space:normal}
+  .notification-popover,.achievement-popover{left:8px;right:8px;padding:12px;border-radius:15px;box-shadow:0 12px 36px #0006;backdrop-filter:blur(8px)}
+  .notification-popover .sectionhead .actions{display:flex;flex-wrap:wrap;width:100%}
+  .notification-popover .sectionhead .actions .btn{min-height:40px}
+  .achievement-popover .grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px}
+  .achievement-popover .panel{padding:9px!important}
+  .achievement-popover h2{font-size:18px}
+  #toast{left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));font-size:13px;line-height:1.7}
+  .audio-player{border-radius:16px;box-shadow:0 8px 22px #0004}
+  .audio-player-head-copy{min-width:0}
+  .audio-player-status{white-space:normal;text-align:end}
+  .audio-player-controls{gap:8px}
+  .audio-player-control-group{min-width:0}
+  .audio-player .audio-skip,.audio-player .audio-play-btn,.audio-player .audio-icon-btn{min-height:42px}
+  .spreadsheet-table-wrap,.word-preview{max-height:55dvh}
+  .spreadsheet-table th,.spreadsheet-table td{min-width:64px;max-width:220px;font-size:11px;padding:7px}
+  .word-preview{font-size:14px;line-height:1.8}
+  .footer{padding:26px 0 22px;line-height:1.9}
+  .developer-credit{box-shadow:none}
+}
+
+@media (max-width:390px){
+  .container{width:calc(100% - 20px)}
+  .header-actions{gap:6px}
+  .header-action,.profile-chip,.header-account-btn{padding:7px;gap:6px}
+  .header-action-icon{flex-basis:28px;width:28px;height:28px;font-size:14px}
+  .header-action-copy strong,.profile-chip-copy strong{font-size:11px}
+  .header-action-meta,.profile-chip-copy small{font-size:9px}
+  .stats{gap:5px}
+  .stat{padding:9px 5px}
+  .stat span{font-size:10.5px}
+  .task-submission-summary{gap:6px}
+  .task-submission-count{font-size:9px;padding:5px}
+  .task-submission-summary-copy strong{font-size:12px}
+  .submission-file-actions{grid-template-columns:minmax(0,1fr)}
+  .submission-admin-actions{grid-template-columns:minmax(0,1fr)}
+}
+
+@media (max-width:340px){
+  .header-actions{grid-template-columns:minmax(0,1fr)}
+  .header-actions>#authBtn,.header-actions>#logoutBtn{grid-column:auto}
+  .header-action,.profile-chip,.header-account-btn{min-height:44px}
+  .stats{grid-template-columns:minmax(0,1fr)}
+  .stat{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .task-submission-summary{flex-wrap:wrap}
+  .task-submission-count{white-space:normal}
+}
+
+@media (prefers-reduced-motion: reduce), (max-width:720px){
+  .brand .logo,.developer-credit,.btn,.filter,.header-action,.profile-chip,.header-account-btn{animation:none!important;transition:none!important}
+  .brand .logo{box-shadow:none}
+  .btn:not(:disabled):hover,.filter:not(:disabled):hover,.header-action:hover,.profile-chip:hover,.header-account-btn:hover{transform:none;box-shadow:none}
+  .modalback,.modal,#achievementDashboard:not(.hidden),#notificationCenter:not(.hidden),#achievementDashboard .submission,#notificationCenter .submission{animation:none!important}
+}
+
 </style></head>
 <body>
 <header class="container top">
  <div class="brand">
   <div class="logo">
-    <img src="default-avatar.webp" alt="لوجو مهمتنا">
+    <img src="default-avatar.webp" alt="لوجو مهمتنا" onerror="this.style.display='none';this.parentElement.textContent='م'">
   </div>
   <div class="brand-copy">
     <div class="brand-title-row"><b>مهمتنا</b><span id="timeGreeting" class="time-greeting"></span></div>
@@ -641,7 +816,7 @@ function renderMembersList() {
         ? "<button class='btn secondary' onclick='removeAdminRole(&quot;" + memberId + "&quot;)'>إزالة من مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف خالص</button>"
         : "<button class='btn secondary' onclick='assignAdminRole(&quot;" + memberId + "&quot;)'>🛡️ تعيين مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف العضو</button>";
     return "<div class='submission member-list-card'><div class='submissionhead' style='align-items:center;flex-wrap:wrap'>" +
-      "<div class='member-row'><img class='member-avatar' src='" + esc(member.avatar_url || defaultAvatarData()) + "' alt='صورة " + esc(member.display_name || "العضو") + "' onerror='this.onerror=null;this.src=defaultAvatarData()'><div class='member-info'><strong>" + esc(member.display_name || "عضو") + "</strong><p class='small muted' style='margin:3px 0'>اسم المستخدم: <strong dir='ltr'>" + esc(member.username || "غير محدد") + "</strong></p>" + roleBadge + "<div><span class='member-presence-pill " + presenceClass + "'><span class='member-presence-dot'></span>" + presenceText + "</span></div></div></div>" +
+      "<div class='member-row'><img class='member-avatar' src='" + esc(member.avatar_url || defaultAvatarData()) + "' alt='صورة " + esc(member.display_name || "العضو") + "' loading='lazy' decoding='async' onerror='this.onerror=null;this.src=defaultAvatarData()'><div class='member-info'><strong>" + esc(member.display_name || "عضو") + "</strong><p class='small muted' style='margin:3px 0'>اسم المستخدم: <strong dir='ltr'>" + esc(member.username || "غير محدد") + "</strong></p>" + roleBadge + "<div><span class='member-presence-pill " + presenceClass + "'><span class='member-presence-dot'></span>" + presenceText + "</span></div></div></div>" +
       "<div class='actions' style='justify-content:flex-end;flex-wrap:wrap'><button class='btn secondary' onclick='openMemberProfile(&quot;" + memberId + "&quot;)'>👤 الصفحة</button>" + actions + "</div>" +
       "</div></div>";
   }).join("");
@@ -2115,12 +2290,27 @@ function prepareOfficeFileForUpload(file){
  return ["doc","docx","ppt","pptx"].includes(ext)?file:file;
 }
 
+let pdfLibLoadPromise = null;
+async function loadPdfLibOnDemand(){
+ if(window.PDFLib?.PDFDocument)return window.PDFLib;
+ if(pdfLibLoadPromise)return pdfLibLoadPromise;
+ pdfLibLoadPromise=new Promise(resolve=>{
+  const script=document.createElement("script");
+  script.src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+  script.async=true;
+  script.onload=()=>resolve(window.PDFLib?.PDFDocument?window.PDFLib:null);
+  script.onerror=()=>{pdfLibLoadPromise=null;resolve(null);};
+  document.head.appendChild(script);
+ });
+ return pdfLibLoadPromise;
+}
 async function compressPdfForUpload(file){
- if(!file||!(/\.pdf$/i.test(file.name)||file.type==="application/pdf"))return file;
+ if(!file||(!/\.pdf$/i.test(file.name)&&file.type!=="application/pdf"))return file;
  try{
-  if(!window.PDFLib?.PDFDocument)return file;
+  const pdfLib=await loadPdfLibOnDemand();
+  if(!pdfLib?.PDFDocument)return file;
   const bytes=await file.arrayBuffer();
-  const pdf=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true,updateMetadata:false});
+  const pdf=await pdfLib.PDFDocument.load(bytes,{ignoreEncryption:true,updateMetadata:false});
   const optimized=await pdf.save({useObjectStreams:true,addDefaultPage:false,objectsPerTick:50});
   if(!optimized?.byteLength||optimized.byteLength>=file.size)return file;
   return new File([optimized],file.name,{type:"application/pdf",lastModified:file.lastModified});
@@ -2286,7 +2476,7 @@ function submissionHTML(s,admin,showMember=false,showTaskTitle=true){
  return '<article class="submission submission-card">'+
   '<div class="submissionhead"><div class="submission-heading-copy">'+
    (showTaskTitle?'<strong class="submission-task-title">'+esc(taskTitle)+'</strong>':"")+
-   ((admin||showMember)?'<span class="submission-member-line"><img class="submission-member-avatar" src="'+esc(s.member_avatar_url||s.avatar_url||defaultAvatarData())+'" alt="صورة '+esc(s.member_name||"العضو")+'" onerror="this.onerror=null;this.src=defaultAvatarData()"><span class="submission-member-name">'+esc(s.member_name||"عضو")+'</span></span>':"")+
+   ((admin||showMember)?'<span class="submission-member-line"><img class="submission-member-avatar" src="'+esc(s.member_avatar_url||s.avatar_url||defaultAvatarData())+'" alt="صورة '+esc(s.member_name||"العضو")+'" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=defaultAvatarData()"><span class="submission-member-name">'+esc(s.member_name||"عضو")+'</span></span>':"")+
   '</div><span class="badge '+(s.status==="accepted"?"done ":"")+(classes[s.status]||"")+'">'+esc(status)+'</span></div>'+
   '<div class="submission-meta">🗓️ '+esc(formatSubmissionDate(s.created_at))+'</div>'+
   (s.submission_text?'<details class="submission-text-details"><summary>📝 عرض الحل المكتوب</summary><div class="submission-text">'+esc(s.submission_text)+'</div></details>':"")+
