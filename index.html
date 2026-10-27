@@ -502,6 +502,36 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
   .modalback,.modal,#achievementDashboard:not(.hidden),#notificationCenter:not(.hidden),#achievementDashboard .submission,#notificationCenter .submission{animation:none!important}
 }
 
+
+/* Submission discussion and secure admin storage panel */
+.submission-comments{margin-top:8px;border:1px solid #2b3c58;border-radius:12px;background:#0b1425;padding:9px 11px;min-width:0}
+.submission-comments>summary{cursor:pointer;font-weight:800;color:#aeece2;font-size:12px;list-style:none;display:flex;align-items:center;gap:7px;min-height:34px}
+.submission-comments>summary::-webkit-details-marker{display:none}
+.submission-comments>summary:after{content:"＋";margin-inline-start:auto;color:var(--cyan);font-size:16px}
+.submission-comments[open]>summary:after{content:"−"}
+.submission-comments-list{display:grid;gap:8px;margin:8px 0 10px;min-width:0}
+.submission-comment{padding:9px 10px;border:1px solid #ffffff12;background:#ffffff04;border-radius:10px;min-width:0}
+.submission-comment-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:10px}
+.submission-comment-body{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);font-size:12px;line-height:1.8;margin-top:5px}
+.submission-comments .submission-comment-input{min-height:76px}
+.submission-comments-note{font-size:10px;line-height:1.7;color:var(--muted);margin:7px 0 0}
+.admin-storage-panel{padding:16px;margin:18px 0;background:linear-gradient(145deg,#141f35,#101729);border:1px solid var(--line);border-radius:18px}
+.storage-usage-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.storage-usage-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
+.storage-metric{padding:10px 11px;border:1px solid var(--line);background:#0d1528;border-radius:12px;min-width:0}
+.storage-metric strong{display:block;font-size:17px;overflow-wrap:anywhere}
+.storage-metric small{color:var(--muted);font-size:10px;line-height:1.5}
+.storage-usage-track{height:12px;background:#26334a;border-radius:99px;overflow:hidden;margin:12px 0}
+.storage-usage-fill{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--blue));border-radius:inherit;transition:width .3s ease}
+.storage-files{display:grid;gap:8px;margin-top:12px}
+.storage-file-row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #ffffff12;border-radius:12px;background:#0d1528;min-width:0}
+.storage-file-copy{flex:1;min-width:0}
+.storage-file-copy strong{display:block;overflow-wrap:anywhere;font-size:12px;line-height:1.6}
+.storage-file-copy small{display:block;color:var(--muted);font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.storage-file-row .btn{min-height:38px;padding:7px 9px;flex:0 0 auto}
+.storage-warning{font-size:11px;line-height:1.8;color:#f5d694;margin:9px 0 0}
+@media(max-width:580px){.admin-storage-panel{padding:12px}.storage-usage-metrics{grid-template-columns:1fr 1fr}.storage-metric:first-child{grid-column:1/-1}.storage-file-row{align-items:flex-start;flex-direction:column}.storage-file-row .btn{width:100%}.submission-comments{padding:8px}.submission-comments>summary{font-size:11px}}
+
 </style></head>
 <body>
 <header class="container top">
@@ -628,6 +658,21 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
 </section>
 
   <section id="adminSection" class="hidden"><div class="sectionhead"><div><h2>لوحة المسؤولين</h2><p>مراجعة تسليمات الأعضاء وتحديث حالتها.</p></div></div>
+<section class="admin-storage-panel" id="adminStoragePanel" aria-labelledby="adminStorageHeading">
+ <div class="storage-usage-top">
+  <div><h2 id="adminStorageHeading" style="margin:0 0 5px">🗄️ مساحة Supabase</h2><p class="muted small" style="margin:0">لوحة للمسؤول فقط — إجمالي الملفات وأكبر الملفات حجمًا.</p></div>
+  <button class="btn secondary" type="button" onclick="loadStorageUsage(true)">🔄 تحديث المساحة</button>
+ </div>
+ <div id="storageUsageStatus" class="notice" style="margin:12px 0">اضغط «تحديث المساحة» لحساب التخزين.</div>
+ <div id="storageUsageMetrics" class="storage-usage-metrics hidden"></div>
+ <div class="storage-usage-track hidden" id="storageUsageTrack" aria-label="نسبة استخدام مساحة التخزين"><div id="storageUsageFill" class="storage-usage-fill"></div></div>
+ <p id="storageUsagePercent" class="muted small hidden" style="margin:0"></p>
+ <h3 style="font-size:15px;margin:18px 0 6px">أكبر الملفات</h3>
+ <p class="muted small" style="margin:0">حذف الملف دائم؛ لو الملف مرتبط بتسليم أو صورة مستخدمة، هيرفض النظام حذفه لحماية الموقع.</p>
+ <div id="storageLargestFiles" class="storage-files"><div class="empty">لم يتم تحميل الملفات بعد.</div></div>
+ <p class="storage-warning">تنبيه: حذف ملف مستخدم في تسليم قد يمنع فتحه. استخدم الحذف للملفات القديمة غير المطلوبة فقط.</p>
+</section>
+
 <div class="panel" style="padding:18px;margin:18px 0">
   <h2 style="margin-top:0">👥 إدارة الأعضاء</h2>
   <p class="muted small">إنشاء حسابات جديدة وإعادة تعيين كلمات المرور.</p>
@@ -1133,7 +1178,7 @@ async function loadNotifications(){
  const {data,error}=await sb.from("notifications").select("id,title,body,kind,task_id,submission_id,read_at,created_at").order("created_at",{ascending:false}).limit(30);
  if(error){console.error("Notifications:",error);list.innerHTML='<div class="notice">فعّل مركز الإشعارات بتشغيل ملف supabase/notifications.sql في Supabase SQL Editor.</div>';return;}
  const rows=data||[]; $("notificationUnread").textContent=rows.filter(n=>!n.read_at).length+" جديد";
- const icons={new_task:"🆕",new_submission:"📥",due_soon:"⏰",accepted:"✅",revision:"📝"};
+ const icons={new_task:"🆕",new_submission:"📥",due_soon:"⏰",due_24h:"⏰",due_1h:"🚨",overdue_task:"⚠️",accepted:"✅",revision:"📝"};
  list.innerHTML=rows.length?rows.map(n=>'<article class="submission" style="border-color:'+(n.read_at?'var(--line)':'#78a8ff88')+'"><div class="submissionhead"><strong>'+(icons[n.kind]||"🔔")+' '+esc(n.title)+'</strong><span class="muted small">'+new Date(n.created_at).toLocaleString("ar-EG")+'</span></div><p>'+esc(n.body||"")+'</p>'+(n.kind==="new_submission"&&isAdmin()?'<button class="btn secondary" onclick="scrollToAdminSubmissions()">عرض التسليمات</button> ':"")+'<button class="btn secondary" onclick="markNotificationRead(\''+n.id+'\')">'+(n.read_at?'مقروء':'تحديد كمقروء')+'</button></article>').join(""):'<div class="empty">مفيش إشعارات لحد دلوقتي.</div>';
 }
 function scrollToAdminSubmissions(){
@@ -1222,6 +1267,7 @@ function subscribeLiveData(){
   .on("postgres_changes",{event:"*",schema:"public",table:"tasks"},scheduleLiveRefresh)
   .on("postgres_changes",{event:"*",schema:"public",table:"submissions"},scheduleLiveRefresh)
   .on("postgres_changes",{event:"*",schema:"public",table:"profiles"},scheduleLiveRefresh)
+  .on("postgres_changes",{event:"*",schema:"public",table:"submission_comments"},()=>{document.querySelectorAll("details.submission-comments[open]").forEach(d=>loadSubmissionComments(d.dataset.submissionCommentsRoot,d,true));})
   .subscribe((status)=>{if(status==="CHANNEL_ERROR"||status==="TIMED_OUT")console.error("Realtime connection status:",status);});
 }
 function scheduleLiveRefresh(){
@@ -2030,6 +2076,7 @@ async function loadDataNow(){
  if(isAdmin()){
   await loadAdminSubs();
   await loadMembersList();
+  if(!storageUsageAutoAttempted)loadStorageUsage();
  }
 }
 
@@ -2514,8 +2561,17 @@ async function saveTask(id){
 async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عايز تحذف التاسك؟ ده هيحذف بيانات التاسك المرتبطة بيه."))return;const {error}=await sb.from("tasks").delete().eq("id",id);if(error)return toast(error.message);closeModal();await loadData();toast("تم حذف التاسك")}
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
- const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ اختر الصور اللي عايز تسلّمها.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 اختر المقاطع الصوتية اللي عايز تسلّمها.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 لرفع أسرع، يفضّل حجم كل ملف يكون ≤ 50 ميجابايت. تقدر ترفع Pdf او PowerPoint او Word او Excel او اي ملف بصيغة اخرى</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ let mine=[];
+ if(currentUser){
+  const {data:ownRows,error:ownError}=await sb.from("submissions").select("*, tasks(title)").eq("task_id",id).eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(100);
+  if(ownError){console.error("تعذر تحميل تسليمات العضو للمهمة:",ownError);mine=submissions.filter(s=>s.task_id===id&&s.user_id===currentUser.id).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));}
+  else mine=ownRows||[];
+ }
+ const existingSubmission=mine.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0]||null;
+ const existingFiles=existingSubmission?getSubmissionFiles(existingSubmission):[];
+ // نعرض التسليم الحالي داخل النموذج؛ في الوضع الافتراضي تظل السجلات الأقدم كما هي.
+ mine=existingSubmission?[existingSubmission]:[];
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${existingSubmission?'<div class="notice">تقدر تزود على النص الموجود أو تعدّله. الملفات الجديدة هتتضاف للمرفقات الحالية افتراضيًا. لو عايز توفر مساحة، اختار استبدال المرفقات والتسليمات القديمة؛ ساعتها الملفات القديمة هتتحذف بعد نجاح التحديث.</div>':""}${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${existingSubmission&&t.submission_type!=="link"?`<div><label class="label">طريقة التعامل مع الملفات القديمة</label><select id="submissionFileMode" class="field"><option value="add">إضافة الملفات الجديدة للموجودة (الاختيار الافتراضي)</option><option value="replace">استبدال الملفات والتسليمات الأقدم وحذفها لتوفير المساحة</option></select><p class="muted small">اختيار الاستبدال يتطلب رفع ملف واحد جديد على الأقل، وسيحذف الملفات القديمة والتسليمات الأقدم لنفس العضو والمهمة بعد نجاح الحفظ.</p></div>`:""}${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" value="${esc(existingSubmission?.link_url||"")}" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ اختر الصور اللي عايز تضيفها أو تستبدل بها المرفقات.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 اختر المقاطع الصوتية اللي عايز تضيفها.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 لرفع أسرع، يفضّل حجم كل ملف يكون ≤ 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical">${esc(existingSubmission?.submission_text||"")}</textarea>${existingSubmission?'<p class="muted small">النص الموجود ظاهر هنا؛ لو عايز تضيف عليه، اكتب الإضافة في آخره وسيب النص القديم موجودًا.</p>':""}</div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها...">${esc(existingSubmission?.note||"")}</textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">${existingSubmission?"حفظ تعديل التسليم":"إرسال التسليم"}</button><p class="muted small" style="margin:0">${existingSubmission?"الوضع الافتراضي يضيف الملفات الجديدة للموجودة. استخدم خيار الاستبدال فقط لو متأكد إنك مش محتاج الملفات والتسليمات القديمة.":"تقدر تعدّل التسليم لاحقًا، وسيتم تحديث نفس السجل بدل إنشاء نسخة جديدة."}</p></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
@@ -2678,7 +2734,14 @@ async function submitWork(taskId){
  const link=$("submitLink")?.value.trim()||null;
  const submissionText=$("submitText")?.value.trim()||"";
  const note=$("submitNote")?.value.trim()||"";
- if(!files.length&&!link&&!submissionText)return toast("اكتب الحل أو ارفع صورة أو فيديو أو مقطع صوتي أو ملف أو حط لينك.");
+ const {data:priorRows,error:priorReadError}=await sb.from("submissions").select("id,task_id,user_id,file_path,file_name,created_at").eq("task_id",taskId).eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(1000);
+ if(priorReadError)return toast("مش قادر أتحقق من التسليم الحالي: "+priorReadError.message);
+ const priorSubmissions=priorRows||[];
+ const existingSubmission=priorSubmissions[0]||null;
+ const existingFiles=existingSubmission?getSubmissionFiles(existingSubmission):[];
+ const replaceAttachments=!!existingSubmission&&$("submissionFileMode")?.value==="replace";
+ if(replaceAttachments&&!files.length)return toast("لاستبدال الملفات وحذف القديمة، اختار ملفًا جديدًا واحدًا على الأقل. لو عايز تضيف نص فقط، سيب طريقة الملفات على الاختيار الافتراضي.");
+ if(!files.length&&!link&&!submissionText&&!existingFiles.length)return toast("اكتب الحل أو ارفع صورة أو فيديو أو مقطع صوتي أو ملف أو حط لينك.");
 
  const seen=new Set();
  for(const f of files){
@@ -2689,7 +2752,7 @@ async function submitWork(taskId){
   if(expected==="video"&&!videoExt.includes(ext))return toast("خانة الفيديوهات تقبل الفيديوهات فقط.");
   if(expected==="audio"&&!audioExt.includes(ext))return toast("خانة المقاطع الصوتية تقبل ملفات الصوت فقط.");
   if(expected==="document"&&!docExt.includes(ext))return toast("خانة الملفات تقبل المستندات فقط.");
-  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&getSubmissionFiles(s).some(file=>file.name===f.name));
+  const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id!==taskId&&getSubmissionFiles(s).some(file=>file.name===f.name));
   if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\\n"+f.name+" اتسلّم قبل كده في نفس المهمة. تكمل؟"))return toast("تم إلغاء التسليم عشان الملف متكرر.");
   seen.add(f.name);
   // لا نرفض حسب الحجم الأصلي؛ جرّب الضغط أولًا ثم افحص الحجم النهائي قبل الرفع.
@@ -2740,10 +2803,44 @@ async function submitWork(taskId){
    await uploadSubmissionFileWithProgress(uploadFile,path);
    if(!filePath){filePath=path;fileName=uploadFile.name;}
   }
-  const submissionId=crypto.randomUUID();
-  const {error}=await sb.from("submissions").insert({id:submissionId,task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:uploadedPaths.length>1?JSON.stringify(uploadedPaths):filePath,file_name:uploadedNames.length>1?JSON.stringify(uploadedNames):fileName,note,status:"submitted"});
-  if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
+  const finalPaths=uploadedPaths.length
+   ?(existingSubmission&&!replaceAttachments?[...existingFiles.map(file=>file.path),...uploadedPaths]:uploadedPaths)
+   :existingFiles.map(file=>file.path);
+  const finalNames=uploadedPaths.length
+   ?(existingSubmission&&!replaceAttachments?[...existingFiles.map(file=>file.name),...uploadedNames]:uploadedNames)
+   :existingFiles.map(file=>file.name);
+  const finalFilePath=finalPaths.length>1?JSON.stringify(finalPaths):(finalPaths[0]||null);
+  const finalFileName=finalNames.length>1?JSON.stringify(finalNames):(finalNames[0]||null);
+  let submissionId=existingSubmission?.id||crypto.randomUUID();
+  let oldPathsToDelete=[];
+  const cleanupOlderSubmissions=!!existingSubmission&&replaceAttachments;
+  if(existingSubmission){
+   // الإضافة هي الوضع الافتراضي ولا تحذف ملفات/سجلات سابقة. الحذف يحصل فقط بعد اختيار الاستبدال صراحةً.
+   if(cleanupOlderSubmissions){
+    oldPathsToDelete.push(...existingFiles.map(file=>file.path));
+    for(const oldRow of priorSubmissions.slice(1))oldPathsToDelete.push(...getSubmissionFiles(oldRow).map(file=>file.path));
+   }
+   const {error}=await sb.rpc("replace_own_submission",{
+    p_submission_id:submissionId,
+    p_submission_text:submissionText||null,
+    p_link_url:link,
+    p_file_path:finalFilePath,
+    p_file_name:finalFileName,
+    p_note:note||null,
+    p_cleanup_duplicates:cleanupOlderSubmissions
+   });
+   if(error)throw new Error("فشل تحديث التسليم الحالي: "+error.message+". لو ظهر إن الدالة غير موجودة، شغّل ملف replace_submission.sql المحدّث في Supabase.");
+  }else{
+   const {error}=await sb.from("submissions").insert({id:submissionId,task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:finalFilePath,file_name:finalFileName,note:note||null,status:"submitted"});
+   if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
+  }
   submissionSaved=true;
+  let oldFilesCleanupFailed=false;
+  oldPathsToDelete=[...new Set(oldPathsToDelete.filter(Boolean))];
+  if(oldPathsToDelete.length){
+   const {error:removeOldError}=await sb.storage.from("submissions").remove(oldPathsToDelete);
+   if(removeOldError){oldFilesCleanupFailed=true;console.error("تم تحديث التسليم لكن تعذر حذف بعض الملفات القديمة:",removeOldError.message);}
+  }
   let adminPushFailed=false,adminPushNoDevices=false;
   try{
    const {data:pushData,error:pushError}=await sb.functions.invoke("send-push",{body:{action:"submission_created",submission_id:submissionId}});
@@ -2751,7 +2848,7 @@ async function submitWork(taskId){
    else adminPushNoDevices=!pushData.sent&&!!pushData.noSubscriptions;
   }catch(pushError){console.error("Submission push:",pushError);adminPushFailed=true;}
   updateUploadProgress(100,"التسليم اكتمل بنجاح!","تم رفع الملف وحفظ بيانات التسليم.");
-  toast(adminPushFailed?"اتسلّم شغلك، لكن إشعار الجهاز للمسؤولين ما اتبعتش.":adminPushNoDevices?"اتسلّم شغلك، لكن مفيش جهاز مسؤول مفعّل للإشعارات حاليًا.":"اتسلّم شغلك بنجاح يا نجم!");
+  toast(oldFilesCleanupFailed?"اتحدّث التسليم، لكن تعذّر حذف بعض الملفات القديمة من التخزين. راجع لوحة مساحة التخزين.":adminPushFailed?"اتسلّم شغلك، لكن إشعار الجهاز للمسؤولين ما اتبعتش.":adminPushNoDevices?"اتسلّم شغلك، لكن مفيش جهاز مسؤول مفعّل للإشعارات حاليًا.":existingSubmission?(cleanupOlderSubmissions?"اتحدّث التسليم، واتحذفت المرفقات والتسليمات الأقدم لتوفير المساحة.":uploadedPaths.length?"اتضافت الملفات الجديدة للمرفقات الحالية واتحفظ التعديل.":"اتحفظ تعديل التسليم الحالي بدون حذف المرفقات."):"اتسلّم شغلك بنجاح يا نجم!");
   await loadData();
   await openTask(taskId);
  }catch(err){
@@ -2812,8 +2909,9 @@ function submissionHTML(s,admin,showMember=false,showTaskTitle=true){
    '<option value="revision" '+(s.status==="revision"?"selected":"") +'>محتاج تعديل</option>'+
   '</select><input class="field" id="feedback_'+s.id+'" placeholder="ملاحظة للمُسلِّم" value="'+esc(s.admin_feedback||"")+'"></div>'+
   '<div class="submission-admin-actions"><button class="btn secondary" type="button" onclick="updateSubmission(\''+s.id+'\')">حفظ المراجعة</button>'+
-  '<button class="btn secondary" type="button" onclick="editSubmission(\''+s.id+'\')">✏️ تعديل</button>'+
+  '<button class="btn secondary" type="button" onclick="editSubmission(\''+s.id+'\')">✏️ تعديل المحتوى</button>'+
   '<button class="btn danger" type="button" onclick="deleteSubmission(\''+s.id+'\')">🗑️ حذف</button></div>':"")+
+  ((currentUser&&(admin||s.user_id===currentUser.id))?'<details class="submission-comments" data-submission-comments-root="'+esc(s.id)+'" ontoggle="if(this.open)loadSubmissionComments(\''+s.id+'\',this)"><summary>💬 التعليقات بين العضو والمسؤول</summary><div class="submission-comments-list"><div class="muted small">افتح النقاش لعرض الرسائل.</div></div><div class="formgrid" style="margin-top:9px"><textarea class="field submission-comment-input" rows="2" maxlength="2000" placeholder="اكتب تعليقك هنا..."></textarea><button class="btn primary" type="button" onclick="postSubmissionComment(\''+s.id+'\',this)">إرسال التعليق</button></div><p class="submission-comments-note">إعادة التسليم بتحدّث السجل الحالي. الملفات الجديدة بتتضاف افتراضيًا؛ حذف القديم يحصل فقط لو العضو اختار الاستبدال صراحةً، والتعليقات تفضل محفوظة.</p></details>':"")+
  '</article>';
 }
 function normalizeSubmissionSearch(value){
@@ -2918,40 +3016,21 @@ function renderMySubs(){
 }
 
 async function editSubmission(id){
- if(!isAdmin())return toast("مش مسموح لك بالتعديل.");
-
- const {data:s,error}=await sb
-  .from("submissions")
-  .select("*")
-  .eq("id",id)
-  .single();
-
- if(error||!s)return toast("مش قادر أجيب بيانات التسليم.");
-
- const newText=prompt("عدّل الحل المكتوب:",s.submission_text||"");
- if(newText===null)return;
-
- const newLink=prompt("عدّل اللينك أو سيبه فاضي:",s.link_url||"");
- if(newLink===null)return;
-
- const newNote=prompt("عدّل الملاحظة:",s.note||"");
- if(newNote===null)return;
-
- const {error:updateError}=await sb
-  .from("submissions")
-  .update({
-   submission_text:newText.trim()||null,
-   link_url:newLink.trim()||null,
-   note:newNote.trim()
-  })
-  .eq("id",id);
-
- if(updateError)return toast("فشل التعديل: "+updateError.message);
-
- await loadData();
- toast("تم تعديل التسليم بنجاح.");
+ if(!isAdmin())return toast("التعديل المباشر للمسؤولين بس.");
+ let s=(adminSubmissionCache||[]).find(item=>item.id===id)||(submissions||[]).find(item=>item.id===id);
+ if(!s){const {data,error}=await sb.from("submissions").select("*").eq("id",id).single();if(error||!data)return toast("مش قادر أجيب بيانات التسليم.");s=data;}
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>✏️ تعديل محتوى التسليم</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="notice">التعديلات هتتحفظ فوق البيانات الحالية مباشرة من غير إنشاء نسخة جديدة. المرفقات الحالية مش هتتغير من الشاشة دي؛ العضو يقدر يرفع ملفات بديلة من نفس المهمة.</div><div class="formgrid"><div><label class="label">الحل أو ملخص الشغل</label><textarea id="editSubmissionText" class="field" rows="7">'+esc(s.submission_text||"")+'</textarea></div><div><label class="label">رابط الشغل</label><input id="editSubmissionLink" class="field" type="url" value="'+esc(s.link_url||"")+'" placeholder="https://..."></div><div><label class="label">ملاحظة العضو</label><textarea id="editSubmissionNote" class="field" rows="3">'+esc(s.note||"")+'</textarea></div><div class="actions"><button class="btn primary" onclick="saveSubmissionContent(\''+s.id+'\')">حفظ التعديل</button><button class="btn secondary" onclick="closeModal()">إلغاء</button></div></div></div></div>';
 }
-
+async function saveSubmissionContent(id){
+ if(!isAdmin())return toast("التعديل المباشر للمسؤولين بس.");
+ const submission_text=$("editSubmissionText")?.value.trim()||"";
+ const linkText=$("editSubmissionLink")?.value.trim()||"";
+ const note=$("editSubmissionNote")?.value.trim()||"";
+ if(linkText){try{new URL(linkText)}catch(_){return toast("الرابط مش صحيح.");}}
+ const {error}=await sb.from("submissions").update({submission_text:submission_text||null,link_url:linkText||null,note:note||null}).eq("id",id);
+ if(error)return toast("فشل تعديل التسليم: "+error.message);
+ closeModal();await loadData();await loadAdminSubs();toast("تم تعديل محتوى التسليم مباشرة.");
+}
 async function deleteSubmission(id){
  if(!isAdmin())return toast("مش مسموح لك بالحذف.");
 
@@ -3492,6 +3571,115 @@ async function loadAdminSubs(){
  });
  adminSubmissionCache=all.map(item=>({...item,member_name:names[item.user_id]||"عضو",member_avatar_url:avatars[item.user_id]||null}));
  renderAdminSubs();
+}
+
+
+// التعليقات خاصة بصاحب التسليم والمسؤولين فقط؛ صلاحيات قاعدة البيانات تفرض نفس الشرط.
+async function loadSubmissionComments(submissionId,details,force=false){
+ if(!currentUser||!details||!details.open)return;
+ if(details.dataset.loading==="true")return;
+ if(details.dataset.loaded==="true"&&!force)return;
+ const host=details.querySelector(".submission-comments-list");if(!host)return;
+ details.dataset.loading="true";host.innerHTML='<div class="muted small">جاري تحميل التعليقات...</div>';
+ try{
+  const {data,error}=await sb.from("submission_comments").select("id,submission_id,user_id,body,created_at").eq("submission_id",submissionId).order("created_at",{ascending:true}).limit(200);
+  if(error)throw error;
+  const rows=data||[];
+  const ids=[...new Set(rows.map(row=>row.user_id).filter(Boolean))];
+  let authors=[];
+  if(ids.length){
+   const result=await sb.from("profiles").select("id,display_name,username,role").in("id",ids);
+   if(!result.error)authors=result.data||[];
+  }
+  const byId=new Map(authors.map(author=>[author.id,author]));
+  host.innerHTML=rows.length?rows.map(row=>{
+   const author=byId.get(row.user_id);
+   const fallback=row.user_id===currentUser.id?(profile?.display_name||profile?.username||"أنت"):(isAdmin()?"العضو":"المسؤول");
+   const name=displayMemberName(author?.display_name||author?.username||fallback);
+   const role=author?.role==="admin"?"مسؤول":(row.user_id===currentUser.id?"أنت":"عضو");
+   return '<article class="submission-comment"><div class="submission-comment-head"><strong>'+esc(name)+' · '+esc(role)+'</strong><time>'+esc(formatSubmissionDate(row.created_at))+'</time></div><div class="submission-comment-body">'+esc(row.body)+'</div></article>';
+  }).join(""):'<div class="muted small">مفيش تعليقات لحد دلوقتي. اكتب أول تعليق.</div>';
+  details.dataset.loaded="true";
+ }catch(error){
+  console.error("تعذر تحميل نقاش التسليم:",error);
+  host.innerHTML='<div class="notice">تعذّر تحميل التعليقات. تأكد من تشغيل ملف SQL المرفق ومن صلاحيات قاعدة البيانات.</div>';
+ }finally{details.dataset.loading="false";}
+}
+async function postSubmissionComment(submissionId,button){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ const details=button?.closest("details.submission-comments");
+ const input=details?.querySelector(".submission-comment-input");
+ const body=String(input?.value||"").trim();
+ if(!body)return toast("اكتب التعليق الأول.");
+ if(body.length>2000)return toast("التعليق طويل جدًا؛ الحد 2000 حرف.");
+ button.disabled=true;button.textContent="جاري الإرسال...";
+ try{
+  const {error}=await sb.from("submission_comments").insert({submission_id:submissionId,user_id:currentUser.id,body});
+  if(error)throw error;
+  input.value="";
+  if(details){details.dataset.loaded="false";await loadSubmissionComments(submissionId,details,true);}
+  toast("تم إرسال التعليق.");
+ }catch(error){
+  console.error("تعذر إرسال التعليق:",error);
+  toast(error?.message||"تعذّر إرسال التعليق. تأكد من تشغيل ملف SQL المرفق.");
+ }finally{button.disabled=false;button.textContent="إرسال التعليق";}
+}
+
+const STORAGE_QUOTA_BYTES=1024*1024*1024;
+let storageUsageAutoAttempted=false;
+function formatBytes(bytes){
+ const value=Math.max(0,Number(bytes)||0);
+ if(value<1024)return value+" بايت";
+ const units=["KB","MB","GB","TB"];let n=value/1024,index=0;
+ while(n>=1024&&index<units.length-1){n/=1024;index++;}
+ return n.toLocaleString("en-US",{maximumFractionDigits:2})+" "+units[index];
+}
+function formatStorageDate(value){if(!value)return"تاريخ غير متاح";const date=new Date(value);return Number.isNaN(date.getTime())?"تاريخ غير متاح":date.toLocaleString("ar-EG");}
+async function loadStorageUsage(force=false){
+ if(!isAdmin())return toast("لوحة مساحة التخزين للمسؤولين فقط.");
+ if(storageUsageAutoAttempted&&!force)return;
+ storageUsageAutoAttempted=true;
+ const status=$("storageUsageStatus"),metrics=$("storageUsageMetrics"),track=$("storageUsageTrack"),fill=$("storageUsageFill"),pct=$("storageUsagePercent"),host=$("storageLargestFiles");
+ if(!status||!host)return;
+ status.className="notice";status.textContent="جاري قراءة بيانات التخزين...";
+ host.innerHTML='<div class="empty">جاري تحميل قائمة الملفات...</div>';
+ try{
+  const {data,error}=await sb.rpc("admin_storage_usage");
+  if(error)throw error;
+  const result=Array.isArray(data)?data[0]:data;
+  if(!result||typeof result!=="object")throw new Error("لم يرجع Supabase بيانات مساحة التخزين.");
+  const used=Number(result.used_bytes||0),count=Number(result.file_count||0),quota=Number(result.quota_bytes||STORAGE_QUOTA_BYTES),ratio=quota>0?used/quota*100:0;
+  metrics.classList.remove("hidden");track.classList.remove("hidden");pct.classList.remove("hidden");
+  metrics.innerHTML='<div class="storage-metric"><strong>'+esc(formatBytes(used))+'</strong><small>المستخدم</small></div><div class="storage-metric"><strong>'+esc(formatBytes(Math.max(0,quota-used)))+'</strong><small>المتبقي من 1 جيجابايت</small></div><div class="storage-metric"><strong>'+esc(count.toLocaleString("ar-EG"))+'</strong><small>عدد الملفات</small></div>';
+  fill.style.width=Math.min(100,Math.max(0,ratio))+"%";fill.style.background=ratio>=90?"linear-gradient(90deg,#ff8f9b,#f5ca7b)":"linear-gradient(90deg,var(--cyan),var(--blue))";
+  pct.textContent="استخدام تقريبي: "+ratio.toLocaleString("ar-EG",{maximumFractionDigits:2})+"% من 1 جيجابايت";
+  status.className=ratio>=90?"notice error":"notice good";
+  status.textContent=ratio>=90?"المساحة قربت تخلص؛ راجع أكبر الملفات بحذر.":"تم تحديث بيانات التخزين بنجاح. الحجم يعتمد على بيانات الملفات المسجلة في Storage.";
+  const files=Array.isArray(result.files)?result.files:[];
+  host.innerHTML=files.length?files.map(file=>{
+   const bucket=String(file.bucket_id||"");const name=String(file.name||"");
+   const canDelete=["submissions","avatars"].includes(bucket);
+   const bucketLabel=bucket==="submissions"?"تسليمات":bucket==="avatars"?"صور شخصية":bucket||"غير معروف";
+   const deleteBtn=canDelete?'<button class="btn danger" type="button" data-bucket="'+esc(bucket)+'" data-name="'+esc(name)+'" onclick="deleteStorageObject(this.dataset.bucket,this.dataset.name)">🗑️ حذف بعد التأكيد</button>':'';
+   return '<article class="storage-file-row"><div class="storage-file-copy"><strong dir="auto">'+esc(name.split("/").pop()||name)+'</strong><small>المساحة: '+esc(bucketLabel)+' · '+esc(formatBytes(file.size_bytes))+' · '+esc(formatStorageDate(file.created_at))+'</small><small dir="ltr">'+esc(bucket+'/'+name)+'</small></div>'+deleteBtn+'</article>';
+  }).join(""):'<div class="empty">مفيش ملفات مسجلة في Storage.</div>';
+ }catch(error){
+  console.error("تعذر قراءة مساحة Supabase:",error);
+  status.className="notice error";status.textContent="تعذّر قراءة المساحة. شغّل ملف supabase/setup_features.sql في SQL Editor، ثم حدّث الصفحة. "+(error?.message||"");
+  metrics.classList.add("hidden");track.classList.add("hidden");pct.classList.add("hidden");
+  host.innerHTML='<div class="empty">مش قادرين نعرض الملفات قبل إعداد الصلاحيات.</div>';
+ }
+}
+async function deleteStorageObject(bucket,name){
+ if(!isAdmin())return toast("حذف ملفات التخزين للمسؤولين فقط.");
+ if(!["submissions","avatars"].includes(bucket))return toast("حذف الملفات من مساحة التخزين دي غير متاح من اللوحة.");
+ const shortName=String(name||"").split("/").pop()||name;
+ if(!confirm("تأكيد الحذف النهائي؟\n\n"+shortName+"\n\nالحذف لا يمكن التراجع عنه. لو الملف مرتبط بتسليم أو صورة مستخدمة، الخادم سيرفض الحذف."))return;
+ try{
+  const {data,error}=await sb.functions.invoke("storage-admin",{body:{action:"delete",bucket_id:bucket,name}});
+  if(error||!data?.ok)throw new Error(data?.error||error?.message||"فشل حذف الملف");
+  toast("تم حذف الملف من Supabase Storage.");await loadStorageUsage();
+ }catch(error){console.error("Storage delete:",error);toast(error?.message||"تعذّر حذف الملف. تأكد من نشر storage-admin.");}
 }
 
 async function updateSubmission(id){
