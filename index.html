@@ -220,6 +220,37 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
  .modalhead .btn{white-space:nowrap}
 }
 
+
+/* Spreadsheet and Word document previews */
+.office-preview-card{min-width:0;margin-top:12px}
+.office-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.spreadsheet-sheet-select{width:min(340px,100%);max-width:100%}
+.spreadsheet-preview-info{flex:1;min-width:150px}
+.spreadsheet-table-wrap{max-height:min(66vh,640px);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;background:#0d1528;direction:ltr}
+.spreadsheet-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;font-size:12px;direction:ltr}
+.spreadsheet-table th,.spreadsheet-table td{min-width:76px;max-width:320px;padding:8px 10px;border-right:1px solid #283650;border-bottom:1px solid #283650;vertical-align:top;text-align:start;white-space:pre-wrap;overflow-wrap:anywhere}
+.spreadsheet-table thead th{position:sticky;top:0;z-index:1;background:#1b2941;color:#b9d0fb;text-align:center}
+.spreadsheet-table tbody th{position:sticky;left:0;z-index:1;min-width:48px;max-width:48px;background:#17223a;color:#9aa9c4;text-align:center}
+.spreadsheet-table td{color:var(--text)}
+.word-preview{max-height:min(66vh,640px);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:18px;background:#fbfcff;color:#172033;border:1px solid var(--line);border-radius:14px;line-height:1.9;text-align:start}
+.word-preview h1,.word-preview h2,.word-preview h3,.word-preview h4,.word-preview h5,.word-preview h6{color:#172033;line-height:1.45;margin:1.1em 0 .45em}
+.word-preview p{margin:.5em 0}
+.word-preview ul,.word-preview ol{padding-inline-start:2em}
+.word-preview table{width:100%;border-collapse:collapse;margin:1em 0}
+.word-preview th,.word-preview td{border:1px solid #aeb8c8;padding:7px 9px;vertical-align:top}
+.word-preview img{display:block;max-width:100%;height:auto;margin:10px auto}
+.word-preview a{color:#245bb5;overflow-wrap:anywhere}
+.word-preview pre,.word-preview code{white-space:pre-wrap;overflow-wrap:anywhere}
+.office-preview-note{margin:10px 0 0}
+@media(max-width:720px){
+ .office-preview-toolbar{align-items:stretch}
+ .spreadsheet-sheet-select{width:100%}
+ .spreadsheet-preview-info{min-width:0}
+ .spreadsheet-table-wrap,.word-preview{max-height:58dvh}
+ .spreadsheet-table th,.spreadsheet-table td{min-width:68px;padding:7px 8px}
+ .word-preview{padding:12px;font-size:14px}
+}
+
 </style></head>
 <body>
 <header class="container top">
@@ -1784,7 +1815,10 @@ function showLogoutOverlay(){
 }
 
 
+let officePreviewRequestId=0;
+
 function closeModal(){
+  officePreviewRequestId++;
   $("modalRoot").querySelectorAll("audio,video").forEach(media=>{try{media.pause()}catch(_){}});
   $("modalRoot").innerHTML="";
 }
@@ -2257,12 +2291,174 @@ async function getSubmissionFile(id,index=0){
  return {url:data.signedUrl,file_name:file.name,file_path:file.path};
 }
 
+
+const previewLibraryPromises=Object.create(null);
+function loadPreviewLibrary(url,globalName){
+ if(window[globalName])return Promise.resolve(window[globalName]);
+ if(!previewLibraryPromises[globalName]){
+  previewLibraryPromises[globalName]=new Promise((resolve,reject)=>{
+   const script=document.createElement("script");
+   script.src=url;
+   script.async=true;
+   script.referrerPolicy="no-referrer";
+   script.onload=()=>window[globalName]?resolve(window[globalName]):reject(new Error("تعذر تحميل أداة المعاينة."));
+   script.onerror=()=>{delete previewLibraryPromises[globalName];reject(new Error("تعذر تحميل أداة المعاينة."));};
+   document.head.appendChild(script);
+  });
+ }
+ return previewLibraryPromises[globalName];
+}
+function getOfficePreviewHost(requestId){
+ const host=document.getElementById("officeDocumentPreview");
+ return host&&Number(host.dataset.previewRequest)===requestId?host:null;
+}
+function showOfficePreviewError(requestId,kind){
+ const host=getOfficePreviewHost(requestId);if(!host)return;
+ const note=document.createElement("div");
+ note.className="notice error";
+ note.textContent="تعذرت معاينة "+kind+" داخل الموقع. تأكد من اتصال الإنترنت أو حمّل الملف لفتحه على جهازك.";
+ host.replaceChildren(note);
+}
+function renderSpreadsheetSheet(host,workbook,XLSX,sheetIndex){
+ const sheetName=workbook.SheetNames[sheetIndex];
+ const sheet=workbook.Sheets[sheetName];
+ const tableWrap=host.querySelector(".spreadsheet-table-wrap");
+ const info=host.querySelector(".spreadsheet-preview-info");
+ if(!sheet||!tableWrap||!info)return;
+ tableWrap.replaceChildren();
+ const ref=sheet["!ref"];
+ if(!ref){info.textContent="الورقة فارغة.";return;}
+ const range=XLSX.utils.decode_range(ref);
+ const rowLimit=150,colLimit=20;
+ const lastRow=Math.min(range.e.r,rowLimit-1);
+ const lastCol=Math.min(range.e.c,colLimit-1);
+ const table=document.createElement("table");
+ table.className="spreadsheet-table";
+ const thead=document.createElement("thead");
+ const header=document.createElement("tr");
+ const corner=document.createElement("th");
+ corner.textContent="صف";
+ header.appendChild(corner);
+ for(let c=0;c<=lastCol;c++){
+  const th=document.createElement("th");
+  th.textContent=XLSX.utils.encode_col(c);
+  header.appendChild(th);
+ }
+ thead.appendChild(header);table.appendChild(thead);
+ const tbody=document.createElement("tbody");
+ for(let r=0;r<=lastRow;r++){
+  const tr=document.createElement("tr");
+  const rowHead=document.createElement("th");
+  rowHead.scope="row";rowHead.textContent=String(r+1);tr.appendChild(rowHead);
+  for(let c=0;c<=lastCol;c++){
+   const td=document.createElement("td");td.dir="auto";
+   const cell=sheet[XLSX.utils.encode_cell({r:r,c:c})];
+   const value=cell?(cell.w!==undefined?cell.w:XLSX.utils.format_cell(cell)):"";
+   td.textContent=String(value).slice(0,500);
+   tr.appendChild(td);
+  }
+  tbody.appendChild(tr);
+ }
+ table.appendChild(tbody);tableWrap.appendChild(table);
+ const moreRows=range.e.r+1>rowLimit,moreCols=range.e.c+1>colLimit;
+ info.textContent="الورقة: "+(sheetIndex+1)+" من "+workbook.SheetNames.length+
+  " · "+(range.e.r+1)+" صف · "+(range.e.c+1)+" عمود"+
+  ((moreRows||moreCols)?" · المعاينة تعرض أول "+rowLimit+" صف و"+colLimit+" عمود":"");
+}
+async function renderSpreadsheetPreview(fileUrl,requestId){
+ const host=getOfficePreviewHost(requestId);if(!host)return;
+ try{
+  const XLSX=await loadPreviewLibrary("https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js","XLSX");
+  const response=await fetch(fileUrl);
+  if(!response.ok)throw new Error("download failed");
+  const workbook=XLSX.read(await response.arrayBuffer(),{type:"array",cellDates:true});
+  if(!workbook.SheetNames||!workbook.SheetNames.length)throw new Error("empty workbook");
+  const currentHost=getOfficePreviewHost(requestId);if(!currentHost)return;
+  const toolbar=document.createElement("div");toolbar.className="office-preview-toolbar";
+  const select=document.createElement("select");select.className="field spreadsheet-sheet-select";select.setAttribute("aria-label","اختيار ورقة العمل");
+  workbook.SheetNames.forEach((name,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=name;select.appendChild(option);});
+  const info=document.createElement("span");info.className="muted small spreadsheet-preview-info";
+  const tableWrap=document.createElement("div");tableWrap.className="spreadsheet-table-wrap";
+  const note=document.createElement("p");note.className="muted small office-preview-note";
+  note.textContent="معاينة للقراءة فقط؛ لتحرير البيانات حمّل الملف الأصلي.";
+  toolbar.append(select,info);
+  currentHost.replaceChildren(toolbar,tableWrap,note);
+  select.addEventListener("change",()=>renderSpreadsheetSheet(currentHost,workbook,XLSX,Number(select.value)));
+  renderSpreadsheetSheet(currentHost,workbook,XLSX,0);
+ }catch(_){showOfficePreviewError(requestId,"ملف Excel");}
+}
+function sanitizeConvertedWordHtml(markup){
+ const template=document.createElement("template");
+ template.innerHTML=String(markup||"");
+ const allowed=new Set(["p","br","hr","strong","b","em","i","u","s","del","ins","sub","sup","small","span","div","h1","h2","h3","h4","h5","h6","ul","ol","li","table","thead","tbody","tfoot","tr","td","th","blockquote","pre","code","a","img"]);
+ const blocked=new Set(["script","style","iframe","object","embed","svg","math","form","input","button","video","audio","link","meta"]);
+ function copyNode(node){
+  if(node.nodeType===Node.TEXT_NODE)return document.createTextNode(node.nodeValue||"");
+  if(node.nodeType!==Node.ELEMENT_NODE)return null;
+  const tag=node.tagName.toLowerCase();
+  if(blocked.has(tag))return null;
+  if(!allowed.has(tag)){
+   const fragment=document.createDocumentFragment();
+   node.childNodes.forEach(child=>{const safe=copyNode(child);if(safe)fragment.appendChild(safe);});
+   return fragment;
+  }
+  const copy=document.createElement(tag);
+  if(tag==="a"){
+   const href=node.getAttribute("href")||"";
+   try{
+    const parsed=new URL(href,location.href);
+    if(["http:","https:","mailto:"].includes(parsed.protocol)){
+     copy.setAttribute("href",parsed.href);
+     if(parsed.protocol==="http:"||parsed.protocol==="https:"){copy.setAttribute("target","_blank");copy.setAttribute("rel","noopener noreferrer");}
+    }
+   }catch(_){}
+  }
+  if(tag==="img"){
+   const src=node.getAttribute("src")||"";
+   if(!/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(src))return null;
+   copy.setAttribute("src",src);
+   copy.setAttribute("alt",(node.getAttribute("alt")||"").slice(0,300));
+  }
+  if(tag==="td"||tag==="th"){
+   for(const attr of ["colspan","rowspan"]){
+    const n=Number(node.getAttribute(attr));
+    if(Number.isInteger(n)&&n>0&&n<=50)copy.setAttribute(attr,String(n));
+   }
+  }
+  node.childNodes.forEach(child=>{const safe=copyNode(child);if(safe)copy.appendChild(safe);});
+  return copy;
+ }
+ const result=document.createElement("div");
+ template.content.childNodes.forEach(node=>{const safe=copyNode(node);if(safe)result.appendChild(safe);});
+ return result.innerHTML;
+}
+async function renderWordPreview(fileUrl,requestId){
+ const host=getOfficePreviewHost(requestId);if(!host)return;
+ try{
+  const mammoth=await loadPreviewLibrary("https://cdn.jsdelivr.net/npm/mammoth@1.13.0/mammoth.browser.min.js","mammoth");
+  const response=await fetch(fileUrl);
+  if(!response.ok)throw new Error("download failed");
+  const result=await mammoth.convertToHtml({arrayBuffer:await response.arrayBuffer()},{externalFileAccess:false});
+  const currentHost=getOfficePreviewHost(requestId);if(!currentHost)return;
+  const article=document.createElement("article");
+  article.className="word-preview";article.dir="auto";
+  article.innerHTML=sanitizeConvertedWordHtml(result.value);
+  const note=document.createElement("p");note.className="muted small office-preview-note";
+  note.textContent="معاينة للمحتوى والنصوص والجداول؛ قد تختلف بعض التنسيقات عن Word. الملف الأصلي متاح للتحميل."+
+   (result.messages&&result.messages.length?" بعض العناصر قد لا تظهر في المعاينة.":"");
+  currentHost.replaceChildren(note,article);
+ }catch(_){showOfficePreviewError(requestId,"ملف Word");}
+}
+
 async function viewSubmission(id,index=0){
  const f=await getSubmissionFile(id,index);if(f.error)return toast(f.error);
+ const requestId=++officePreviewRequestId;
  const url=esc(f.url),name=esc(f.file_name),ext=(f.file_name.split(".").pop()||"").toLowerCase();
  const isImage=["jpg","jpeg","png","webp","gif","avif","bmp"].includes(ext);
  const isAudio=String(f.file_path||"").includes("/audio/")||["mp3","m4a","aac","wav","oga","opus","amr","3gp"].includes(ext);
  const isVideo=!isAudio&&["mp4","webm","m4v","mov","ogv","ogg","avi"].includes(ext);
+ const isSpreadsheet=["xlsx","xls","xlsm","xlsb","ods","csv"].includes(ext);
+ const isWordDocument=ext==="docx";
  let preview="";
  if(isImage)preview='<div style="text-align:center;padding:10px"><img src="'+url+'" alt="'+name+'" style="display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:auto;border-radius:10px"></div>';
  else if(isAudio){
@@ -2270,6 +2466,9 @@ async function viewSubmission(id,index=0){
  preview='<div id="submissionAudioPlayer" class="audio-player"><div class="audio-player-head"><div class="audio-player-mark">♫</div><div class="audio-player-head-copy"><strong>مشغّل مهمتنا للصوت</strong><small>' + name + '</small></div><span id="audioPlayerStatus" class="audio-player-status">جاهز</span></div><div class="audio-player-visual"><div id="audioPlayerDisc" class="audio-player-disc"><span>♫</span></div><div id="audioWave" class="audio-player-wave">'+audioBars+'</div></div><audio id="submissionPreviewAudio" preload="metadata" src="'+url+'">المتصفح لا يدعم تشغيل الصوت.</audio><div class="audio-player-timeline"><span id="audioPlayerCurrent" class="audio-player-time">00:00</span><input id="audioPlayerSeek" class="audio-player-seek" aria-label="موضع الصوت" type="range" min="0" max="1000" value="0" oninput="seekSubmissionAudio(this.value)"><span id="audioPlayerDuration" class="audio-player-time">--:--</span></div><div class="audio-player-controls"><div class="audio-player-control-group"><button type="button" class="btn secondary audio-skip" onclick="skipSubmissionAudio(-10)" title="رجوع 10 ثوانٍ">↶ 10</button><button id="audioPlayerPlay" type="button" class="btn primary audio-play-btn" onclick="toggleSubmissionAudio()">▶ تشغيل</button><button type="button" class="btn secondary audio-skip" onclick="skipSubmissionAudio(10)" title="تقديم 10 ثوانٍ">10 ↷</button><button id="audioPlayerMute" type="button" class="btn secondary audio-icon-btn" onclick="toggleSubmissionAudioMute()" title="كتم الصوت" aria-label="كتم الصوت">🔊</button><label class="audio-player-volume" title="مستوى الصوت">🔉 <input id="audioPlayerVolume" aria-label="مستوى الصوت" type="range" min="0" max="1" step="0.05" value="1" oninput="setSubmissionAudioVolume(this.value)"></label></div><div class="audio-player-control-group"><select id="submissionAudioSpeed" aria-label="سرعة التشغيل" class="field audio-player-speed" onchange="setSubmissionAudioSpeed(this.value)"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× عادي</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select></div></div><div id="audioPlayerNotice" class="audio-player-notice"></div><div class="audio-player-foot">اسحب شريط التقدم للتنقل في المقطع · ↶ و ↷ للتقديم أو الرجوع 10 ثوانٍ</div></div>';
 }
  else if(isVideo)preview='<div id="submissionPlayer" style="--player-accent:#7c5cff;background:#090b12;border:1px solid #272a38;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px #0003;color:#fff"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;background:linear-gradient(110deg,#17172b,#10131d)"><div style="min-width:0"><div style="font-weight:800;font-size:14px">▶ مشغّل مهمتنا</div><div style="font-size:11px;color:#a9aec4;margin-top:3px;overflow-wrap:anywhere">' + name + '</div></div><span id="playerStatus" style="font-size:11px;color:#c7c2ff;white-space:nowrap">جاهز للتشغيل</span></div><div id="playerStage" style="position:relative;background:#000;line-height:0"><video id="submissionPreviewVideo" playsinline preload="auto" style="display:block;width:100%;max-height:68vh;aspect-ratio:16/9;object-fit:contain;background:#000" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><button id="playerBigPlay" aria-label="تشغيل الفيديو" onclick="toggleSubmissionVideo()" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border:1px solid #ffffff70;border-radius:50%;background:#7c5cffdd;color:white;font-size:30px;cursor:pointer;box-shadow:0 8px 35px #0008">▶</button><div id="playerNotice" style="display:none;position:absolute;inset:auto 12px 12px;padding:10px 12px;background:#171923eF;border:1px solid #ffffff24;border-radius:10px;font-size:12px;line-height:1.6"></div></div><div style="padding:12px 14px 14px;background:linear-gradient(#11131d,#0b0d14)"><div style="display:flex;align-items:center;gap:10px"><span id="playerCurrent" style="font:12px ui-monospace,monospace;color:#d8d9e8;min-width:42px">00:00</span><input id="playerSeek" aria-label="موضع الفيديو" type="range" min="0" max="1000" value="0" oninput="seekSubmissionVideo(this.value)" style="flex:1;accent-color:#9a86ff;cursor:pointer;min-width:0"><span id="playerDuration" title="مدة الفيديو كاملة" style="font:12px ui-monospace,monospace;color:#a9aec4;min-width:52px;text-align:left;direction:ltr">تحميل...</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><button class="btn secondary" style="min-width:42px;padding:8px 11px" onclick="skipSubmissionVideo(-10)" title="رجوع 10 ثوانٍ">↶ 10</button><button id="playerPlayBtn" class="btn primary" style="min-width:92px;padding:9px 14px" onclick="toggleSubmissionVideo()">▶ تشغيل</button><button class="btn secondary" style="min-width:42px;padding:8px 11px" onclick="skipSubmissionVideo(10)" title="تقديم 10 ثوانٍ">10 ↷</button><button id="playerMute" type="button" class="btn secondary" style="padding:8px 11px;cursor:pointer" onclick="toggleSubmissionMute()" title="كتم/تشغيل الصوت" aria-label="كتم الصوت">🔊</button><input id="playerVolume" aria-label="مستوى الصوت" type="range" min="0" max="1" step="0.05" value="1" oninput="setSubmissionVideoVolume(this.value)" style="width:76px;accent-color:#9a86ff"></div><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><select id="submissionVideoSpeed" aria-label="سرعة التشغيل" class="field" style="width:auto;min-width:95px;padding:8px;background:#191c29;color:#fff;border-color:#383b4d" onchange="setSubmissionVideoSpeed(this.value)"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× عادي</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select><button class="btn secondary" style="padding:8px 11px" onclick="pipSubmissionVideo()" title="صورة داخل صورة">▣</button><button class="btn secondary" style="padding:8px 11px" onclick="fullscreenSubmissionVideo()" title="ملء الشاشة">⛶ ملء الشاشة</button></div></div><div style="font-size:11px;color:#858ba4;margin-top:10px">اختصارات: Space تشغيل/إيقاف · ←/→ تقديم أو رجوع 5 ثوانٍ · ↑/↓ الصوت · F ملء الشاشة · M كتم الصوت</div></div></div><p class="muted small">لو الصيغة مش مدعومة على جهازك، جرّب تحميل الفيديو أو فتحه في نافذة جديدة.</p>';
+ else if(isSpreadsheet)preview='<div id="officeDocumentPreview" data-preview-request="'+requestId+'" class="office-preview-card"><div class="empty">جاري تجهيز معاينة جدول البيانات...</div></div>';
+ else if(isWordDocument)preview='<div id="officeDocumentPreview" data-preview-request="'+requestId+'" class="office-preview-card"><div class="empty">جاري تجهيز معاينة مستند Word...</div></div>';
+ else if(ext==="doc")preview='<div class="notice">ملفات Word القديمة بصيغة DOC لا تظهر داخل الموقع. لو تقدر، احفظها بصيغة DOCX ثم ارفعها، أو حمّل الملف لفتحه في Word.</div>';
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else if(["ppt","pptx","pps","ppsx"].includes(ext))preview='<iframe title="'+name+'" src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(f.url)+'" style="width:100%;height:70vh;border:0;border-radius:8px" allowfullscreen></iframe><p class="muted small">معاينة PowerPoint بتحتاج إن خدمة Microsoft تقدر توصل للملف. لو المعاينة ما ظهرتش، استخدم التحميل.</p>';
  else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
@@ -2277,6 +2476,8 @@ async function viewSubmission(id,index=0){
  $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="'+modalClass+'"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\','+index+')">تحميل ⬇️</button></div></div></div>';
  if(isVideo)initSubmissionVideoPlayer();
  else if(isAudio)initSubmissionAudioPlayer();
+ else if(isSpreadsheet)renderSpreadsheetPreview(f.url,requestId);
+ else if(isWordDocument)renderWordPreview(f.url,requestId);
 }
 
 function formatPlayerTime(seconds){
