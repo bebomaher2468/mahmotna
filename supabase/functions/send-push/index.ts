@@ -164,14 +164,14 @@ Deno.serve(async (req: Request) => {
         return json({ ok: true, sent: 0, skipped: true });
       }
 
-      const [{ data: task, error: taskError }, { data: admins, error: adminsError }] = await Promise.all([
+      const [{ data: task, error: taskError }, { data: profiles, error: profilesError }] = await Promise.all([
         admin.from("tasks").select("title").eq("id", submission.task_id).maybeSingle(),
-        admin.from("profiles").select("id,role,display_name").eq("role", "admin").neq("id", submission.user_id)
+        admin.from("profiles").select("id,role,display_name").in("role", ["admin", "member"]).neq("id", submission.user_id)
       ]);
       if (taskError) throw new Error("تعذر تحميل بيانات المهمة.");
-      if (adminsError) throw new Error("تعذر تحميل قائمة المسؤولين.");
-      const recipients = (admins || []).map((profile) => profile.id);
-      if (!recipients.length) return json({ ok: true, sent: 0, noAdmins: true });
+      if (profilesError) throw new Error("تعذر تحميل قائمة الأعضاء.");
+      const recipients = (profiles || []).map((profile) => profile.id);
+      if (!recipients.length) return json({ ok: true, sent: 0, noRecipients: true });
 
       vapidSettings();
       const { data: claimed, error: claimError } = await admin
@@ -195,7 +195,7 @@ Deno.serve(async (req: Request) => {
           body: senderName + " سلّم: " + taskTitle,
           taskId: submission.task_id,
           kind: "new_submission",
-          url: APP_URL + "#adminSubmissions"
+          url: APP_URL + "#tasksSection"
         });
       } catch (error) {
         await admin.from("submissions").update({ push_notified_at: null }).eq("id", submission.id).eq("user_id", auth.user.id);
