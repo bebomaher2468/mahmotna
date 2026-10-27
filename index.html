@@ -268,7 +268,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 .submissionhead{align-items:flex-start}
 .submission-heading-copy{display:grid;gap:5px;min-width:0;flex:1}
 .submission-task-title{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
-.submission-member-line{font-size:11px;color:var(--muted)}
+.submission-member-line{display:inline-flex;align-items:center;gap:7px;max-width:100%;font-size:11px;color:var(--muted);line-height:1.6}.submission-member-avatar{display:block;flex:0 0 30px;width:30px;height:30px;object-fit:cover;border-radius:50%;border:1.5px solid #72e0d1;background:#17223a;box-shadow:0 0 0 2px #72e0d10c}.submission-member-name{min-width:0;overflow-wrap:anywhere}
 .submission-meta{font-size:11px;color:var(--muted);line-height:1.6}
 .submission-status-new{background:#78a8ff18;color:#a8c7ff}
 .submission-status-review{background:#f5ca7b18;color:#f5d694}
@@ -1556,15 +1556,18 @@ async function loadDataNow(){
   }
   const names={};
   const roles={};
+  const avatars={};
   profiles.forEach(p=>{
    names[p.id]=displayMemberName(p.display_name||p.username||"اسم غير معروف");
    roles[p.id]=p.role||"member";
+   avatars[p.id]=p.avatar_url||null;
   });
 
   submissions=rawSubmissions.map(s=>({
    ...s,
    member_name:names[s.user_id]||"اسم غير متاح",
-   member_role:roles[s.user_id]||"member"
+   member_role:roles[s.user_id]||"member",
+   member_avatar_url:avatars[s.user_id]||null
   }));
 
  $("connectionNotice").className="notice good";
@@ -2283,7 +2286,7 @@ function submissionHTML(s,admin,showMember=false,showTaskTitle=true){
  return '<article class="submission submission-card">'+
   '<div class="submissionhead"><div class="submission-heading-copy">'+
    (showTaskTitle?'<strong class="submission-task-title">'+esc(taskTitle)+'</strong>':"")+
-   ((admin||showMember)?'<span class="submission-member-line">👤 '+esc(s.member_name||"عضو")+'</span>':"")+
+   ((admin||showMember)?'<span class="submission-member-line"><img class="submission-member-avatar" src="'+esc(s.member_avatar_url||s.avatar_url||defaultAvatarData())+'" alt="صورة '+esc(s.member_name||"العضو")+'" onerror="this.onerror=null;this.src=defaultAvatarData()"><span class="submission-member-name">'+esc(s.member_name||"عضو")+'</span></span>':"")+
   '</div><span class="badge '+(s.status==="accepted"?"done ":"")+(classes[s.status]||"")+'">'+esc(status)+'</span></div>'+
   '<div class="submission-meta">🗓️ '+esc(formatSubmissionDate(s.created_at))+'</div>'+
   (s.submission_text?'<details class="submission-text-details"><summary>📝 عرض الحل المكتوب</summary><div class="submission-text">'+esc(s.submission_text)+'</div></details>':"")+
@@ -2966,13 +2969,17 @@ async function loadAdminSubs(){
  const userIds=[...new Set(all.map(item=>item.user_id).filter(Boolean))];
  let profiles=[];
  if(userIds.length){
-  const {data:profileData,error:profileError}=await sb.from("profiles").select("id,display_name").in("id",userIds);
-  if(profileError)console.error("خطأ تحميل أسماء الأعضاء:",profileError);
+  const {data:profileData,error:profileError}=await sb.from("profiles").select("id,display_name,username,avatar_url").in("id",userIds);
+  if(profileError)console.error("خطأ تحميل بيانات أصحاب التسليمات:",profileError);
   profiles=profileData||[];
  }
  const names={};
- profiles.forEach(profile=>{names[profile.id]=displayMemberName(profile.display_name||profile.email||"عضو");});
- adminSubmissionCache=all.map(item=>({...item,member_name:names[item.user_id]||"عضو"}));
+ const avatars={};
+ profiles.forEach(profile=>{
+  names[profile.id]=displayMemberName(profile.display_name||profile.username||profile.email||"عضو");
+  avatars[profile.id]=profile.avatar_url||null;
+ });
+ adminSubmissionCache=all.map(item=>({...item,member_name:names[item.user_id]||"عضو",member_avatar_url:avatars[item.user_id]||null}));
  renderAdminSubs();
 }
 
@@ -3055,7 +3062,7 @@ const dailyVerses = [
 function renderTimeGreeting(){
  const greeting=$("timeGreeting"); if(!greeting)return;
  const hour=Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Cairo",hour:"2-digit",hourCycle:"h23"}).format(new Date()));
- greeting.textContent=hour<12?"🌙 صباح الخير ☀️":"مساء الخير";
+ greeting.textContent=hour<12?"صباح الخير ☀️":"مساء الخير";
 }
 renderTimeGreeting();
 setInterval(renderTimeGreeting,60*1000);
