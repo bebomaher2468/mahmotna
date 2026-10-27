@@ -3,11 +3,17 @@ create table if not exists public.notifications (
  id uuid primary key default gen_random_uuid(),
  user_id uuid not null references auth.users(id) on delete cascade,
  title text not null, body text,
- kind text not null check (kind in ('new_task','due_soon','accepted','revision')),
+ kind text not null check (kind in ('new_task','due_soon','accepted','revision','new_submission')),
  task_id uuid references public.tasks(id) on delete cascade,
  submission_id uuid references public.submissions(id) on delete cascade,
  read_at timestamptz, created_at timestamptz not null default now()
 );
+-- حدّث القيد لو جدول الإشعارات كان موجودًا من قبل.
+alter table public.notifications drop constraint if exists notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check
+ check (kind in ('new_task','due_soon','accepted','revision','new_submission'));
+-- علامة تمنع إعادة إرسال إشعار الجهاز نفسه عند إعادة طلب الـ Edge Function.
+alter table public.submissions add column if not exists push_notified_at timestamptz;
 create index if not exists notifications_user_created_idx on public.notifications(user_id,created_at desc);
 drop index if exists public.notifications_due_once_idx;
 create unique index if not exists notifications_one_per_kind_per_task_idx
@@ -89,8 +95,38 @@ end; $$;
 drop trigger if exists tasks_notify_members on public.tasks;
 create trigger tasks_notify_members after insert on public.tasks for each row execute function public.notify_members_new_task();
 
+-- إشعار للمسؤولين عند تسجيل عضو تسليمًا جديدًا.
+-- task_id يظل NULL حتى يحتفظ كل تسليم بإشعار مستقل لكل مسؤول.
+create or replace function public.notify_admins_new_submission()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $
+begin
+ insert into public.notifications(user_id,title,body,kind,task_id,submission_id)
+ select p.id,
+  'تسليم جديد',
+  'العضو '||coalesce(nullif(btrim(sender.display_name),''),nullif(btrim(sender.username),''),'عضو')||' سلّم مهمة: '||coalesce(t.title,'مهمة'),
+  'new_submission',
+  null,
+  new.id
+ from public.profiles p
+ left join public.profiles sender on sender.id=new.user_id
+ left join public.tasks t on t.id=new.task_id
+ where p.role='admin' and p.id is distinct from new.user_id;
+ return new;
+end;
+$;
+drop trigger if exists submissions_notify_admins_new on public.submissions;
+create trigger submissions_notify_admins_new
+ after insert on public.submissions
+ for each row
+ when (new.status='submitted')
+ execute function public.notify_admins_new_submission();
+
 create or replace function public.notify_submission_status()
-returns trigger language plpgsql security definer set search_path=public as $$
+returns trigger language plpgsql security definer set search_path=public as $
 begin
  if new.status is distinct from old.status and new.status in ('accepted','revision') then
   insert into public.notifications(user_id,title,body,kind,task_id,submission_id)
