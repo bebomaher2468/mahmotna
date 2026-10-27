@@ -299,6 +299,34 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
  .submission-admin-actions .btn{flex:1 1 auto}
 }
 
+
+/* Task-first submission accordions */
+.task-submission-accordion{margin:0 0 12px;border:1px solid #31425f;border-radius:16px;overflow:hidden;background:linear-gradient(145deg,#121e33,#0e1729);box-shadow:0 8px 22px #0002}
+.task-submission-summary{list-style:none;display:flex;align-items:center;gap:11px;padding:14px 15px;cursor:pointer;min-height:68px;user-select:none;background:radial-gradient(ellipse at 100% 0%,#72e0d10d,transparent 55%)}
+.task-submission-summary::-webkit-details-marker{display:none}
+.task-submission-summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-3px}
+.task-submission-folder{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:13px;background:#72e0d112;border:1px solid #72e0d127;font-size:20px}
+.task-submission-summary-copy{display:grid;gap:3px;min-width:0;flex:1}
+.task-submission-summary-copy strong{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.task-submission-summary-copy small{font-size:11px;color:var(--muted)}
+.task-submission-count{white-space:nowrap;border:1px solid #78a8ff35;background:#78a8ff12;color:#c5d9ff;border-radius:10px;padding:6px 9px;font-size:11px;font-weight:800}
+.task-submission-chevron{color:var(--cyan);font-size:20px;transition:transform .18s ease;flex:0 0 auto}
+.task-submission-accordion[open]>.task-submission-summary{border-bottom:1px solid #ffffff12;background:#72e0d10b}
+.task-submission-accordion[open]>.task-submission-summary .task-submission-folder{background:#72e0d122}
+.task-submission-accordion[open]>.task-submission-summary .task-submission-chevron{transform:rotate(180deg)}
+.task-submission-content{display:grid;gap:10px;padding:12px}
+.task-submission-content>.submission-card{margin:0}
+.member-presence-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;margin-top:6px;border:1px solid #ffffff14;background:#ffffff06;color:var(--muted)}
+.member-presence-dot{display:inline-block;width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#78859b}
+.member-presence-pill.is-online{color:#a9f1c9;background:#75dfaa12;border-color:#75dfaa35}
+.member-presence-pill.is-online .member-presence-dot{background:#75dfaa;box-shadow:0 0 0 3px #75dfaa18}
+.member-presence-pill.is-offline .member-presence-dot{background:#8290a7}
+.member-presence-pill.is-pending{color:#f5d694;border-color:#f5ca7b30;background:#f5ca7b0c}
+.member-presence-pill.is-pending .member-presence-dot{background:#f5ca7b}
+.members-presence-summary{margin:10px 0 12px}
+@media(max-width:580px){.task-submission-summary{padding:12px 10px;gap:8px}.task-submission-folder{flex-basis:34px;width:34px;height:34px;font-size:17px}.task-submission-summary-copy strong{font-size:13px}.task-submission-summary-copy small{font-size:10px}.task-submission-count{font-size:10px;padding:5px 7px}.task-submission-content{padding:9px}.member-presence-pill{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.task-submission-chevron{transition:none}}
+
 </style></head>
 <body>
 <header class="container top">
@@ -369,7 +397,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
-  <div class="sectionhead"><div><h2>تسليمات الأعضاء</h2><p>مرتبة حسب العضو والأحدث أولًا. ابحث أو فلتر عشان توصل للتسليم بسرعة.</p></div></div><div id="submissionToolbar" class="submission-toolbar hidden"><input id="submissionSearch" class="field" type="search" aria-label="البحث في التسليمات" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderMySubs()"><select id="submissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderMySubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="submissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderMySubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetSubmissionFilters()">مسح الفلاتر</button></div><div id="submissionSummary" class="submission-summary hidden"></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
+  <div class="sectionhead"><div><h2>تسليمات الأعضاء</h2><p>افتح أي تاسك عشان تشوف تسليماته، واقفله بالضغط عليه تاني. ابحث أو فلتر للوصول بسرعة.</p></div></div><div id="submissionToolbar" class="submission-toolbar hidden"><input id="submissionSearch" class="field" type="search" aria-label="البحث في التسليمات" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderMySubs()"><select id="submissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderMySubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="submissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderMySubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetSubmissionFilters()">مسح الفلاتر</button></div><div id="submissionSummary" class="submission-summary hidden"></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
   <section id="achievementDashboard" class="achievement-popover panel hidden" aria-label="لوحة الإنجازات">
     <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div><button class="xbtn" onclick="toggleAchievementPanel(false)" aria-label="إغلاق">✕</button></div>
     <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px"><label class="label" for="achievementMember">عرض إنجازات عضو</label><select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select></div>
@@ -436,6 +464,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   <button class="btn secondary" onclick="loadMembersList()">
     🔄 تحديث القائمة
   </button>
+  <div id="membersPresenceSummary" class="submission-summary members-presence-summary" aria-live="polite"></div>
 
   <div id="membersList" class="submissions">
     <div class="empty">اضغط تحديث القائمة لعرض الأعضاء.</div>
@@ -490,6 +519,8 @@ const SUPABASE_URL = "https://gxoddlgmxgkojfloxpon.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Cky_TTKUC8ETzn7ffNrOAQ_lgQr07hr";
 const CONFIGURED = SUPABASE_URL.startsWith("https://") && !SUPABASE_URL.includes("PASTE_") && SUPABASE_ANON_KEY.length > 30 && !SUPABASE_ANON_KEY.includes("PASTE_");
 let sb = null, currentUser = null, profile = null, tasks = [], submissions = [], memberProfiles = [], filter = "all", currentTask = null, notificationChannel = null;
+let presenceChannel = null, presenceChannelUserId = null, presenceIsReady = false;
+let onlineMemberIds = new Set(), registeredMembersCache = null;
 let pushSubscriptionSyncedUserId = null;
 if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
@@ -572,92 +603,88 @@ async function createMember() {
 
 
 
-async function loadMembersList() {
+function renderMembersList() {
   const list = document.getElementById("membersList");
+  if (!list || !isAdmin() || !Array.isArray(registeredMembersCache)) return;
 
-  if (!list) {
-    alert("مش لاقي عنصر membersList في الصفحة.");
+  const visibleMembers = registeredMembersCache;
+  const summary = document.getElementById("membersPresenceSummary");
+  const onlineCount = visibleMembers.filter(member => onlineMemberIds.has(String(member.id))).length;
+  const offlineCount = Math.max(0, visibleMembers.length - onlineCount);
+
+  if (summary) {
+    if (!presenceIsReady) {
+      summary.innerHTML = '<span class="submission-summary-chip"><strong>…</strong><span>جارٍ الاتصال بحالة الأعضاء</span></span><span class="submission-summary-chip"><strong>' + visibleMembers.length + '</strong><span>عضو مسجل</span></span>';
+    } else {
+      summary.innerHTML = '<span class="submission-summary-chip"><strong>' + onlineCount + '</strong><span>متصل الآن</span></span><span class="submission-summary-chip"><strong>' + offlineCount + '</strong><span>غير متصل</span></span><span class="submission-summary-chip"><strong>' + visibleMembers.length + '</strong><span>إجمالي الأعضاء</span></span>';
+    }
+  }
+
+  if (!visibleMembers.length) {
+    list.innerHTML = '<div class="empty">مفيش أعضاء لعرضهم.</div>';
     return;
   }
 
+  list.innerHTML = visibleMembers.map(member => {
+    const memberId = esc(member.id);
+    const isAdminMember = member.role === "admin";
+    const isCurrentAccount = member.id === currentUser.id;
+    const isOnline = onlineMemberIds.has(String(member.id));
+    const roleBadge = isAdminMember
+      ? "<span class='badge' style='background:#f5ca7b18;color:#f5ca7b'>🛡️ مسؤول</span>"
+      : "<span class='badge'>عضو</span>";
+    const presenceClass = !presenceIsReady ? "is-pending" : isOnline ? "is-online" : "is-offline";
+    const presenceText = !presenceIsReady ? "جارٍ التحقق" : isOnline ? "متصل الآن" : "غير متصل";
+    const actions = isCurrentAccount
+      ? "<span class='small muted'>حسابك الحالي</span>"
+      : isAdminMember
+        ? "<button class='btn secondary' onclick='removeAdminRole(&quot;" + memberId + "&quot;)'>إزالة من مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف خالص</button>"
+        : "<button class='btn secondary' onclick='assignAdminRole(&quot;" + memberId + "&quot;)'>🛡️ تعيين مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف العضو</button>";
+    return "<div class='submission member-list-card'><div class='submissionhead' style='align-items:center;flex-wrap:wrap'>" +
+      "<div class='member-row'><img class='member-avatar' src='" + esc(member.avatar_url || defaultAvatarData()) + "' alt='صورة " + esc(member.display_name || "العضو") + "' onerror='this.onerror=null;this.src=defaultAvatarData()'><div class='member-info'><strong>" + esc(member.display_name || "عضو") + "</strong><p class='small muted' style='margin:3px 0'>اسم المستخدم: <strong dir='ltr'>" + esc(member.username || "غير محدد") + "</strong></p>" + roleBadge + "<div><span class='member-presence-pill " + presenceClass + "'><span class='member-presence-dot'></span>" + presenceText + "</span></div></div></div>" +
+      "<div class='actions' style='justify-content:flex-end;flex-wrap:wrap'><button class='btn secondary' onclick='openMemberProfile(&quot;" + memberId + "&quot;)'>👤 الصفحة</button>" + actions + "</div>" +
+      "</div></div>";
+  }).join("");
+}
+
+async function loadMembersList() {
+  const list = document.getElementById("membersList");
+  if (!list) return;
   if (!isAdmin()) {
     toast("القائمة دي للمسؤول فقط.");
     return;
   }
+  if (!sb) return;
 
-  list.textContent = "جاري تحميل الأعضاء...";
-
-  const escapeHTML = (value) =>
-    String(value ?? "").replace(/[&<>"']/g, (char) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[char]);
-
+  list.innerHTML = '<div class="empty">جاري تحميل الأعضاء...</div>';
   let timeoutId;
-
   try {
     const result = await Promise.race([
-      sb
-        .from("profiles")
+      sb.from("profiles")
         .select("id, username, display_name, role, avatar_url")
         .in("role", ["member", "admin"])
         .order("display_name", { ascending: true }),
-
       new Promise((_, reject) => {
-        timeoutId = setTimeout(
-          () => reject(new Error("الاتصال بقاعدة البيانات استغرق أكثر من 10 ثوانٍ.")),
-          10000
-        );
+        timeoutId = setTimeout(() => reject(new Error("الاتصال بقاعدة البيانات استغرق أكثر من 10 ثوانٍ.")), 10000);
       })
     ]);
-
     const { data, error } = result;
-
     if (error) {
       console.error("Members list error:", error);
-      list.textContent = "فشل تحميل القائمة: " + error.message;
+      list.innerHTML = '<div class="empty">فشل تحميل القائمة: ' + esc(error.message) + '</div>';
       return;
     }
-
-    const visibleMembers = (data || []).filter(
-      member => String(member.display_name || "").toLowerCase() !== SITE_OWNER_NAME
+    registeredMembersCache = (data || []).filter(member =>
+      String(member.display_name || "").toLowerCase() !== SITE_OWNER_NAME
     );
-    if (!visibleMembers.length) {
-      list.textContent = "مفيش أعضاء لعرضهم.";
-      return;
-    }
-
-    list.innerHTML = visibleMembers.map(member => {
-      const memberId = escapeHTML(member.id);
-      const isAdminMember = member.role === "admin";
-      const isCurrentAccount = member.id === currentUser.id;
-      const roleBadge = isAdminMember
-        ? "<span class='badge' style='background:#f5ca7b18;color:#f5ca7b'>🛡️ مسؤول</span>"
-        : "<span class='badge'>عضو</span>";
-      const actions = isCurrentAccount
-        ? "<span class='small muted'>حسابك الحالي</span>"
-        : isAdminMember
-          ? "<button class='btn secondary' onclick='removeAdminRole(&quot;" + memberId + "&quot;)'>إزالة من مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف خالص</button>"
-          : "<button class='btn secondary' onclick='assignAdminRole(&quot;" + memberId + "&quot;)'>🛡️ تعيين مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف العضو</button>";
-      return "<div class='submission'><div class='submissionhead' style='align-items:flex-start'>" +
-        "<div class='member-row'><img class='member-avatar' src='" + escapeHTML(member.avatar_url || defaultAvatarData()) + "' alt='' onerror='this.src=defaultAvatarData()'><div class='member-info'><strong>" + escapeHTML(member.display_name || "عضو") + "</strong><p class='small muted'>اسم المستخدم: <strong dir='ltr'>" + escapeHTML(member.username || "غير محدد") + "</strong></p>" + roleBadge + "</div></div>" +
-        "<div class='actions' style='justify-content:flex-end;flex-wrap:wrap'><button class='btn secondary' onclick='openMemberProfile(&quot;" + memberId + "&quot;)'>👤 الصفحة</button>" + actions + "</div>" +
-        "</div></div>";
-    }).join("");
-
+    renderMembersList();
   } catch (err) {
     console.error("Members list exception:", err);
-    list.textContent =
-      "حصلت مشكلة أثناء تحميل القائمة: " +
-      (err?.message || "خطأ غير معروف");
+    list.innerHTML = '<div class="empty">حصلت مشكلة أثناء تحميل القائمة: ' + esc(err?.message || "خطأ غير معروف") + '</div>';
   } finally {
     clearTimeout(timeoutId);
   }
 }
-
 
 
 async function changeMemberRole(memberId, role) {
@@ -1030,6 +1057,50 @@ function scheduleLiveRefresh(){
  },800);
 }
 
+function updateOnlineMembersFromPresence(){
+ const state=presenceChannel?.presenceState?.()||{};
+ const ids=new Set();
+ Object.entries(state).forEach(([key,metas])=>{
+  if(key)ids.add(String(key));
+  (Array.isArray(metas)?metas:[]).forEach(meta=>{if(meta?.user_id)ids.add(String(meta.user_id));});
+ });
+ onlineMemberIds=ids;
+ presenceIsReady=true;
+ renderMembersList();
+}
+async function subscribePresence(){
+ if(!sb)return;
+ const oldChannel=presenceChannel;
+ presenceChannel=null;presenceChannelUserId=null;presenceIsReady=false;onlineMemberIds=new Set();
+ if(oldChannel){try{await sb.removeChannel(oldChannel);}catch(error){console.warn("تعذّر إغلاق قناة الحضور القديمة:",error);}}
+ const userId=currentUser?.id;
+ renderMembersList();
+ if(!userId)return;
+ const channel=sb.channel("mahmotna-member-presence",{config:{presence:{key:String(userId)}}});
+ presenceChannel=channel;presenceChannelUserId=userId;
+ channel
+  .on("presence",{event:"sync"},updateOnlineMembersFromPresence)
+  .on("presence",{event:"join"},updateOnlineMembersFromPresence)
+  .on("presence",{event:"leave"},updateOnlineMembersFromPresence)
+  .subscribe(async status=>{
+   if(presenceChannel!==channel||currentUser?.id!==userId)return;
+   if(status==="SUBSCRIBED"){
+    presenceIsReady=true;
+    const {error}=await channel.track({
+     user_id:userId,
+     display_name:profile?.display_name||currentUser?.email||"عضو",
+     avatar_url:profile?.avatar_url||null,
+     online_at:new Date().toISOString()
+    });
+    if(error)console.warn("تعذّر تسجيل حالة الاتصال:",error);
+    updateOnlineMembersFromPresence();
+   }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){
+    presenceIsReady=false;renderMembersList();
+   }
+  });
+}
+
+
 async function init(){
  
 if(!ready()){
@@ -1048,6 +1119,7 @@ try{
 
   subscribeNotifications();
   subscribeLiveData();
+  if(currentUser)subscribePresence();
   if(currentUser)loadNotifications();
   sb.auth.onAuthStateChange(onAuthEvent);
 
@@ -1468,7 +1540,10 @@ async function loadDataNow(){
  renderMySubs();
  renderAchievementDashboard();
 
- if(isAdmin())await loadAdminSubs();
+ if(isAdmin()){
+  await loadAdminSubs();
+  await loadMembersList();
+ }
 }
 
 function setFilter(f){filter=f;document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b.dataset.filter===f));renderTasks()}
@@ -1601,6 +1676,7 @@ async function activateSession(user,opts={}){
 function afterAuthRefresh(){
   subscribeNotifications();
   subscribeLiveData();
+  subscribePresence();
   loadData().then(()=>{if(currentUser)return loadNotifications();}).catch(err=>console.error("تعذّر تحديث البيانات بعد الدخول:",err));
 }
 // الـ callback لازم يرجع فورًا: أي await لدالة Supabase جواه بيعطّل signIn/signOut لحد ما يخلص.
@@ -1619,6 +1695,7 @@ async function handleAuthEvent(event,session){
     if(!currentUser&&authHandledUserId===null)return; // الخروج اتعمل محليًا بالفعل
     currentUser=null;profile=null;authHandledUserId=null;
     if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
+    subscribePresence();
     updateAuthUI();
     subscribeNotifications();
     loadNotifications();
@@ -1820,6 +1897,7 @@ function logout(){
   if(userId)verifiedDeviceSessions.delete(userId+":"+deviceTokenForUser(userId));
   // الواجهة بتتحدث فورًا من غير ما تستنى الشبكة.
   currentUser=null;profile=null;authHandledUserId=null;submissions=[];memberProfiles=[];
+  subscribePresence();
   $("notificationCenter")?.classList.add("hidden");
   $("achievementDashboard")?.classList.add("hidden");
   updateAuthUI();
@@ -2156,7 +2234,7 @@ function formatSubmissionDate(value){
  const date=new Date(value||"");
  return Number.isNaN(date.getTime())?"وقت غير محدد":date.toLocaleString("ar-EG");
 }
-function submissionHTML(s,admin){
+function submissionHTML(s,admin,showMember=false,showTaskTitle=true){
  const labels={"submitted":"مستلم","reviewing":"قيد المراجعة","accepted":"مقبول","revision":"محتاج تعديل"};
  const classes={"submitted":"submission-status-new","reviewing":"submission-status-review","accepted":"submission-status-accepted","revision":"submission-status-revision"};
  const status=labels[s.status]||"حالة غير معروفة";
@@ -2164,8 +2242,8 @@ function submissionHTML(s,admin){
  const taskTitle=s.tasks?.title||"تسليم";
  return '<article class="submission submission-card">'+
   '<div class="submissionhead"><div class="submission-heading-copy">'+
-   '<strong class="submission-task-title">'+esc(taskTitle)+'</strong>'+
-   (admin?'<span class="submission-member-line">👤 '+esc(s.member_name||"عضو")+'</span>':"")+
+   (showTaskTitle?'<strong class="submission-task-title">'+esc(taskTitle)+'</strong>':"")+
+   ((admin||showMember)?'<span class="submission-member-line">👤 '+esc(s.member_name||"عضو")+'</span>':"")+
   '</div><span class="badge '+(s.status==="accepted"?"done ":"")+(classes[s.status]||"")+'">'+esc(status)+'</span></div>'+
   '<div class="submission-meta">🗓️ '+esc(formatSubmissionDate(s.created_at))+'</div>'+
   (s.submission_text?'<details class="submission-text-details"><summary>📝 عرض الحل المكتوب</summary><div class="submission-text">'+esc(s.submission_text)+'</div></details>':"")+
@@ -2233,6 +2311,38 @@ function resetSubmissionFilters(){
  ["submissionSearch","submissionStatusFilter","submissionTaskFilter"].forEach(id=>{if($(id))$(id).value="";});
  renderMySubs();
 }
+function renderTaskGroupedSubmissions(hostId,items,admin,showMember=false){
+ const host=$(hostId);if(!host)return;
+ const openIds=new Set(Array.from(host.querySelectorAll("details.task-submission-accordion[open]")).map(node=>node.dataset.taskId));
+ const groups=new Map();
+ (items||[]).forEach(item=>{
+  const key=String(item.task_id||"__unassigned__");
+  if(!groups.has(key)){
+   const knownTask=tasks.find(task=>String(task.id)===key);
+   groups.set(key,{id:key,title:knownTask?.title||item.tasks?.title||"تاسك بدون عنوان",items:[]});
+  }
+  groups.get(key).items.push(item);
+ });
+ const taskOrder=new Map(tasks.map((task,index)=>[String(task.id),index]));
+ const ordered=[...groups.values()].sort((a,b)=>{
+  const ai=taskOrder.has(a.id)?taskOrder.get(a.id):Number.MAX_SAFE_INTEGER;
+  const bi=taskOrder.has(b.id)?taskOrder.get(b.id):Number.MAX_SAFE_INTEGER;
+  if(ai!==bi)return ai-bi;
+  return new Date(b.items[0]?.created_at||0)-new Date(a.items[0]?.created_at||0);
+ });
+ if(!ordered.length){
+  host.innerHTML='<div class="empty">لسه مفيش أي تسليمات.</div>';
+  return;
+ }
+ host.innerHTML=ordered.map(group=>{
+  const isOpen=openIds.has(group.id);
+  const latest=group.items.reduce((latest,item)=>new Date(item.created_at||0)>new Date(latest?.created_at||0)?item:latest,null);
+  return '<details class="task-submission-accordion" data-task-id="'+esc(group.id)+'" '+(isOpen?'open':'')+'>'+ 
+   '<summary class="task-submission-summary"><span class="task-submission-folder" aria-hidden="true">📂</span><span class="task-submission-summary-copy"><strong>'+esc(group.title)+'</strong><small>آخر تحديث: '+esc(formatSubmissionDate(latest?.created_at))+'</small></span><span class="task-submission-count">'+group.items.length+' تسليم</span><span class="task-submission-chevron" aria-hidden="true">⌄</span></summary>'+ 
+   '<div class="task-submission-content">'+group.items.map(item=>submissionHTML(item,admin,showMember,false)).join('')+'</div></details>';
+ }).join('');
+}
+
 function renderMySubs(){
  const host=$("mySubmissions"),toolbar=$("submissionToolbar"),summary=$("submissionSummary");
  if(!host)return;
@@ -2255,20 +2365,7 @@ function renderMySubs(){
   host.innerHTML=all.length?'<div class="empty">مفيش تسليمات مطابقة للبحث والفلاتر.</div>':'<div class="empty">لسه مفيش أي تسليمات.</div>';
   return;
  }
- const groups=new Map();
- filtered.forEach(item=>{
-  const key=item.user_id||item.member_name||"unknown";
-  if(!groups.has(key)){
-   groups.set(key,{name:item.member_name||"اسم غير متاح",role:item.member_role==="admin"?"مسؤول":"عضو",items:[]});
-  }
-  groups.get(key).items.push(item);
- });
- const orderedGroups=[...groups.values()].sort((a,b)=>new Date(b.items[0]?.created_at||0)-new Date(a.items[0]?.created_at||0));
- host.innerHTML=orderedGroups.map(group=>
-  '<section class="member-submission-group panel"><div class="member-submission-head"><div class="member-submission-identity"><h3>'+esc(group.name)+'</h3>'+
-  '<div class="member-submission-meta"><span class="member-role">'+esc(group.role)+'</span><span>'+group.items.length+' تسليم</span><span>آخر تسليم: '+esc(formatSubmissionDate(group.items[0]?.created_at))+'</span></div></div></div>'+
-  '<div class="member-submission-list">'+group.items.map(item=>submissionHTML(item,false)).join("")+'</div></section>'
- ).join("");
+ renderTaskGroupedSubmissions("mySubmissions",filtered,false,true);
 }
 
 async function editSubmission(id){
@@ -2337,45 +2434,6 @@ async function deleteSubmission(id){
 }
  
 
-
-function renderMySubs(){
- const all = submissions;
- const grouped = {};
- all.forEach(s=>{
-  const key=s.user_id||"unknown";
-  if(!grouped[key]){
-   grouped[key]={
-    name:s.member_name||"اسم غير متاح",
-    role:s.member_role==="admin"?"مسؤول":"عضو",
-    items:[]
-   };
-  }
-  grouped[key].items.push(s);
- });
- const groups=Object.values(grouped);
-
- $("mySubmissions").innerHTML = !currentUser
-  ? '<div class="empty">سجّل دخولك عشان تشوف التسليمات.</div>'
-  : groups.length
-   ? groups.map((g,index)=>`
-    <section class="panel" style="padding:16px;margin-bottom:18px;animation:fadeUp .45s ease both;animation-delay:${Math.min(index,8)*60}ms">
-     <div class="sectionhead" style="margin:0 0 12px">
-      <div>
-       <h2>${esc(g.name)}</h2>
-       <p>${g.role} • ${g.items.length} تسليم</p>
-      </div>
-     </div>
-     <div class="submissions">
-      ${g.items.map(s=>`
-       <div style="margin-bottom:12px">
-        ${submissionHTML(s, false)}
-       </div>
-      `).join("")}
-     </div>
-    </section>
-   `).join("")
-   : '<div class="empty">لسه مفيش أي تسليمات.</div>';
-}
 
 function renderAchievementDashboard(){
  const section=$("achievementDashboard");
@@ -2850,9 +2908,11 @@ function renderAdminSubs(){
  const taskId=$("adminSubmissionTaskFilter")?.value||"";
  const filtered=all.filter(item=>submissionMatchesFilters(item,query,status,taskId));
  renderSubmissionSummary("adminSubmissionSummary",filtered,all);
- $("adminSubmissions").innerHTML=filtered.length
-  ?filtered.map(item=>submissionHTML(item,true)).join("")
-  :all.length?'<div class="empty">مفيش تسليمات مطابقة للبحث والفلاتر.</div>':'<div class="empty">لسه مفيش تسليمات.</div>';
+ if(!filtered.length){
+  $("adminSubmissions").innerHTML=all.length?'<div class="empty">مفيش تسليمات مطابقة للبحث والفلاتر.</div>':'<div class="empty">لسه مفيش تسليمات.</div>';
+  return;
+ }
+ renderTaskGroupedSubmissions("adminSubmissions",filtered,true,false);
 }
 async function loadAdminSubs(){
  if(!isAdmin())return;
