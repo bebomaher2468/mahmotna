@@ -421,7 +421,7 @@ async function loadMembersList() {
         ? "<span class='small muted'>حسابك الحالي</span>"
         : isAdminMember
           ? "<button class='btn secondary' onclick='removeAdminRole(&quot;" + memberId + "&quot;)'>إزالة من مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف خالص</button>"
-          : "<button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف العضو</button>";
+          : "<button class='btn secondary' onclick='assignAdminRole(&quot;" + memberId + "&quot;)'>🛡️ تعيين مسؤول</button><button class='btn danger' onclick='deleteMemberById(&quot;" + memberId + "&quot;)'>🗑️ حذف العضو</button>";
       return "<div class='submission'><div class='submissionhead' style='align-items:flex-start'>" +
         "<div class='member-row'><img class='member-avatar' src='" + escapeHTML(member.avatar_url || defaultAvatarData()) + "' alt='' onerror='this.src=defaultAvatarData()'><div class='member-info'><strong>" + escapeHTML(member.display_name || "عضو") + "</strong><p class='small muted'>اسم المستخدم: <strong dir='ltr'>" + escapeHTML(member.username || "غير محدد") + "</strong></p>" + roleBadge + "</div></div>" +
         "<div class='actions' style='justify-content:flex-end;flex-wrap:wrap'><button class='btn secondary' onclick='openMemberProfile(&quot;" + memberId + "&quot;)'>👤 الصفحة</button>" + actions + "</div>" +
@@ -440,39 +440,44 @@ async function loadMembersList() {
 
 
 
-async function removeAdminRole(memberId) {
+async function changeMemberRole(memberId, role) {
   if (!isAdmin()) return toast("مش مسموح لك بالعملية دي.");
-  if (!memberId) return toast("معرّف المسؤول غير موجود.");
-  if (memberId === currentUser.id) return toast("ماينفعش تشيل صلاحية المسؤول من حسابك الحالي.");
+  if (!memberId) return toast("معرّف الحساب غير موجود.");
+  if (memberId === currentUser.id) return toast("ماينفعش تغيّر صلاحية حسابك الحالي من هنا.");
+  if (role !== "member" && role !== "admin") return toast("نوع الصلاحية غير صحيح.");
 
-  const confirmed = confirm(
-    "متأكد إنك عايز ترجع الحساب ده عضو عادي؟ هيفقد صلاحيات المسؤول."
-  );
-  if (!confirmed) return;
+  const message = role === "admin"
+    ? "متأكد إنك عايز تعيّن الحساب ده مسؤولًا؟ هتكون له صلاحيات لوحة المسؤولين."
+    : "متأكد إنك عايز ترجع الحساب ده عضوًا عاديًا؟ هيفقد صلاحيات المسؤول.";
+  if (!confirm(message)) return;
 
   try {
-    const { data, error } = await sb
-      .from("profiles")
-      .update({ role: "member" })
-      .eq("id", memberId)
-      .eq("role", "admin")
-      .select("id")
-      .maybeSingle();
+    const { data, error } = await sb.rpc("admin_set_profile_role", {
+      p_user_id: memberId,
+      p_role: role
+    });
 
     if (error) {
-      console.error("Remove admin role error:", error);
-      return toast("تعذر إزالة صلاحية المسؤول. راجع صلاحيات تحديث profiles.");
+      console.error("Change member role error:", error);
+      return toast("تعذر تغيير الصلاحية. تأكد من تشغيل ملف إعداد تعيين المسؤول مرة واحدة في SQL Editor.");
     }
-    if (!data) return toast("المسؤول مش موجود أو صلاحياته اتغيرت بالفعل.");
+    if (!data?.ok) return toast(data?.error || "تعذر تغيير الصلاحية.");
 
-    toast("تمت إزالة صلاحية المسؤول وإرجاع الحساب عضوًا.");
+    toast(role === "admin" ? "تم تعيين الحساب مسؤولًا." : "تمت إزالة صلاحية المسؤول وإرجاع الحساب عضوًا.");
     await loadMembersList();
   } catch (err) {
-    console.error("Remove admin role exception:", err);
+    console.error("Change member role exception:", err);
     toast("حصل خطأ أثناء تغيير الصلاحية. حاول تاني.");
   }
 }
 
+async function assignAdminRole(memberId) {
+  return changeMemberRole(memberId, "admin");
+}
+
+async function removeAdminRole(memberId) {
+  return changeMemberRole(memberId, "member");
+}
 
 async function deleteMemberById(memberId) {
   if (!isAdmin()) return toast("مش مسموح لك بالعملية دي.");
