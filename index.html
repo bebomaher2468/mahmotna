@@ -286,7 +286,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 </section>
  </section>
 </main>
-<footer class="container footer">كنيسة الشهيدة دميانة والأنبا توماس السائح<br>فصل الأنبا توماس السائح للخدام • مجموعة القديس فيلبس الرسول<br>تطوير : أبانوب ماهر &amp; </footer>
+<footer class="container footer">كنيسة الشهيدة دميانة والأنبا توماس السائح<br>فصل الأنبا توماس السائح للخدام • مجموعة القديس فيلبس الرسول<br>تطوير : أبانوب ماهر &amp; <br><small>ضغط الصوت يستخدم <a href="https://lame.sourceforge.net/" target="_blank" rel="noopener noreferrer">LAME</a>.</small></footer>
 <div id="modalRoot"></div><input id="avatarFileInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadMyAvatar(event)"><div id="toast" class="hidden"></div>
 <script>
 // 1) بعد إنشاء مشروع Supabase، ضع بيانات المشروع هنا. لا تضع service_role key هنا أبداً.
@@ -971,7 +971,90 @@ async function compressVideoForUpload(file){
 }
 
 
+let lameJsLoadPromise=null;
+function loadLameJs(){
+ if(window.lamejs?.Mp3Encoder)return Promise.resolve(window.lamejs);
+ if(lameJsLoadPromise)return lameJsLoadPromise;
+ lameJsLoadPromise=new Promise((resolve,reject)=>{
+  const script=document.createElement("script");
+  script.src=new URL("./lame.min.js",document.baseURI).href;
+  script.async=true;
+  script.onload=()=>{
+   if(window.lamejs?.Mp3Encoder)resolve(window.lamejs);
+   else{lameJsLoadPromise=null;reject(new Error("مشفّر الصوت لم يبدأ"))}
+  };
+  script.onerror=()=>{lameJsLoadPromise=null;reject(new Error("تعذّر تحميل مشفّر الصوت"))};
+  document.head.appendChild(script);
+ });
+ return lameJsLoadPromise;
+}
 async function compressAudioForUpload(file,maxBytes){
+ if(!file)return file;
+ if(file.size>100*1024*1024){
+  updateUploadProgress(35,"حجم المقطع كبير جدًا للمعالجة على الهاتف","اختار مقطعًا أصغر من 100 ميجابايت");
+  return file;
+ }
+ let context=null;
+ try{
+  updateUploadProgress(1,"جاري تجهيز ضغط الصوت...","الضغط السريع يتم على الجهاز");
+  const lamejs=await loadLameJs();
+  try{context=new AudioContext({sampleRate:44100})}catch(_){context=new AudioContext()}
+  const buffer=await context.decodeAudioData(await file.arrayBuffer());
+  if(!Number.isFinite(buffer.duration)||buffer.duration<=0)throw new Error("تعذّر قراءة مدة المقطع");
+  const channels=buffer.numberOfChannels>1?2:1;
+  const bitrate=Math.max(32,Math.min(96,Math.floor((maxBytes*.88*8)/(buffer.duration*1000))));
+  const encoder=new lamejs.Mp3Encoder(channels,buffer.sampleRate,bitrate);
+  const channelData=Array.from({length:buffer.numberOfChannels},(_,index)=>buffer.getChannelData(index));
+  const frames=buffer.length,blockSize=1152,chunks=[];
+  const leftCount=Math.ceil(channelData.length/2),rightCount=Math.floor(channelData.length/2);
+  updateUploadProgress(3,"جاري ضغط المقطع الصوتي بسرعة...","تم تجهيز الصوت؛ لا يحتاج الضغط انتظار مدة المقطع");
+  for(let offset=0;offset<frames;offset+=blockSize){
+   const length=Math.min(blockSize,frames-offset),left=new Int16Array(length),right=channels===2?new Int16Array(length):null;
+   for(let i=0;i<length;i++){
+    const sampleIndex=offset+i;
+    let leftSample=channelData[0][sampleIndex]||0;
+    let rightSample=channels===2?(channelData[1][sampleIndex]||0):0;
+    if(channelData.length>2){
+     leftSample=0;rightSample=0;
+     for(let c=0;c<channelData.length;c++){
+      if(c%2===0)leftSample+=channelData[c][sampleIndex]||0;
+      else rightSample+=channelData[c][sampleIndex]||0;
+     }
+     leftSample/=leftCount;
+     rightSample/=rightCount||1;
+    }
+    left[i]=Math.round(Math.max(-1,Math.min(1,leftSample))*32767);
+    if(right)right[i]=Math.round(Math.max(-1,Math.min(1,rightSample))*32767);
+   }
+   const encoded=channels===2?encoder.encodeBuffer(left,right):encoder.encodeBuffer(left);
+   if(encoded?.length)chunks.push(encoded);
+   if(offset===0||offset% (blockSize*96)===0||offset+length>=frames){
+    const ratio=Math.min(1,(offset+length)/frames);
+    updateUploadProgress(3+Math.round(ratio*32),"جاري ضغط المقطع الصوتي بسرعة...",Math.round(ratio*100)+"٪ من المقطع");
+    await new Promise(resolve=>setTimeout(resolve,0));
+   }
+  }
+  const tail=encoder.flush();
+  if(tail?.length)chunks.push(tail);
+  const blob=new Blob(chunks,{type:"audio/mpeg"});
+  if(!blob.size)throw new Error("الملف المضغوط فارغ");
+  updateUploadProgress(35,"اكتمل ضغط المقطع الصوتي","جاري تجهيز الملف للرفع");
+  if(blob.size>=file.size){
+   updateUploadProgress(35,"الملف الأصلي أصغر","هنرفع النسخة الأصغر لتوفير المساحة");
+   return file;
+  }
+  const base=file.name.replace(/\.[^.]+$/,"")||"audio";
+  return new File([blob],base+".mp3",{type:"audio/mpeg",lastModified:Date.now()});
+ }catch(err){
+  console.warn("تعذّر الضغط السريع للصوت، سيتم استخدام طريقة التوافق:",err);
+  updateUploadProgress(0,"جاري استخدام طريقة ضغط بديلة","قد تستغرق وقتًا يقارب مدة المقطع");
+  return await compressAudioRealtimeFallback(file,maxBytes);
+ }finally{
+  if(context&&context.state!=="closed")context.close().catch(()=>{});
+ }
+}
+
+async function compressAudioRealtimeFallback(file,maxBytes){
  if(!file)return file;
  if(!window.AudioContext||!("MediaRecorder" in window)||file.size>100*1024*1024){
   updateUploadProgress(35,"تعذّر ضغط المقطع الصوتي على هذا المتصفح","سيتم التحقق من حد 5 ميجابايت قبل الرفع");
