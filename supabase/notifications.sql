@@ -128,7 +128,7 @@ create trigger submissions_notify_users_new
  execute function public.notify_users_new_submission();
 
 create or replace function public.notify_submission_status()
-returns trigger language plpgsql security definer set search_path=public as $
+returns trigger language plpgsql security definer set search_path=public as $$
 begin
  if new.status is distinct from old.status and new.status in ('accepted','revision') then
   insert into public.notifications(user_id,title,body,kind,task_id,submission_id)
