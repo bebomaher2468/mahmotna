@@ -1571,6 +1571,13 @@ async function compressVideoForUpload(file){
    updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','تعذّرت قراءة مدة الفيديو بشكل صحيح؛ سيتم الحفاظ على الأصل.');
    return file;
   }
+  // MediaRecorder + canvas requires live playback and therefore is not a fast offline encoder.
+  // Avoid making users wait for long videos; this browser-only build keeps those originals intact.
+  const MAX_LIVE_VIDEO_REENCODE_SECONDS=15;
+  if(video.duration>MAX_LIVE_VIDEO_REENCODE_SECONDS){
+   updateUploadProgress(1,'سيتم استخدام الفيديو الأصلي','الضغط السريع غير متاح لهذا الفيديو في المتصفح الحالي؛ تم تخطي التسجيل البطيء لتجنب الانتظار بطول المقطع.');
+   return file;
+  }
   const width=video.videoWidth||0,height=video.videoHeight||0;
   if(!width||!height)throw new Error('Source video dimensions unavailable');
   audioContext=new AudioContextClass();
@@ -1661,97 +1668,132 @@ function loadLameJs(){
  if(window.lamejs?.Mp3Encoder)return Promise.resolve(window.lamejs);
  if(lameJsLoadPromise)return lameJsLoadPromise;
  lameJsLoadPromise=new Promise((resolve,reject)=>{
-  const urls=[];
+  const urls=['https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js','https://unpkg.com/lamejs@1.2.1/lame.min.js'];
   try{urls.push(new URL('./lame.min.js',document.baseURI).href)}catch(_){}
-  urls.push('https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js','https://unpkg.com/lamejs@1.2.1/lame.min.js');
-  try{urls.push(new URL('./lame.min.js',document.baseURI).href)}catch(_){ }
   let index=0;
   const tryNext=()=>{
    if(window.lamejs?.Mp3Encoder)return resolve(window.lamejs);
-   if(index>=urls.length){lameJsLoadPromise=null;return reject(new Error('تعذّر تحميل مشفّر MP3 من المصادر المتاحة'))}
+   if(index>=urls.length){lameJsLoadPromise=null;reject(new Error('تعذّر تحميل مشفّر MP3 من المصادر المتاحة'));return;}
    const url=urls[index++],script=document.createElement('script');
    script.src=url;script.async=true;script.crossOrigin='anonymous';
    let finished=false;
-   const timeoutMs=url.startsWith('https://')?8000:1500;
-   const timer=setTimeout(()=>{if(finished)return;finished=true;script.remove();tryNext()},timeoutMs);
-   script.onload=()=>{if(finished)return;finished=true;clearTimeout(timer);if(window.lamejs?.Mp3Encoder)resolve(window.lamejs);else{script.remove();tryNext()}};
-   script.onerror=()=>{if(finished)return;finished=true;clearTimeout(timer);script.remove();tryNext()};
+   const timer=setTimeout(()=>{if(finished)return;finished=true;script.remove();tryNext();},url.startsWith('https://')?5500:1200);
+   script.onload=()=>{if(finished)return;finished=true;clearTimeout(timer);if(window.lamejs?.Mp3Encoder)resolve(window.lamejs);else{script.remove();tryNext();}};
+   script.onerror=()=>{if(finished)return;finished=true;clearTimeout(timer);script.remove();tryNext();};
    document.head.appendChild(script);
   };
   tryNext();
  });
  return lameJsLoadPromise;
 }
+
+async function encodeAudioBufferToMp3Fast(lamejs,buffer,bitrate,passIndex=0,totalPasses=1){
+ const channels=buffer.numberOfChannels>1?2:1;
+ const encoder=new lamejs.Mp3Encoder(channels,buffer.sampleRate,bitrate);
+ const channelData=Array.from({length:buffer.numberOfChannels},(_,index)=>buffer.getChannelData(index));
+ const frames=buffer.length,blockSize=1152,chunks=[];
+ const leftCount=Math.ceil(channelData.length/2),rightCount=Math.floor(channelData.length/2);
+ for(let offset=0;offset<frames;offset+=blockSize){
+  const length=Math.min(blockSize,frames-offset),left=new Int16Array(length),right=channels===2?new Int16Array(length):null;
+  for(let i=0;i<length;i++){
+   const sampleIndex=offset+i;
+   let leftSample=channelData[0][sampleIndex]||0;
+   let rightSample=channels===2?(channelData[1][sampleIndex]||0):0;
+   if(channelData.length>2){
+    leftSample=0;rightSample=0;
+    for(let c=0;c<channelData.length;c++){
+     if(c%2===0)leftSample+=channelData[c][sampleIndex]||0;
+     else rightSample+=channelData[c][sampleIndex]||0;
+    }
+    leftSample/=leftCount;
+    rightSample/=rightCount||1;
+   }
+   left[i]=Math.round(Math.max(-1,Math.min(1,leftSample))*32767);
+   if(right)right[i]=Math.round(Math.max(-1,Math.min(1,rightSample))*32767);
+  }
+  const encoded=channels===2?encoder.encodeBuffer(left,right):encoder.encodeBuffer(left);
+  if(encoded?.length)chunks.push(encoded);
+  // Yield periodically so the interface remains responsive; this is offline encoding,
+  // not recording the clip in real time.
+  if(offset===0||offset%(blockSize*192)===0||offset+length>=frames){
+   const ratio=Math.min(1,(offset+length)/frames);
+   const overall=(passIndex+ratio)/Math.max(1,totalPasses);
+   updateUploadProgress(2+Math.round(overall*31),'جاري ضغط المقطع الصوتي بسرعة...',Math.round(ratio*100)+'٪ من محاولة الضغط الحالية');
+   await new Promise(resolve=>setTimeout(resolve,0));
+  }
+ }
+ const tail=encoder.flush();
+ if(tail?.length)chunks.push(tail);
+ return new Blob(chunks,{type:'audio/mpeg'});
+}
+
+async function hasPlausibleMp3Frame(file){
+ try{
+  if(!file||file.size<128)return false;
+  const head=new Uint8Array(await readFileAsArrayBufferCompat(file.slice(0,Math.min(file.size,16384))));
+  for(let i=0;i<head.length-4;i++){
+   if(head[i]!==0xFF||(head[i+1]&0xE0)!==0xE0)continue;
+   const version=(head[i+1]>>3)&3;
+   const layer=(head[i+1]>>1)&3;
+   const bitrateIndex=(head[i+2]>>4)&15;
+   const sampleIndex=(head[i+2]>>2)&3;
+   if(version!==1&&layer===1&&bitrateIndex!==0&&bitrateIndex!==15&&sampleIndex!==3)return true;
+  }
+ }catch(_){ }
+ const audio=document.createElement('audio');
+ return /^audio\/mpeg$/i.test(file?.type||'')&&Boolean(audio.canPlayType('audio/mpeg'))&&file.size>128;
+}
+
 async function compressAudioForUpload(file,maxBytes){
  if(!file)return file;
  const hardLimit=Math.max(256*1024,Number(maxBytes)||5*1024*1024);
  const targetBytes=Math.min(hardLimit,2*1024*1024);
- // Attempt compression even for small audio files; retain the original unless output is safely smaller.
-
  if(file.size>80*1024*1024){
-  updateUploadProgress(35,'المقطع كبير جدًا للمعالجة الآمنة على الهاتف','هنحافظ على الأصل ونحاول رفعه؛ الحد المعتاد للملف الواحد في الخطة المجانية 50 ميجابايت.');
+  updateUploadProgress(35,'المقطع كبير جدًا للمعالجة الآمنة على الهاتف','سيتم استخدام الأصل بدل استهلاك ذاكرة كبيرة في الضغط المحلي.');
   return file;
  }
  let context=null;
  try{
-  updateUploadProgress(1,'جاري تجهيز ضغط الصوت...','بنحاول إخراج MP3 أصغر مع الحفاظ على الأصل لو الضغط لم ينجح.');
+  updateUploadProgress(1,'جاري تجهيز ضغط الصوت السريع...','هنجرّب ضغط MP3 محليًا بدون تسجيل المقطع في الزمن الحقيقي.');
   const lamejs=await loadLameJs();
   const AudioContextClass=getAudioContextConstructor();
   if(!AudioContextClass)throw new Error('AudioContext غير مدعوم في هذا المتصفح');
   try{context=new AudioContextClass({sampleRate:44100});}catch(_){context=new AudioContextClass();}
   const buffer=await decodeAudioDataCompat(context,await readFileAsArrayBufferCompat(file));
-  if(!Number.isFinite(buffer.duration)||buffer.duration<=0)throw new Error('تعذّر قراءة مدة المقطع');
-  const channels=buffer.numberOfChannels>1?2:1;
-  const bitrate=Math.max(32,Math.min(80,Math.floor((targetBytes*.88*8)/(buffer.duration*1000))));
-  const encoder=new lamejs.Mp3Encoder(channels,buffer.sampleRate,bitrate);
-  const channelData=Array.from({length:buffer.numberOfChannels},(_,index)=>buffer.getChannelData(index));
-  const frames=buffer.length,blockSize=1152,chunks=[];
-  const leftCount=Math.ceil(channelData.length/2),rightCount=Math.floor(channelData.length/2);
-  updateUploadProgress(3,'جاري ضغط المقطع الصوتي...','بيتم الضغط على الجهاز قبل الرفع لتقليل مساحة Supabase.');
-  for(let offset=0;offset<frames;offset+=blockSize){
-   const length=Math.min(blockSize,frames-offset),left=new Int16Array(length),right=channels===2?new Int16Array(length):null;
-   for(let i=0;i<length;i++){
-    const sampleIndex=offset+i;let leftSample=channelData[0][sampleIndex]||0,rightSample=channels===2?(channelData[1][sampleIndex]||0):0;
-    if(channelData.length>2){
-     leftSample=0;rightSample=0;
-     for(let c=0;c<channelData.length;c++){if(c%2===0)leftSample+=channelData[c][sampleIndex]||0;else rightSample+=channelData[c][sampleIndex]||0;}
-     leftSample/=leftCount;rightSample/=rightCount||1;
+  if(!Number.isFinite(buffer.duration)||buffer.duration<=0||!buffer.length)throw new Error('تعذّر قراءة مدة المقطع');
+
+  // Pass 1: calculate a bitrate based on the target size, but never reject a valid
+  // result solely because it remains above the target if it is smaller than the original.
+  const desiredBitsPerSecond=Math.floor((Math.min(targetBytes,file.size*0.78)*8)/Math.max(1,buffer.duration));
+  const firstBitrate=Math.max(32,Math.min(80,Math.floor(desiredBitsPerSecond/1000)));
+  const bitrates=[firstBitrate];
+  if(firstBitrate>32)bitrates.push(32);
+  let best=null;
+  for(let i=0;i<bitrates.length;i++){
+   const bitrate=bitrates[i];
+   updateUploadProgress(2,'جاري ضغط المقطع الصوتي بسرعة...','محاولة '+(i+1)+' من '+bitrates.length+' • '+bitrate+' كيلوبت/ثانية');
+   const blob=await encodeAudioBufferToMp3Fast(lamejs,buffer,bitrate,i,bitrates.length);
+   if(!blob?.size)continue;
+   if(!best||blob.size<best.size)best=blob;
+   // A 3% saving is enough to adopt the compressed file; the 2 MiB target is only a goal.
+   if(blob.size<file.size*0.97){
+    const base=file.name.replace(/\.[^.]+$/,'')||'audio';
+    const candidate=new File([blob],base+'.mp3',{type:'audio/mpeg',lastModified:Date.now()});
+    if(await hasPlausibleMp3Frame(candidate)){
+     updateUploadProgress(35,'اكتمل ضغط الصوت بسرعة','تم اختيار نسخة MP3 أصغر من الأصل.');
+     return candidate;
     }
-    left[i]=Math.round(Math.max(-1,Math.min(1,leftSample))*32767);
-    if(right)right[i]=Math.round(Math.max(-1,Math.min(1,rightSample))*32767);
-   }
-   const encoded=channels===2?encoder.encodeBuffer(left,right):encoder.encodeBuffer(left);
-   if(encoded?.length)chunks.push(encoded);
-   if(offset===0||offset%(blockSize*96)===0||offset+length>=frames){
-    const ratio=Math.min(1,(offset+length)/frames);
-    updateUploadProgress(3+Math.round(ratio*32),'جاري ضغط المقطع الصوتي...',Math.round(ratio*100)+'٪ من المقطع');
-    await new Promise(resolve=>setTimeout(resolve,0));
    }
   }
-  const tail=encoder.flush();if(tail?.length)chunks.push(tail);
-  const blob=new Blob(chunks,{type:'audio/mpeg'});
-  if(!blob.size)throw new Error('الملف المضغوط فارغ');
-  if(blob.size>=file.size*.97||blob.size>targetBytes){
-   updateUploadProgress(35,'محاولة MP3 لم تصل للحجم المستهدف','هنجرّب طريقة ضغط صوت بديلة قبل الرجوع للأصل.');
-   // Try a second encoding method when MP3 is not small enough; final fallback remains the original.
-   throw new Error('ضغط MP3 لم يصل للحجم المستهدف؛ تجربة الطريقة الاحتياطية');
-  }
-  const base=file.name.replace(/\.[^.]+$/,'')||'audio';
-  const candidate=new File([blob],base+'.mp3',{type:'audio/mpeg',lastModified:Date.now()});
-  const valid=await validateCompressedAudioFile(candidate,context);
-  if(!valid)throw new Error('التحقق من تشغيل ملف MP3 الناتج لم ينجح');
-  updateUploadProgress(35,'اكتمل ضغط المقطع الصوتي','تم التأكد من إمكانية قراءة النسخة المضغوطة.');
-  return candidate;
- }catch(err){
-  console.warn('تعذّر ضغط الصوت أو التحقق من تشغيله؛ سيتم تجربة مسار احتياطي:',err);
-  await closeAudioContextSafely(context);context=null;
-  updateUploadProgress(0,'جاري تجربة ضغط صوت احتياطي','سيتم اعتماد النسخة فقط بعد التأكد من إمكانية قراءتها.');
-  const fallback=await compressAudioRealtimeFallback(file,hardLimit);
-  if(fallback===file)return file;
-  if(await validateCompressedAudioFile(fallback))return fallback;
-  updateUploadProgress(35,'تعذّر التأكد من تشغيل النسخة المضغوطة','سيتم استخدام المقطع الأصلي للحفاظ على الصوت.');
+  updateUploadProgress(35,'تعذّر تقليل حجم الصوت بشكل مفيد','سيتم استخدام الملف الأصلي للحفاظ على الصوت بدل انتظار تسجيله في الزمن الحقيقي.');
   return file;
- }finally{await closeAudioContextSafely(context);}
+ }catch(err){
+  console.warn('تعذّر الضغط السريع للصوت؛ سيتم الاحتفاظ بالأصل دون انتظار المسار الزمني:',err);
+  updateUploadProgress(35,'تعذّر الضغط السريع للصوت','هنستخدم الملف الأصلي بدل الانتظار مدة التسجيل.');
+  return file;
+ }finally{
+  await closeAudioContextSafely(context);
+ }
 }
 
 async function compressAudioRealtimeFallback(file,maxBytes){
