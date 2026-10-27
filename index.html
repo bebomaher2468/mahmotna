@@ -891,7 +891,7 @@ async function compressImageForUpload(file,maxBytes){
 async function compressVideoForUpload(file){
  if(!file||!/^video\//i.test(file.type||""))return file;
  if(!("MediaRecorder" in window)||!HTMLCanvasElement.prototype.captureStream)return file;
- let video=null,canvas=null,sourceUrl=null,canvasStream=null,sourceStream=null,recorder=null;
+ let video=null,canvas=null,sourceUrl=null,canvasStream=null,sourceStream=null,recorder=null,audioContext=null,audioDestination=null,videoAudioSource=null;
  try{
   sourceUrl=URL.createObjectURL(file);
   video=document.createElement("video");
@@ -905,6 +905,12 @@ async function compressVideoForUpload(file){
    video.load();
   });
   if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>600)return file;
+  if(!window.AudioContext)return file;
+  audioContext=new AudioContext();
+  audioDestination=audioContext.createMediaStreamDestination();
+  videoAudioSource=audioContext.createMediaElementSource(video);
+  videoAudioSource.connect(audioDestination); // Send audio into the recorded stream only, never to speakers.
+  if(audioContext.state==="suspended")await audioContext.resume();
   const scale=Math.min(1,1280/Math.max(video.videoWidth||1,video.videoHeight||1));
   canvas=document.createElement("canvas");
   canvas.width=Math.max(2,Math.round(video.videoWidth*scale/2)*2);
@@ -919,7 +925,7 @@ async function compressVideoForUpload(file){
   }else{
    return file;
   }
-  const tracks=[...canvasStream.getVideoTracks(),...sourceStream.getAudioTracks()];
+  const tracks=[...canvasStream.getVideoTracks(),...audioDestination.stream.getAudioTracks()];
   const stream=new MediaStream(tracks);
   const mimeTypes=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
   const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
@@ -960,6 +966,61 @@ async function compressVideoForUpload(file){
   if(sourceStream)sourceStream.getTracks().forEach(track=>track.stop());
   if(video){video.pause();video.removeAttribute("src");video.load();}
   if(sourceUrl)URL.revokeObjectURL(sourceUrl);
+  if(audioContext&&audioContext.state!=="closed")audioContext.close().catch(()=>{});
+ }
+}
+
+
+async function compressAudioForUpload(file,maxBytes){
+ if(!file)return file;
+ if(file.size<=maxBytes){updateUploadProgress(35,"حجم المقطع الصوتي مناسب","سيتم رفعه بدون إعادة ضغط");return file;}
+ if(!window.AudioContext||!("MediaRecorder" in window)||file.size>100*1024*1024)return file;
+ let context=null,source=null,destination=null,recorder=null,progressTimer=null;
+ try{
+  context=new AudioContext();
+  const buffer=await context.decodeAudioData(await file.arrayBuffer());
+  if(!Number.isFinite(buffer.duration)||buffer.duration<=0)return file;
+  const mimeTypes=["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/mp4"];
+  const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
+  if(!mimeType)return file;
+  destination=context.createMediaStreamDestination();
+  source=context.createBufferSource();
+  source.buffer=buffer;
+  source.connect(destination); // Encode through the recording stream only; do not connect to speakers.
+  const audioBitsPerSecond=Math.max(16000,Math.min(64000,Math.floor((maxBytes*.94*8)/buffer.duration)));
+  recorder=new MediaRecorder(destination.stream,{mimeType,audioBitsPerSecond});
+  const chunks=[];
+  const finished=new Promise((resolve,reject)=>{
+   recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+   recorder.onerror=()=>reject(new Error("تعذّر ضغط المقطع الصوتي"));
+   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||mimeType}));
+   source.onended=()=>{if(recorder.state!=="inactive")recorder.stop()};
+  });
+  if(context.state==="suspended")await context.resume();
+  recorder.start(1000);
+  const started=performance.now();
+  progressTimer=setInterval(()=>{
+   const percent=Math.min(35,Math.round((performance.now()-started)/(buffer.duration*1000)*35));
+   updateUploadProgress(percent,"جاري ضغط المقطع الصوتي...",formatRemaining(Math.max(0,buffer.duration-(performance.now()-started)/1000)));
+  },700);
+  source.start();
+  const blob=await finished;
+  clearInterval(progressTimer);progressTimer=null;
+  updateUploadProgress(35,"اكتمل ضغط المقطع الصوتي","جاري تجهيز الملف للرفع");
+  if(!blob.size||blob.size>=file.size)return file;
+  const actualMime=(recorder.mimeType||mimeType).toLowerCase();
+  const ext=actualMime.startsWith("audio/ogg")?"ogg":actualMime.startsWith("audio/mp4")?"m4a":"webm";
+  const cleanMime=ext==="ogg"?"audio/ogg":ext==="m4a"?"audio/mp4":"audio/webm";
+  const base=file.name.replace(/\.[^.]+$/,"")||"audio";
+  return new File([blob],base+"."+ext,{type:cleanMime,lastModified:Date.now()});
+ }catch(err){
+  console.warn("تعذّر ضغط المقطع الصوتي، سيتم استخدام الأصل:",err);
+  return file;
+ }finally{
+  if(progressTimer)clearInterval(progressTimer);
+  if(source){try{source.stop()}catch(_){}}
+  if(destination)destination.stream.getTracks().forEach(track=>track.stop());
+  if(context&&context.state!=="closed")context.close().catch(()=>{});
  }
 }
 
@@ -1555,7 +1616,7 @@ async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عاي�
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
  const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ لرفع أسرع، يفضّل حجم كل صورة يكون ≤ 5 ميجابايت.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 PDF بنحاول نحسّنه تلقائيًا؛ ملفات Word وPowerPoint بتترفع بدون تغيير للحفاظ على التنسيق والأنيميشن. الحد الأقصى 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ لرفع أسرع، يفضّل حجم كل صورة يكون ≤ 5 ميجابايت.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 يمكن رفع أكثر من مقطع. سيحاول الموقع ضغط كل مقطع إلى 5 ميجابايت كحد أقصى قبل رفعه.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 PDF بنحاول نحسّنه تلقائيًا؛ ملفات Word وPowerPoint بتترفع بدون تغيير للحفاظ على التنسيق والأنيميشن. الحد الأقصى 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
@@ -1654,22 +1715,23 @@ async function submitWork(taskId){
  if(!t||t.status==="done")return toast("التاسك مقفولة.");
  const selectedImages=Array.from($("submitImages")?.files||[]);
  const selectedVideos=Array.from($("submitVideos")?.files||[]);
+ const selectedAudios=Array.from($("submitAudio")?.files||[]);
  const selectedDocs=Array.from($("submitFile")?.files||[]);
- const files=[...selectedImages,...selectedVideos,...selectedDocs];
+ const files=[...selectedImages,...selectedVideos,...selectedAudios,...selectedDocs];
  const file=files[0]||null;
  const link=$("submitLink")?.value.trim()||null;
  const submissionText=$("submitText")?.value.trim()||"";
  const note=$("submitNote")?.value.trim()||"";
- if(!files.length&&!link&&!submissionText)return toast("اكتب الحل أو ارفع صورة أو فيديو أو ملف أو حط لينك.");
+ if(!files.length&&!link&&!submissionText)return toast("اكتب الحل أو ارفع صورة أو فيديو أو مقطع صوتي أو ملف أو حط لينك.");
 
  const seen=new Set();
  for(const f of files){
   const ext=(f.name.split(".").pop()||"").toLowerCase();
-  const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"],docExt=["pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
-  if(![...imageExt,...videoExt,...docExt].includes(ext))return toast("نوع الملف ده مش مسموح بيه: "+f.name);
-  const expected=selectedImages.includes(f)?"image":selectedVideos.includes(f)?"video":"document";
+  const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"],audioExt=["mp3","m4a","aac","wav","ogg","oga","opus","webm","3gp","amr"],docExt=["pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
+  const expected=selectedImages.includes(f)?"image":selectedVideos.includes(f)?"video":selectedAudios.includes(f)?"audio":"document";
   if(expected==="image"&&!imageExt.includes(ext))return toast("خانة الصور تقبل الصور فقط.");
   if(expected==="video"&&!videoExt.includes(ext))return toast("خانة الفيديوهات تقبل الفيديوهات فقط.");
+  if(expected==="audio"&&!audioExt.includes(ext))return toast("خانة المقاطع الصوتية تقبل ملفات الصوت فقط.");
   if(expected==="document"&&!docExt.includes(ext))return toast("خانة الملفات تقبل المستندات فقط.");
   const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id===taskId&&getSubmissionFiles(s).some(file=>file.name===f.name));
   if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\\n"+f.name+" اتسلّم قبل كده في نفس المهمة. تكمل؟"))return toast("تم إلغاء التسليم عشان الملف متكرر.");
@@ -1687,13 +1749,16 @@ async function submitWork(taskId){
   for(let i=0;i<files.length;i++){
    let uploadFile=files[i];
    let ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
-   const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"];
-   if(imageExt.includes(ext)){
+   const category=selectedImages.includes(files[i])?"image":selectedVideos.includes(files[i])?"video":selectedAudios.includes(files[i])?"audio":"document";
+   if(category==="image"){
     updateUploadProgress(0,"جاري ضغط الصورة "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressImageForUpload(uploadFile,5*1024*1024);
-   }else if(videoExt.includes(ext)){
+   }else if(category==="video"){
     updateUploadProgress(0,"جاري ضغط الفيديو "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressVideoForUpload(uploadFile);
+   }else if(category==="audio"){
+    updateUploadProgress(0,"جاري ضغط المقطع الصوتي "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
+    uploadFile=await compressAudioForUpload(uploadFile,5*1024*1024);
    }else if(ext==="pdf"){
     updateUploadProgress(0,"جاري تحسين PDF "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressPdfForUpload(uploadFile);
@@ -1705,10 +1770,10 @@ async function submitWork(taskId){
    ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
    // الصور 5MB، والفيديوهات والمستندات 50MB بعد محاولة تحسين PDF.
    // ملفات Office وZIP لا يمكن ضغطها بأمان من المتصفح دون تغيير محتواها.
-   const limit=imageExt.includes(ext)?5:50;
-   if(uploadFile.size>limit*1024*1024)throw new Error("حجم الملف "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد محاولة الضغط. جرّب ضغطه أو تصديره بحجم أقل.");
+   const limit=category==="image"||category==="audio"?5:50;
+   if(uploadFile.size>limit*1024*1024)throw new Error("حجم "+(category==="audio"?"المقطع الصوتي":category==="image"?"الصورة":"الملف")+" "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد محاولة الضغط. جرّب اختيار ملف أصغر.");
    const safe=uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-   const path=currentUser.id+"/"+taskId+"/"+Date.now()+"_"+i+"_"+safe;
+   const path=currentUser.id+"/"+taskId+(category==="audio"?"/audio":"")+"/"+Date.now()+"_"+i+"_"+safe;
    uploadedPaths.push(path);
    uploadedNames.push(uploadFile.name);
    await uploadSubmissionFileWithProgress(uploadFile,path);
@@ -1937,16 +2002,18 @@ async function getSubmissionFile(id,index=0){
  if(!file)return {error:"الملف مش موجود في التسليم."};
  const {data,error}=await sb.storage.from("submissions").createSignedUrl(file.path,300);
  if(error||!data?.signedUrl)return {error:"مش قادر أفتح الملف: "+(error?.message||"حاول تاني")};
- return {url:data.signedUrl,file_name:file.name};
+ return {url:data.signedUrl,file_name:file.name,file_path:file.path};
 }
 
 async function viewSubmission(id,index=0){
  const f=await getSubmissionFile(id,index);if(f.error)return toast(f.error);
  const url=esc(f.url),name=esc(f.file_name),ext=(f.file_name.split(".").pop()||"").toLowerCase();
  const isImage=["jpg","jpeg","png","webp","gif","avif","bmp"].includes(ext);
- const isVideo=["mp4","webm","m4v","mov","ogv","ogg"].includes(ext);
+ const isAudio=String(f.file_path||"").includes("/audio/")||["mp3","m4a","aac","wav","oga","opus","amr","3gp"].includes(ext);
+ const isVideo=!isAudio&&["mp4","webm","m4v","mov","ogv","ogg","avi"].includes(ext);
  let preview="";
  if(isImage)preview='<div style="text-align:center;padding:10px"><img src="'+url+'" alt="'+name+'" style="display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:auto;border-radius:10px"></div>';
+ else if(isAudio)preview='<div style="padding:18px;text-align:center"><div style="font-size:34px;margin-bottom:8px">🎧</div><audio controls preload="metadata" style="width:100%;max-width:640px" src="'+url+'">المتصفح لا يدعم تشغيل الصوت.</audio></div>';
  else if(isVideo)preview='<div id="submissionPlayer" style="--player-accent:#7c5cff;background:#090b12;border:1px solid #272a38;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px #0003;color:#fff"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;background:linear-gradient(110deg,#17172b,#10131d)"><div style="min-width:0"><div style="font-weight:800;font-size:14px">▶ مشغّل مهمتنا</div><div style="font-size:11px;color:#a9aec4;margin-top:3px;overflow-wrap:anywhere">' + name + '</div></div><span id="playerStatus" style="font-size:11px;color:#c7c2ff;white-space:nowrap">جاهز للتشغيل</span></div><div id="playerStage" style="position:relative;background:#000;line-height:0"><video id="submissionPreviewVideo" playsinline preload="auto" style="display:block;width:100%;max-height:68vh;aspect-ratio:16/9;object-fit:contain;background:#000" src="'+url+'">المتصفح لا يدعم تشغيل هذا الفيديو.</video><button id="playerBigPlay" aria-label="تشغيل الفيديو" onclick="toggleSubmissionVideo()" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border:1px solid #ffffff70;border-radius:50%;background:#7c5cffdd;color:white;font-size:30px;cursor:pointer;box-shadow:0 8px 35px #0008">▶</button><div id="playerNotice" style="display:none;position:absolute;inset:auto 12px 12px;padding:10px 12px;background:#171923eF;border:1px solid #ffffff24;border-radius:10px;font-size:12px;line-height:1.6"></div></div><div style="padding:12px 14px 14px;background:linear-gradient(#11131d,#0b0d14)"><div style="display:flex;align-items:center;gap:10px"><span id="playerCurrent" style="font:12px ui-monospace,monospace;color:#d8d9e8;min-width:42px">00:00</span><input id="playerSeek" aria-label="موضع الفيديو" type="range" min="0" max="1000" value="0" oninput="seekSubmissionVideo(this.value)" style="flex:1;accent-color:#9a86ff;cursor:pointer;min-width:0"><span id="playerDuration" title="مدة الفيديو كاملة" style="font:12px ui-monospace,monospace;color:#a9aec4;min-width:52px;text-align:left;direction:ltr">تحميل...</span></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><button class="btn secondary" style="min-width:42px;padding:8px 11px" onclick="skipSubmissionVideo(-10)" title="رجوع 10 ثوانٍ">↶ 10</button><button id="playerPlayBtn" class="btn primary" style="min-width:92px;padding:9px 14px" onclick="toggleSubmissionVideo()">▶ تشغيل</button><button class="btn secondary" style="min-width:42px;padding:8px 11px" onclick="skipSubmissionVideo(10)" title="تقديم 10 ثوانٍ">10 ↷</button><button id="playerMute" type="button" class="btn secondary" style="padding:8px 11px;cursor:pointer" onclick="toggleSubmissionMute()" title="كتم/تشغيل الصوت" aria-label="كتم الصوت">🔊</button><input id="playerVolume" aria-label="مستوى الصوت" type="range" min="0" max="1" step="0.05" value="1" oninput="setSubmissionVideoVolume(this.value)" style="width:76px;accent-color:#9a86ff"></div><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><select id="submissionVideoSpeed" aria-label="سرعة التشغيل" class="field" style="width:auto;min-width:95px;padding:8px;background:#191c29;color:#fff;border-color:#383b4d" onchange="setSubmissionVideoSpeed(this.value)"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× عادي</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select><button class="btn secondary" style="padding:8px 11px" onclick="pipSubmissionVideo()" title="صورة داخل صورة">▣</button><button class="btn secondary" style="padding:8px 11px" onclick="fullscreenSubmissionVideo()" title="ملء الشاشة">⛶ ملء الشاشة</button></div></div><div style="font-size:11px;color:#858ba4;margin-top:10px">اختصارات: Space تشغيل/إيقاف · ←/→ تقديم أو رجوع 5 ثوانٍ · ↑/↓ الصوت · F ملء الشاشة · M كتم الصوت</div></div></div><p class="muted small">لو الصيغة مش مدعومة على جهازك، جرّب تحميل الفيديو أو فتحه في نافذة جديدة.</p>';
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else if(["ppt","pptx","pps","ppsx"].includes(ext))preview='<iframe title="'+name+'" src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(f.url)+'" style="width:100%;height:70vh;border:0;border-radius:8px" allowfullscreen></iframe><p class="muted small">معاينة PowerPoint بتحتاج إن خدمة Microsoft تقدر توصل للملف. لو المعاينة ما ظهرتش، استخدم التحميل.</p>';
