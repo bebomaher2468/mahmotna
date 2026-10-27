@@ -2218,11 +2218,7 @@ function initSubmissionVideoPlayer(){
   v.addEventListener("timeupdate",restore,{once:true});
   try{v.currentTime=1e101;}catch(e){durationProbeStarted=false;v.removeEventListener("timeupdate",restore);}
  };
- const getKnownDuration=()=>{
-  if(Number.isFinite(v.duration)&&v.duration>0)return v.duration;
-  try{if(v.seekable&&v.seekable.length){const end=v.seekable.end(v.seekable.length-1);if(Number.isFinite(end)&&end>0)return end;}}catch(e){}
-  return 0;
- };
+ const getKnownDuration=()=>getSubmissionVideoDuration(v);
  const sync=()=>{
   const duration=getKnownDuration();
   const current=$("playerCurrent"),total=$("playerDuration"),seek=$("playerSeek"),play=$("playerPlayBtn"),big=$("playerBigPlay"),status=$("playerStatus");
@@ -2247,8 +2243,14 @@ function toggleSubmissionVideo(){
  const v=$("submissionPreviewVideo");if(!v)return;
  if(v.paused){const p=v.play();if(p&&p.catch)p.catch(()=>{const n=$("playerNotice");if(n){n.style.display="block";n.textContent="التشغيل التلقائي اتمنع. اضغط تشغيل مرة تانية."}})}else v.pause();
 }
-function seekSubmissionVideo(value){const v=$("submissionPreviewVideo");if(v&&Number.isFinite(v.duration))v.currentTime=(Number(value)/1000)*v.duration;}
-function skipSubmissionVideo(seconds){const v=$("submissionPreviewVideo");if(v&&Number.isFinite(v.duration))v.currentTime=Math.max(0,Math.min(v.duration,v.currentTime+seconds));}
+function getSubmissionVideoDuration(video){
+ if(!video)return 0;
+ if(Number.isFinite(video.duration)&&video.duration>0)return video.duration;
+ try{if(video.seekable&&video.seekable.length){const end=video.seekable.end(video.seekable.length-1);if(Number.isFinite(end)&&end>0)return end;}}catch(_){}
+ return 0;
+}
+function seekSubmissionVideo(value){const v=$("submissionPreviewVideo"),duration=getSubmissionVideoDuration(v);if(v&&duration)v.currentTime=(Number(value)/1000)*duration;}
+function skipSubmissionVideo(seconds){const v=$("submissionPreviewVideo"),duration=getSubmissionVideoDuration(v);if(v&&duration)v.currentTime=Math.max(0,Math.min(duration,v.currentTime+seconds));}
 function setSubmissionVideoVolume(value){
  const v=$("submissionPreviewVideo");if(!v)return;
  const level=Math.max(0,Math.min(1,Number(value)||0));
@@ -2385,8 +2387,8 @@ async function pipSubmissionVideo(){
  catch(e){toast("تعذّر تشغيل صورة داخل صورة.");}
 }
 document.addEventListener("keydown",function(e){
- const v=$("submissionPreviewVideo"),player=$("submissionPlayer");
- if(!v||!player||!player.isConnected||!player.contains(document.activeElement)||["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
+ const v=$("submissionPreviewVideo"),player=$("submissionPlayer"),active=document.activeElement;
+ if(!v||!player||!player.isConnected||active?.isContentEditable||["INPUT","SELECT","TEXTAREA"].includes(active?.tagName))return;
  if(e.code==="Space"){e.preventDefault();toggleSubmissionVideo()}
  else if(e.key==="ArrowLeft"){e.preventDefault();skipSubmissionVideo(-5)}
  else if(e.key==="ArrowRight"){e.preventDefault();skipSubmissionVideo(5)}
