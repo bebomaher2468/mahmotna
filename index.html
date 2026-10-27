@@ -27,7 +27,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 .welcome-overlay{position:fixed;inset:0;z-index:9999;background:rgba(5,10,22,.78);backdrop-filter:blur(9px);animation:backdropIn .25s ease-out;}
 .welcome-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100% - 36px));box-sizing:border-box;text-align:center;padding:30px 24px;border-radius:24px;border:1px solid rgba(114,224,209,.55);background:radial-gradient(ellipse at top,#243b61,#111b30 70%);animation:welcomePop .55s cubic-bezier(.18,.85,.25,1) both,welcomeGlow 2.4s ease-in-out infinite;color:var(--text)}
 .welcome-icon{font-size:44px;display:block;margin-bottom:10px;animation:welcomePop .6s ease-out both}.welcome-card h2{margin:4px 0 10px;font-size:25px}.welcome-card p{line-height:1.9;color:var(--muted);margin:0 0 18px}.welcome-card .btn{min-width:150px}
-@media(prefers-reduced-motion:reduce){.modalback,.modal,#achievementDashboard:not(.hidden),#notificationCenter:not(.hidden),#achievementDashboard .submission,#notificationCenter .submission,.welcome-card,.welcome-icon{animation:none!important;transition:none!important}}.member-avatar{width:46px;height:46px;object-fit:cover;border-radius:50%;border:2px solid #72e0d1;flex-shrink:0;background:#17223a}.member-row{display:flex;align-items:center;gap:10px;min-width:0}.member-info{min-width:0;flex:1}.profile-hero{display:flex;align-items:center;gap:16px;padding:16px;background:#0d1528;border:1px solid var(--line);border-radius:16px}.profile-hero .member-avatar{width:82px;height:82px}.profile-stat{padding:13px;background:#0d1528;border:1px solid var(--line);border-radius:13px}
+@media(prefers-reduced-motion:reduce){.modalback,.modal,#achievementDashboard:not(.hidden),#notificationCenter:not(.hidden),#achievementDashboard .submission,#notificationCenter .submission,.welcome-card,.welcome-icon{animation:none!important;transition:none!important}}.member-avatar{width:46px;height:46px;object-fit:cover;border-radius:50%;border:2px solid #72e0d1;flex-shrink:0;background:#17223a}.member-row{display:flex;align-items:center;gap:10px;min-width:0}.member-info{min-width:0;flex:1}.profile-hero{display:flex;align-items:center;gap:16px;padding:16px;background:#0d1528;border:1px solid var(--line);border-radius:16px}.profile-hero .member-avatar{width:82px;height:82px}.profile-avatar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}.profile-avatar-actions .btn{padding:8px 11px}.profile-avatar-actions .btn:disabled{opacity:.45;cursor:not-allowed;filter:saturate(.4)}.profile-stat{padding:13px;background:#0d1528;border:1px solid var(--line);border-radius:13px}
 @media(max-width:850px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:580px){.top{align-items:flex-start}.brand b{font-size:14px}.time-greeting{font-size:10px}.brand small{font-size:10px}.actions .btn{padding:8px 10px;font-size:12px}.grid{grid-template-columns:1fr}.stats{gap:7px}.stat{padding:11px}.stat strong{font-size:22px}.formrow{grid-template-columns:1fr}.hero{padding-top:25px}}
  .brand .logo {
   padding: 0;
@@ -1152,7 +1152,7 @@ async function openMemberProfile(memberId){
  if(!member){const r=await sb.from("profiles").select("id,display_name,role,avatar_url,username").eq("id",memberId).maybeSingle();if(r.error||!r.data)return toast("تعذّر تحميل بيانات العضو.");member=r.data}
  const rows=submissions.filter(s=>s.user_id===memberId), accepted=rows.filter(s=>s.status==="accepted");
  const history=rows.map(s=>'<article class="submission"><div class="submissionhead"><strong>'+esc(s.tasks?.title||"تسليم مهمة")+'</strong><span class="badge '+(s.status==="accepted"?"done":s.status==="rejected"?"late":"")+'">'+esc(submissionStatusLabel(s.status))+'</span></div><p>📅 '+esc(new Date(s.created_at).toLocaleString("ar-EG"))+'</p>'+(s.file_path?'<p>📎 '+getSubmissionFiles(s).map(f=>esc(f.name)).join('، ')+'</p>':"")+(s.link_url?'<p><a href="'+esc(s.link_url)+'" target="_blank" rel="noopener">فتح رابط التسليم</a></p>':"")+(s.submission_text?'<p>'+esc(s.submission_text)+'</p>':"")+(s.admin_feedback?'<p>ملاحظات المسؤول: '+esc(s.admin_feedback)+'</p>':"")+'</article>').join("");
- $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>👤 صفحة العضو</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="profile-hero"><img class="member-avatar" src="'+esc(member.avatar_url||defaultAvatarData())+'" alt="الصورة الشخصية" onerror="this.src=defaultAvatarData()"><div><h2 style="margin:0 0 4px">'+esc(displayMemberName(member.display_name||member.username||"عضو"))+'</h2><div class="muted small">'+(member.role==="admin"?"مسؤول":"عضو")+'</div>'+(memberId===currentUser.id?'<button class="btn secondary" style="margin-top:10px" onclick="document.getElementById(\'avatarFileInput\').click()">📷 تغيير الصورة <span class="small muted">(بحد أقصى 3 ميجابايت)</span></button>':"")+'</div></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px"><div class="profile-stat"><div class="muted small">إجمالي التسليمات</div><h2>'+rows.length+'</h2></div><div class="profile-stat"><div class="muted small">المقبولة</div><h2>'+accepted.length+'</h2></div><div class="profile-stat"><div class="muted small">مهام مقبولة مختلفة</div><h2>'+new Set(accepted.map(s=>s.task_id)).size+'</h2></div></div><h3>📋 سجل التسليمات</h3><div class="submissions">'+(history||'<div class="empty">مفيش تسليمات مسجلة لحد دلوقتي.</div>')+'</div></div></div>';
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>👤 صفحة العضو</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="profile-hero"><img class="member-avatar" src="'+esc(member.avatar_url||defaultAvatarData())+'" alt="الصورة الشخصية" onerror="this.src=defaultAvatarData()"><div><h2 style="margin:0 0 4px">'+esc(displayMemberName(member.display_name||member.username||"عضو"))+'</h2><div class="muted small">'+(member.role==="admin"?"مسؤول":"عضو")+'</div>'+(memberId===currentUser.id?'<div class="profile-avatar-actions"><button class="btn secondary" type="button" onclick="document.getElementById(\'avatarFileInput\').click()">📷 تغيير الصورة</button><button class="btn danger" type="button" onclick="deleteMyAvatar()" ' +(member.avatar_url?"":"disabled title=\"لا توجد صورة مرفوعة لحذفها\"") + ' >🗑️ حذف الصورة</button></div><div class="small muted" style="margin-top:6px">بحد أقصى 3 ميجابايت • حذف الصورة يمسحها من الموقع ومساحة التخزين</div>':"")+'</div></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px"><div class="profile-stat"><div class="muted small">إجمالي التسليمات</div><h2>'+rows.length+'</h2></div><div class="profile-stat"><div class="muted small">المقبولة</div><h2>'+accepted.length+'</h2></div><div class="profile-stat"><div class="muted small">مهام مقبولة مختلفة</div><h2>'+new Set(accepted.map(s=>s.task_id)).size+'</h2></div></div><h3>📋 سجل التسليمات</h3><div class="submissions">'+(history||'<div class="empty">مفيش تسليمات مسجلة لحد دلوقتي.</div>')+'</div></div></div>';
 }
 async function compressImageForUpload(file,maxBytes){
  if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type||""))return file;
@@ -1459,6 +1459,46 @@ async function uploadMyAvatar(event){
   else toast("تم تحديث الصورة الشخصية.");
  }else toast("تم تحديث الصورة الشخصية.");
  openMyProfile();if(isAdmin())await loadMembersList();
+}
+
+
+async function deleteMyAvatar(){
+ if(!currentUser||!sb)return toast("سجّل دخولك الأول.");
+ const oldUrl=profile?.avatar_url;
+ if(!oldUrl||String(oldUrl).startsWith("data:"))return toast("مفيش صورة شخصية مرفوعة لحذفها.");
+ const oldPath=getPublicStorageObjectPath(oldUrl,"avatars");
+ if(!oldPath)return toast("الصورة الحالية مش موجودة في مساحة avatars الخاصة بالموقع، علشان كده ماحذفتش أي ملف. راجع رابط الصورة الأول.");
+ if(!confirm("متأكد إنك عايز تحذف صورتك الشخصية نهائيًا من الموقع وSupabase؟"))return;
+ // امسح الرابط من الملف الشخصي أولًا، ثم احذف الملف من Storage. لو الحذف مُنع، نحاول استرجاع الرابط.
+ const cleared=await sb.from("profiles").update({avatar_url:null}).eq("id",currentUser.id).select("id,display_name,role,avatar_url,username").maybeSingle();
+ if(cleared.error||!cleared.data){
+  console.error("Avatar URL clear failed:",cleared.error);
+  return toast("تعذّر تحديث الملف الشخصي. راجع صلاحية UPDATE لجدول profiles.");
+ }
+ profile=cleared.data;
+ memberProfiles=memberProfiles.filter(p=>p.id!==currentUser.id).concat(cleared.data);
+ updateAuthUI();
+ const removed=await sb.storage.from("avatars").remove([oldPath]);
+ if(removed.error){
+  console.error("Avatar Storage delete failed:",removed.error);
+  const restored=await sb.from("profiles").update({avatar_url:oldUrl}).eq("id",currentUser.id).select("id,display_name,role,avatar_url,username").maybeSingle();
+  if(!restored.error&&restored.data){
+   profile=restored.data;
+   memberProfiles=memberProfiles.filter(p=>p.id!==currentUser.id).concat(restored.data);
+   updateAuthUI();
+   openMyProfile();
+   if(isAdmin())await loadMembersList();
+   return toast("Supabase رفض حذف الملف. فعّل سياسة DELETE لملفات مجلدك داخل avatars ثم جرّب تاني.");
+  }
+  console.error("Avatar URL restore failed:",restored.error);
+  // الرابط تم مسحه من الموقع، لكن صلاحية Storage منعت حذف الملف فعليًا.
+  openMyProfile();
+  if(isAdmin())await loadMembersList();
+  return toast("الصورة اختفت من الموقع، لكن الملف ما زال في Storage بسبب الصلاحيات. راجع سياسة DELETE في Supabase.");
+ }
+ openMyProfile();
+ if(isAdmin())await loadMembersList();
+ toast("تم حذف الصورة الشخصية من الموقع وSupabase بنجاح.");
 }
 
 async function loadProfile(){const {data,error}=await sb.from("profiles").select("id,display_name,role,avatar_url,username").eq("id",currentUser.id).maybeSingle();if(error)console.error(error);profile=data||{id:currentUser.id,display_name:currentUser.email,role:"member",avatar_url:null}}
@@ -3015,7 +3055,7 @@ const dailyVerses = [
 function renderTimeGreeting(){
  const greeting=$("timeGreeting"); if(!greeting)return;
  const hour=Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Cairo",hour:"2-digit",hourCycle:"h23"}).format(new Date()));
- greeting.textContent=hour<12?"صباح الخير ☀️":"مساء الخير";
+ greeting.textContent=hour<12?"🌙 صباح الخير ☀️":"مساء الخير";
 }
 renderTimeGreeting();
 setInterval(renderTimeGreeting,60*1000);
