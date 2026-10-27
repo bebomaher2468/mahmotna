@@ -1450,67 +1450,163 @@ function decodeAudioDataCompat(context,arrayBuffer){
   }catch(error){fail(error);}
  });
 }
+async function validateCompressedAudioFile(file, existingContext=null){
+ if(!file||!/^audio\//i.test(file.type||""))return false;
+ const AudioContextClass=getAudioContextConstructor();
+ if(!AudioContextClass){
+  // Without a decoder, only accept MP3 as the compressed format with the broadest playback support.
+  const audio=document.createElement("audio");
+  return /^audio\/mpeg$/i.test(file.type||"") && Boolean(audio.canPlayType("audio/mpeg"));
+ }
+ let context=existingContext||null,ownsContext=false;
+ try{
+  if(!context){context=new AudioContextClass();ownsContext=true;}
+  const decoded=await decodeAudioDataCompat(context,await readFileAsArrayBufferCompat(file));
+  return Boolean(decoded&&Number.isFinite(decoded.duration)&&decoded.duration>0&&decoded.length>0);
+ }catch(error){
+  console.warn("التحقق من الملف الصوتي المضغوط فشل، سيتم الحفاظ على الأصل:",error);
+  return false;
+ }finally{
+  if(ownsContext)await closeAudioContextSafely(context);
+ }
+}
 async function closeAudioContextSafely(context){
  if(!context||context.state==="closed"||typeof context.close!=="function")return;
  try{const result=context.close();if(result&&typeof result.catch==="function")await result.catch(()=>{});}catch(_){}
 }
 
+function getVideoContainerFamily(file){
+ const ext=String(file?.name||'').split('.').pop().toLowerCase();
+ const type=String(file?.type||'').toLowerCase().split(';')[0];
+ // Keep the broad playback container. Never silently turn MP4/MOV into WebM,
+ // because many Safari/iOS versions cannot play WebM consistently.
+ if(['mp4','m4v','mov'].includes(ext)||['video/mp4','video/quicktime','video/x-m4v'].includes(type))return 'mp4';
+ if(ext==='webm'||type==='video/webm')return 'webm';
+ return '';
+}
+async function validateCompressedVideoFile(blob, family, expectedDuration){
+ if(!blob||!blob.size||!family)return false;
+ const mime=String(blob.type||'').toLowerCase().split(';')[0];
+ if(family==='mp4'&&mime!=='video/mp4')return false;
+ if(family==='webm'&&mime!=='video/webm')return false;
+ let url='';
+ const probe=document.createElement('video');
+ try{
+  url=URL.createObjectURL(blob);
+  probe.muted=true;probe.playsInline=true;probe.preload='auto';probe.src=url;
+  await new Promise((resolve,reject)=>{
+   let done=false;
+   const finish=(err)=>{if(done)return;done=true;clearTimeout(timer);probe.removeEventListener('loadeddata',onReady);probe.removeEventListener('canplay',onReady);probe.removeEventListener('error',onError);err?reject(err):resolve();};
+   const onReady=()=>finish();
+   const onError=()=>finish(new Error('Compressed video cannot be decoded by this browser'));
+   const timer=setTimeout(()=>finish(new Error('Timed out validating compressed video')),12000);
+   probe.addEventListener('loadeddata',onReady,{once:true});
+   probe.addEventListener('canplay',onReady,{once:true});
+   probe.addEventListener('error',onError,{once:true});
+   probe.load();
+  });
+  if(!(probe.videoWidth>0&&probe.videoHeight>0&&Number.isFinite(probe.duration)&&probe.duration>0))return false;
+  if(Number.isFinite(expectedDuration)&&expectedDuration>0){
+   const tolerance=Math.max(2.5,expectedDuration*.12);
+   if(Math.abs(probe.duration-expectedDuration)>tolerance)return false;
+  }
+  return true;
+ }catch(error){
+  console.warn('Compressed video validation failed; original will be kept:',error);
+  return false;
+ }finally{
+  try{probe.pause();probe.removeAttribute('src');probe.load();}catch(_){}
+  if(url)URL.revokeObjectURL(url);
+ }
+}
+function getVideoOutputFamily(mimeType){
+ const mime=String(mimeType||'').toLowerCase().split(';')[0].trim();
+ if(mime==='video/mp4')return 'mp4';
+ if(mime==='video/webm')return 'webm';
+ return '';
+}
+function getVideoInputMimeFamily(file){
+ const ext=String(file?.name||'').split('.').pop().toLowerCase();
+ const type=String(file?.type||'').toLowerCase().split(';')[0];
+ if(['mp4','m4v','mov'].includes(ext)||['video/mp4','video/quicktime','video/x-m4v'].includes(type))return 'mp4';
+ if(ext==='webm'||type==='video/webm')return 'webm';
+ return '';
+}
 async function compressVideoForUpload(file){
- if(!file||!/^video\//i.test(file.type||''))return file;
- const minWorthCompressing=5*1024*1024;
- if(file.size<=minWorthCompressing)return file;
+ if(!file)return file;
+ const inputFamily=getVideoInputMimeFamily(file);
+ const isVideo=/^video\//i.test(file.type||'')||!!inputFamily;
+ if(!isVideo)return file;
+ // Try compressing every supported video, including files smaller than 2 MiB.
  const Recorder=getMediaRecorderConstructor();
  const AudioContextClass=getAudioContextConstructor();
  const hasCanvasCapture=typeof HTMLCanvasElement!=='undefined'&&typeof HTMLCanvasElement.prototype.captureStream==='function';
  if(!Recorder||!AudioContextClass||!hasCanvasCapture||typeof window.MediaStream!=='function'){
-  updateUploadProgress(1,'الضغط المتقدم للفيديو غير مدعوم هنا','هنحافظ على الفيديو الأصلي؛ لو تعدّى 50 ميجابايت هتحتاج نسخة أصغر.');
+  updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','المتصفح لا يدعم إعادة الترميز محليًا؛ سيتم الاحتفاظ بالملف الأصلي.');
+  return file;
+ }
+ // Prefer the original container when possible, but use WebM when MP4 recording
+ // is unavailable. The generated file gets its real extension and is decode-tested.
+ const mp4Types=['video/mp4;codecs="avc1.42E01E,mp4a.40.2"','video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4'];
+ const webmTypes=['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm;codecs=vp8','video/webm'];
+ const preferredTypes=inputFamily==='webm'?[...webmTypes,...mp4Types]:inputFamily==='mp4'?[...mp4Types,...webmTypes]:[...mp4Types,...webmTypes];
+ const supportedType=getSupportedRecorderMimeType(preferredTypes);
+ if(!supportedType){
+  updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','لا يوجد ترميز فيديو مدعوم لإعادة الضغط على هذا المتصفح.');
   return file;
  }
  let video=null,canvas=null,sourceUrl=null,canvasStream=null,recordingStream=null,recorder=null,audioContext=null,audioDestination=null,videoAudioSource=null,animationId=0;
  try{
   sourceUrl=URL.createObjectURL(file);
   video=document.createElement('video');
-  video.preload='metadata';video.playsInline=true;video.setAttribute('playsinline','');video.src=sourceUrl;
+  video.preload='metadata';video.muted=false;video.playsInline=true;video.setAttribute('playsinline','');video.src=sourceUrl;
   await new Promise((resolve,reject)=>{
    let settled=false;
-   const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('انتهت مهلة قراءة بيانات الفيديو'));}},20000);
+   const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('Timed out reading source video metadata'));}},20000);
    video.onloadedmetadata=()=>{if(!settled){settled=true;clearTimeout(timer);resolve();}};
-   video.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('تعذّر فتح الفيديو'))};};
+   video.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('Cannot decode source video'));}};
    video.load();
   });
-  if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>600){
-   updateUploadProgress(1,'لم نضغط الفيديو الطويل تلقائيًا','ضغط الفيديوهات الأطول من 10 دقائق قد يحمّل الموبايل فوق طاقته.');
+  if(!Number.isFinite(video.duration)||video.duration<=0){
+   updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','تعذّرت قراءة مدة الفيديو بشكل صحيح؛ سيتم الحفاظ على الأصل.');
    return file;
   }
   const width=video.videoWidth||0,height=video.videoHeight||0;
-  if(!width||!height)throw new Error('أبعاد الفيديو غير متاحة');
+  if(!width||!height)throw new Error('Source video dimensions unavailable');
   audioContext=new AudioContextClass();
-  if(typeof audioContext.createMediaStreamDestination!=='function'||typeof audioContext.createMediaElementSource!=='function')throw new Error('مسار صوت الفيديو غير مدعوم');
+  if(typeof audioContext.createMediaStreamDestination!=='function'||typeof audioContext.createMediaElementSource!=='function')throw new Error('Video audio capture unsupported');
   audioDestination=audioContext.createMediaStreamDestination();
   videoAudioSource=audioContext.createMediaElementSource(video);
-  videoAudioSource.connect(audioDestination); // يحتفظ بصوت الفيديو من دون تشغيله عبر مكبرات الصوت.
+  videoAudioSource.connect(audioDestination);
   if(audioContext.state==='suspended')await audioContext.resume();
   const scale=Math.min(1,960/Math.max(width,height));
   canvas=document.createElement('canvas');
   canvas.width=Math.max(2,Math.round(width*scale/2)*2);
   canvas.height=Math.max(2,Math.round(height*scale/2)*2);
   const ctx=canvas.getContext('2d');
-  if(!ctx)throw new Error('Canvas غير مدعوم');
+  if(!ctx)throw new Error('Canvas unavailable');
   canvasStream=canvas.captureStream(20);
-  const videoTracks=canvasStream.getVideoTracks(),audioTracks=audioDestination.stream.getAudioTracks();
-  if(!videoTracks.length||!audioTracks.length)throw new Error('مسار الصوت أو الصورة غير متاح');
+  const videoTracks=canvasStream.getVideoTracks();
+  const audioTracks=audioDestination.stream.getAudioTracks();
+  if(!videoTracks.length)throw new Error('Video track unavailable');
+  // Audio may be absent on a silent clip; video compression should still work.
   recordingStream=new MediaStream([...videoTracks,...audioTracks]);
-  // MP4 أولًا للتوافق الأوسع، ثم WebM لو كان هو المتاح في المتصفح.
-  const mimeTypes=['video/mp4;codecs=h264,aac','video/mp4','video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm'];
-  const originalAverageBps=(file.size*8)/video.duration;
-  const audioBps=48000;
-  const videoBps=Math.max(180000,Math.min(600000,Math.floor(originalAverageBps*.68)-audioBps));
-  recorder=createCompatibleMediaRecorder(recordingStream,mimeTypes,{videoBitsPerSecond:videoBps,audioBitsPerSecond:audioBps});
+  const audioBps=audioTracks.length?48000:0;
+  const desiredTotalBps=Math.floor((Math.min(file.size*0.72,44*1024*1024)*8)/video.duration);
+  const videoBps=Math.max(160000,Math.min(950000,desiredTotalBps-audioBps));
+  recorder=createCompatibleMediaRecorder(recordingStream,preferredTypes,{videoBitsPerSecond:videoBps,...(audioBps?{audioBitsPerSecond:audioBps}:{})});
   const chunks=[];
+  const outputMime=String(recorder.mimeType||supportedType||'').toLowerCase().split(';')[0];
+  const outputFamily=getVideoOutputFamily(outputMime);
+  if(!outputFamily){
+   try{if(recorder.state!=='inactive')recorder.stop()}catch(_){}
+   updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','تعذّر تحديد صيغة الفيديو المضغوط؛ سيتم الاحتفاظ بالأصل.');
+   return file;
+  }
   const finished=new Promise((resolve,reject)=>{
    recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-   recorder.onerror=e=>reject(e.error||new Error('تعذّر إعادة ترميز الفيديو'));
-   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||''}));
+   recorder.onerror=e=>reject(e.error||new Error('Video transcode failed'));
+   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||outputMime}));
   });
   recorder.start(1000);
   const drawFrame=()=>{
@@ -1523,29 +1619,31 @@ async function compressVideoForUpload(file){
   drawFrame();
   await new Promise((resolve,reject)=>{
    let settled=false;
-   const finish=()=>{if(!settled){settled=true;clearTimeout(timer);resolve();}};
-   const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('انتهت مهلة ضغط الفيديو'));}},Math.max(120000,video.duration*2000+30000));
-   video.onended=finish;
-   video.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('توقفت قراءة الفيديو أثناء الضغط'));}};
+   const finish=error=>{if(settled)return;settled=true;clearTimeout(timer);error?reject(error):resolve();};
+   const timer=setTimeout(()=>finish(new Error('Video compression timed out')),Math.max(120000,video.duration*2200+30000));
+   video.onended=()=>finish();
+   video.onerror=()=>finish(new Error('Source video errored during compression'));
   });
-  if(animationId)cancelAnimationFrame(animationId);
+  if(animationId){cancelAnimationFrame(animationId);animationId=0;}
   if(recorder.state!=='inactive')recorder.stop();
   const blob=await finished;
-  const actualType=(blob.type||recorder.mimeType||'').split(';')[0].toLowerCase();
-  if(!blob.size||blob.size>=file.size*.97){
-   updateUploadProgress(35,'الفيديو الأصلي أصغر أو أنسب','هنحافظ على الأصل بدل استبداله بنسخة لا توفر مساحة كافية.');
+  if(!blob.size||blob.size>=file.size*0.97){
+   updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','الضغط لم يقلل الحجم بشكل كافٍ؛ سيتم استخدام الأصل.');
    return file;
   }
-  if(!['video/mp4','video/webm','video/quicktime'].includes(actualType)){
-   updateUploadProgress(1,'تعذّر التأكد من صيغة الفيديو المضغوط','حفاظًا على إمكانية تشغيله، سنستخدم الملف الأصلي.');
+  // Test that the current browser can really decode the compressed output before upload.
+  if(!(await validateCompressedVideoFile(blob,outputFamily,video.duration))){
+   updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','فشل اختبار تشغيل النسخة المضغوطة؛ سيتم استخدام الأصل.');
    return file;
   }
-  const ext=actualType==='video/mp4'?'mp4':actualType==='video/quicktime'?'mov':'webm';
-  updateUploadProgress(35,'اكتمل ضغط الفيديو','جاري تجهيز النسخة الأصغر للرفع.');
-  return new File([blob],(file.name.replace(/\.[^.]+$/,'')||'video')+'.'+ext,{type:actualType,lastModified:Date.now()});
+  const base=file.name.replace(/\.[^.]+$/,'')||'video';
+  const ext=outputFamily==='mp4'?'mp4':'webm';
+  const mime=outputFamily==='mp4'?'video/mp4':'video/webm';
+  updateUploadProgress(35,'اكتمل ضغط الفيديو والتحقق من تشغيله','جاري تجهيز الملف للرفع.');
+  return new File([blob],base+'.'+ext,{type:mime,lastModified:Date.now()});
  }catch(err){
-  console.warn('تعذّر ضغط الفيديو؛ سيتم الحفاظ على الأصل:',err);
-  updateUploadProgress(1,'تعذّر ضغط الفيديو بأمان على هذا المتصفح','سنحافظ على الأصل؛ لو تعدّى 50 ميجابايت هتحتاج نسخة أصغر.');
+  console.warn('Video compression/validation failed; original will be uploaded:',err);
+  updateUploadProgress(1,'جاري تجهيز الفيديو الأصلي','تعذّر ضغط الفيديو بأمان؛ سيتم استخدام الأصل.');
   if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(_){}}
   return file;
  }finally{
@@ -1588,7 +1686,8 @@ async function compressAudioForUpload(file,maxBytes){
  if(!file)return file;
  const hardLimit=Math.max(256*1024,Number(maxBytes)||5*1024*1024);
  const targetBytes=Math.min(hardLimit,2*1024*1024);
- if(file.size<=600*1024)return file;
+ // Attempt compression even for small audio files; retain the original unless output is safely smaller.
+
  if(file.size>80*1024*1024){
   updateUploadProgress(35,'المقطع كبير جدًا للمعالجة الآمنة على الهاتف','هنحافظ على الأصل ونحاول رفعه؛ الحد المعتاد للملف الواحد في الخطة المجانية 50 ميجابايت.');
   return file;
@@ -1637,14 +1736,21 @@ async function compressAudioForUpload(file,maxBytes){
    // Try a second encoding method when MP3 is not small enough; final fallback remains the original.
    throw new Error('ضغط MP3 لم يصل للحجم المستهدف؛ تجربة الطريقة الاحتياطية');
   }
-  updateUploadProgress(35,'اكتمل ضغط المقطع الصوتي','جاري تجهيز MP3 الأصغر للرفع.');
   const base=file.name.replace(/\.[^.]+$/,'')||'audio';
-  return new File([blob],base+'.mp3',{type:'audio/mpeg',lastModified:Date.now()});
+  const candidate=new File([blob],base+'.mp3',{type:'audio/mpeg',lastModified:Date.now()});
+  const valid=await validateCompressedAudioFile(candidate,context);
+  if(!valid)throw new Error('التحقق من تشغيل ملف MP3 الناتج لم ينجح');
+  updateUploadProgress(35,'اكتمل ضغط المقطع الصوتي','تم التأكد من إمكانية قراءة النسخة المضغوطة.');
+  return candidate;
  }catch(err){
-  console.warn('تعذّر ضغط الصوت السريع؛ سيتم تجربة مسار احتياطي:',err);
+  console.warn('تعذّر ضغط الصوت أو التحقق من تشغيله؛ سيتم تجربة مسار احتياطي:',err);
   await closeAudioContextSafely(context);context=null;
-  updateUploadProgress(0,'جاري تجربة ضغط صوت احتياطي','لو المتصفح لا يدعم إعادة الترميز، سنحافظ على الملف الأصلي.');
-  return await compressAudioRealtimeFallback(file,hardLimit);
+  updateUploadProgress(0,'جاري تجربة ضغط صوت احتياطي','سيتم اعتماد النسخة فقط بعد التأكد من إمكانية قراءتها.');
+  const fallback=await compressAudioRealtimeFallback(file,hardLimit);
+  if(fallback===file)return file;
+  if(await validateCompressedAudioFile(fallback))return fallback;
+  updateUploadProgress(35,'تعذّر التأكد من تشغيل النسخة المضغوطة','سيتم استخدام المقطع الأصلي للحفاظ على الصوت.');
+  return file;
  }finally{await closeAudioContextSafely(context);}
 }
 
@@ -1652,7 +1758,8 @@ async function compressAudioRealtimeFallback(file,maxBytes){
  if(!file)return file;
  const hardLimit=Math.max(256*1024,Number(maxBytes)||5*1024*1024);
  const targetBytes=Math.min(hardLimit,2*1024*1024);
- if(file.size<=600*1024)return file;
+ // Attempt compression even for small audio files; retain the original unless output is safely smaller.
+
  const AudioContextClass=getAudioContextConstructor();
  const Recorder=getMediaRecorderConstructor();
  if(!AudioContextClass||!Recorder||file.size>80*1024*1024){
@@ -2447,6 +2554,23 @@ async function compressPdfForUpload(file){
   return file;
  }
 }
+function getUploadContentType(file){
+ const reported=String(file?.type||"").trim().toLowerCase();
+ const ext=String(file?.name||"").split(".").pop().toLowerCase();
+ const byExtension={
+  jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",avif:"image/avif",
+  mp3:"audio/mpeg",m4a:"audio/mp4",m4b:"audio/mp4",aac:"audio/aac",wav:"audio/wav",ogg:"audio/ogg",oga:"audio/ogg",opus:"audio/ogg",amr:"audio/amr","3gp":"audio/3gpp",
+  mp4:"video/mp4",m4v:"video/mp4",mov:"video/quicktime",avi:"video/x-msvideo",ogv:"video/ogg",
+  pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ppt:"application/vnd.ms-powerpoint",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",zip:"application/zip",txt:"text/plain",csv:"text/csv"
+ };
+ // Audio extensions get a normalized MIME type so mobile browsers can identify them correctly.
+ const audioExtensions=new Set(["mp3","m4a","m4b","aac","wav","ogg","oga","opus","amr","3gp"]);
+ if(audioExtensions.has(ext)&&byExtension[ext])return byExtension[ext];
+ if(ext==="webm"&&/^audio\//i.test(reported))return "audio/webm";
+ if(reported&&reported!=="application/octet-stream"&&reported!=="binary/octet-stream")return reported;
+ return byExtension[ext]||"application/octet-stream";
+}
 async function uploadSubmissionFileWithProgress(file,path){
  const sessionResult=await sb.auth.getSession();
  const accessToken=sessionResult.data?.session?.access_token;
@@ -2458,7 +2582,7 @@ async function uploadSubmissionFileWithProgress(file,path){
   xhr.open("POST",SUPABASE_URL+"/storage/v1/object/submissions/"+path.split("/").map(encodeURIComponent).join("/"));
   xhr.setRequestHeader("apikey",SUPABASE_ANON_KEY);
   xhr.setRequestHeader("Authorization","Bearer "+accessToken);
-  xhr.setRequestHeader("Content-Type",file.type||"application/octet-stream");
+  xhr.setRequestHeader("Content-Type",getUploadContentType(file));
   xhr.setRequestHeader("x-upsert","false");
   xhr.upload.onprogress=e=>{
    if(!e.lengthComputable)return;
@@ -2562,7 +2686,7 @@ async function submitWork(taskId){
     uploadFile=prepareOfficeFileForUpload(uploadFile);
    }
    ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
-   // الضغط محاولة لتوفير المساحة وليس شرطًا للرفع: إذا فشل، تُستخدم النسخة الأصلية.
+   // Try compression for images, video, audio and PDF regardless of original file size; keep the original if output is not safely smaller or validation fails.
    // حد الكود الأقصى 50MB لكل ملف، بما يتوافق مع الحد الأعلى في Supabase Free؛ قد يكون حد الـ bucket أقل.
    // ملفات Office وZIP لا يعاد ترميزها للحفاظ على بنيتها، وPDF يُحسّن فقط إذا نتج ملف أصغر.
    const limit=50;
@@ -3028,7 +3152,7 @@ async function viewSubmission(id,index=0){
  const requestId=++officePreviewRequestId;
  const url=esc(f.url),name=esc(f.file_name),ext=(f.file_name.split(".").pop()||"").toLowerCase();
  const isImage=["jpg","jpeg","png","webp","gif","avif","bmp"].includes(ext);
- const isAudio=String(f.file_path||"").includes("/audio/")||["mp3","m4a","aac","wav","oga","opus","amr","3gp"].includes(ext);
+ const isAudio=String(f.file_path||"").includes("/audio/")||["mp3","m4a","m4b","aac","wav","ogg","oga","opus","amr","3gp"].includes(ext);
  const isVideo=!isAudio&&["mp4","webm","m4v","mov","ogv","ogg","avi"].includes(ext);
  const isSpreadsheet=["xlsx","xls","xlsm","xlsb","ods","csv"].includes(ext);
  const isWordDocument=ext==="docx";
@@ -3093,7 +3217,7 @@ function initSubmissionVideoPlayer(){
  v.addEventListener("loadedmetadata",probeWebMDuration);
  v.addEventListener("durationchange",probeWebMDuration);
  try{v.load()}catch(e){}
- v.addEventListener("error",()=>{const n=$("playerNotice");if(n){n.style.display="block";n.textContent="المتصفح مش قادر يشغّل الصيغة دي. جرّب تحميل الملف أو فتحه في نافذة جديدة."}});
+ v.addEventListener("error",()=>{const n=$("playerNotice");if(n){n.style.display="block";n.textContent="المتصفح مش قادر يشغّل الصيغة دي. جرّب أدوات التشغيل الأصلية أو حمّل الملف."}v.controls=true;v.style.aspectRatio="auto";v.style.maxHeight="68vh";const big=$("playerBigPlay");if(big)big.style.display="none";});
  const stage=$("playerStage");if(stage)stage.addEventListener("dblclick",fullscreenSubmissionVideo);
  sync();
 }
@@ -3177,8 +3301,13 @@ function initSubmissionAudioPlayer(){
  ["loadeddata","canplay","progress","timeupdate","play","pause","ended","volumechange","ratechange","error"].forEach(event=>audio.addEventListener(event,()=>{if(audio.readyState>0)metadataLoaded=true;probeUnknownDuration();sync()}));
  ["loadedmetadata","durationchange"].forEach(event=>audio.addEventListener(event,()=>{metadataLoaded=true;probeUnknownDuration();sync()}));
  audio.addEventListener("error",()=>{
+  // Reveal native controls as a practical fallback if the custom player cannot load the media.
+  audio.controls=true;
+  audio.style.display="block";
+  audio.style.width="100%";
+  audio.style.marginTop="10px";
   const notice=$("audioPlayerNotice");
-  if(notice){notice.style.display="block";notice.textContent="المتصفح مش قادر يشغّل صيغة الصوت دي. جرّب تحميل الملف."}
+  if(notice){notice.style.display="block";notice.textContent="المتصفح لم يتمكن من تحميل الصوت داخل المشغّل. جرّب التحكم الأصلي الظاهر هنا أو حمّل الملف."}
  });
  try{audio.load()}catch(_){}
  sync();
