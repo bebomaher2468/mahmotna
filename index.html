@@ -2263,14 +2263,44 @@ function toggleSubmissionMute(){
  const mute=$("playerMute");if(mute){mute.textContent=v.muted||v.volume===0?"🔇":"🔊";mute.title=v.muted||v.volume===0?"تشغيل الصوت":"كتم الصوت";}
 }
 function setSubmissionVideoSpeed(speed){const video=$("submissionPreviewVideo");if(video)video.playbackRate=Number(speed)||1;}
+function getSubmissionAudioDuration(audio){
+ if(!audio)return 0;
+ if(Number.isFinite(audio.duration)&&audio.duration>0)return audio.duration;
+ try{
+  if(audio.seekable&&audio.seekable.length){
+   const end=audio.seekable.end(audio.seekable.length-1);
+   if(Number.isFinite(end)&&end>0)return end;
+  }
+ }catch(_){}
+ return 0;
+}
 function initSubmissionAudioPlayer(){
  const audio=$("submissionPreviewAudio");if(!audio)return;
+ let metadataLoaded=audio.readyState>0,durationProbeStarted=false,durationProbeDone=false;
+ const probeUnknownDuration=()=>{
+  if(durationProbeStarted||durationProbeDone||!audio.isConnected||audio.duration!==Infinity)return;
+  const duration=getSubmissionAudioDuration(audio);
+  if(duration>0){durationProbeDone=true;return;}
+  durationProbeStarted=true;
+  const originalTime=audio.currentTime;
+  const restore=()=>{
+   if(durationProbeDone)return;
+   durationProbeDone=true;durationProbeStarted=false;
+   audio.removeEventListener("timeupdate",restore);
+   try{audio.currentTime=originalTime===0?0:originalTime}catch(_){}
+  };
+  audio.addEventListener("timeupdate",restore,{once:true});
+  try{audio.currentTime=1e101}catch(_){durationProbeStarted=false;audio.removeEventListener("timeupdate",restore)}
+ };
  const sync=()=>{
-  const duration=Number.isFinite(audio.duration)&&audio.duration>0?audio.duration:0;
+  const duration=getSubmissionAudioDuration(audio);
   const current=$("audioPlayerCurrent"),total=$("audioPlayerDuration"),seek=$("audioPlayerSeek");
   if(current)current.textContent=formatPlayerTime(audio.currentTime);
-  if(total)total.textContent=duration?formatPlayerTime(duration):audio.error?"تعذّر التشغيل":"جارٍ تحديد المدة...";
-  if(seek&&!seek.matches(":active"))seek.value=duration?String(Math.round(audio.currentTime/duration*1000)):0;
+  if(total)total.textContent=duration?formatPlayerTime(duration):audio.error?"تعذّر التشغيل":metadataLoaded?"المدة غير متاحة":"جارٍ تحديد المدة...";
+  if(seek){
+   if(!seek.matches(":active"))seek.value=duration?String(Math.round(audio.currentTime/duration*1000)):0;
+   seek.disabled=!duration;
+  }
   const play=$("audioPlayerPlay");
   if(play)play.textContent=audio.ended?"↻ تشغيل":audio.paused?"▶ تشغيل":"❚❚ إيقاف";
   const status=$("audioPlayerStatus");
@@ -2284,7 +2314,8 @@ function initSubmissionAudioPlayer(){
   const mute=$("audioPlayerMute");
   if(mute){mute.textContent=audio.muted||audio.volume===0?"🔇":"🔊";mute.title=audio.muted||audio.volume===0?"تشغيل الصوت":"كتم الصوت";mute.setAttribute("aria-label",mute.title);}
  };
- ["loadedmetadata","durationchange","loadeddata","canplay","progress","timeupdate","play","pause","ended","volumechange","ratechange","error"].forEach(event=>audio.addEventListener(event,sync));
+ ["loadeddata","canplay","progress","timeupdate","play","pause","ended","volumechange","ratechange","error"].forEach(event=>audio.addEventListener(event,()=>{if(audio.readyState>0)metadataLoaded=true;probeUnknownDuration();sync()}));
+ ["loadedmetadata","durationchange"].forEach(event=>audio.addEventListener(event,()=>{metadataLoaded=true;probeUnknownDuration();sync()}));
  audio.addEventListener("error",()=>{
   const notice=$("audioPlayerNotice");
   if(notice){notice.style.display="block";notice.textContent="المتصفح مش قادر يشغّل صيغة الصوت دي. جرّب تحميل الملف."}
@@ -2303,12 +2334,12 @@ function toggleSubmissionAudio(){
  }else audio.pause();
 }
 function seekSubmissionAudio(value){
- const audio=$("submissionPreviewAudio");
- if(audio&&Number.isFinite(audio.duration))audio.currentTime=(Number(value)/1000)*audio.duration;
+ const audio=$("submissionPreviewAudio"),duration=getSubmissionAudioDuration(audio);
+ if(audio&&duration)audio.currentTime=(Number(value)/1000)*duration;
 }
 function skipSubmissionAudio(seconds){
- const audio=$("submissionPreviewAudio");
- if(audio&&Number.isFinite(audio.duration))audio.currentTime=Math.max(0,Math.min(audio.duration,audio.currentTime+seconds));
+ const audio=$("submissionPreviewAudio"),duration=getSubmissionAudioDuration(audio);
+ if(audio&&duration)audio.currentTime=Math.max(0,Math.min(duration,audio.currentTime+seconds));
 }
 function setSubmissionAudioVolume(value){
  const audio=$("submissionPreviewAudio");if(!audio)return;
