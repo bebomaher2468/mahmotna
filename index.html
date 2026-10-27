@@ -633,9 +633,9 @@ function samePushKey(left,right){
 }
 async function updatePushControls(){
  const box=$("pushControls");if(!box)return;
- box.classList.toggle("hidden",!currentUser||!isAdmin());
+ box.classList.toggle("hidden",!currentUser);
  const enable=$("enablePushBtn"),test=$("testPushBtn"),disable=$("disablePushBtn"),status=$("pushStatusText");
- if(!currentUser||!isAdmin())return;
+ if(!currentUser)return;
  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)){
   status.textContent="المتصفح ده لا يدعم إشعارات الجهاز.";
   enable.disabled=true;test.classList.add("hidden");disable.classList.add("hidden");return;
@@ -645,7 +645,7 @@ async function updatePushControls(){
  try{const registration=await navigator.serviceWorker.getRegistration();if(registration)subscription=await registration.pushManager.getSubscription();}
  catch(error){console.warn("تعذر فحص اشتراك الإشعارات:",error);}
  const active=Notification.permission==="granted"&&!!subscription;
- test.classList.toggle("hidden",!active);disable.classList.toggle("hidden",!active);
+ test.classList.toggle("hidden",!active||!isAdmin());
  if(active){
   status.textContent="إشعارات الجهاز مفعّلة على هذا الجهاز.";enable.textContent="تحديث اشتراك الجهاز";
   if(pushSubscriptionSyncedUserId!==currentUser.id){
@@ -684,6 +684,7 @@ async function enablePushNotifications(){
 }
 async function sendTestPush(){
  if(!currentUser)return toast("سجّل دخولك الأول.");
+ if(!isAdmin())return toast("الإشعار التجريبي للمسؤولين فقط.");
  try{
   const {data,error}=await sb.functions.invoke("send-push",{body:{action:"send_test"}});
   if(error||!data?.ok)throw new Error(data?.error||"تعذر إرسال الإشعار التجريبي.");
