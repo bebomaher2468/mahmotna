@@ -251,6 +251,54 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
  .word-preview{padding:12px;font-size:14px}
 }
 
+
+/* Clear, searchable member submission lists */
+.submission-toolbar{display:grid;grid-template-columns:minmax(220px,1.6fr) minmax(145px,.8fr) minmax(190px,1fr) auto;gap:8px;align-items:center;margin:12px 0}
+.submission-summary{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.submission-summary-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid var(--line);border-radius:11px;background:#111a2e;color:var(--muted);font-size:11px}
+.submission-summary-chip strong{color:var(--text);font-size:13px}
+.member-submission-group{padding:15px;margin:0 0 14px;min-width:0}
+.member-submission-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.member-submission-identity{min-width:0}
+.member-submission-identity h3{margin:0 0 7px;font-size:16px;overflow-wrap:anywhere}
+.member-submission-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:11px}
+.member-role{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid #72e0d133;border-radius:999px;background:#72e0d10e;color:#a9eee3;font-weight:800}
+.member-submission-list{display:grid;gap:10px}
+.submission-card{display:grid;gap:10px;padding:13px;background:linear-gradient(145deg,#101a2e,#0d1528);min-width:0}
+.submissionhead{align-items:flex-start}
+.submission-heading-copy{display:grid;gap:5px;min-width:0;flex:1}
+.submission-task-title{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.submission-member-line{font-size:11px;color:var(--muted)}
+.submission-meta{font-size:11px;color:var(--muted);line-height:1.6}
+.submission-status-new{background:#78a8ff18;color:#a8c7ff}
+.submission-status-review{background:#f5ca7b18;color:#f5d694}
+.submission-status-revision{background:#ff8f9b18;color:#ffabb4}
+.submission-text-details,.submission-note,.submission-feedback{padding:10px 12px;border:1px solid #ffffff12;border-radius:12px;background:#ffffff05;min-width:0}
+.submission-text-details summary{cursor:pointer;color:#c9d8f0;font-weight:800}
+.submission-text{margin-top:9px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85;color:#d7e0ef;font-size:13px}
+.submission-note p,.submission-feedback p{margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;font-size:12px}
+.submission-feedback{border-color:#f5ca7b26}
+.submission-files{display:grid;gap:7px;min-width:0}
+.submission-file-row{display:flex;justify-content:space-between;align-items:center;gap:9px;min-width:0;padding:8px 10px;border:1px solid #ffffff12;border-radius:12px;background:#111a2e}
+.submission-file-name{min-width:0;flex:1;overflow-wrap:anywhere;line-height:1.55;font-size:12px;color:#d5deed}
+.submission-file-actions{display:flex;gap:6px;flex:0 0 auto}
+.submission-file-actions .btn{padding:7px 10px;min-height:38px}
+.submission-link{overflow-wrap:anywhere;font-size:12px}
+.submission-review-form{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(180px,1.2fr);gap:8px}
+.submission-admin-actions{display:flex;gap:7px;flex-wrap:wrap}
+.admin-submissions-heading{margin-top:26px}
+@media(max-width:850px){.submission-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.submission-toolbar input[type="search"]{grid-column:1/-1}}
+@media(max-width:580px){
+ .member-submission-group{padding:12px}
+ .submission-toolbar{grid-template-columns:1fr}
+ .submission-toolbar input[type="search"]{grid-column:auto}
+ .submission-file-row{align-items:flex-start;flex-direction:column}
+ .submission-file-actions{width:100%}
+ .submission-file-actions .btn{flex:1}
+ .submission-review-form{grid-template-columns:1fr}
+ .submission-admin-actions .btn{flex:1 1 auto}
+}
+
 </style></head>
 <body>
 <header class="container top">
@@ -321,7 +369,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
-  <div class="sectionhead"><div><h2>تسليمات الأعضاء</h2><p>كل التسليمات المرفوعة وحالتها.</p></div></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
+  <div class="sectionhead"><div><h2>تسليمات الأعضاء</h2><p>مرتبة حسب العضو والأحدث أولًا. ابحث أو فلتر عشان توصل للتسليم بسرعة.</p></div></div><div id="submissionToolbar" class="submission-toolbar hidden"><input id="submissionSearch" class="field" type="search" aria-label="البحث في التسليمات" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderMySubs()"><select id="submissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderMySubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="submissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderMySubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetSubmissionFilters()">مسح الفلاتر</button></div><div id="submissionSummary" class="submission-summary hidden"></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
   <section id="achievementDashboard" class="achievement-popover panel hidden" aria-label="لوحة الإنجازات">
     <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div><button class="xbtn" onclick="toggleAchievementPanel(false)" aria-label="إغلاق">✕</button></div>
     <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px"><label class="label" for="achievementMember">عرض إنجازات عضو</label><select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select></div>
@@ -430,7 +478,7 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
   </div>
 </div>
 
-<div id="adminSubmissions" class="submissions"></div>
+<div class="divider"></div><div class="sectionhead admin-submissions-heading"><div><h3>📥 تسليمات الأعضاء</h3><p>آخر 100 تسليم، مرتبة من الأحدث للأقدم.</p></div></div><div id="adminSubmissionToolbar" class="submission-toolbar"><input id="adminSubmissionSearch" class="field" type="search" aria-label="البحث في تسليمات الأعضاء" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderAdminSubs()"><select id="adminSubmissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderAdminSubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="adminSubmissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderAdminSubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetAdminSubmissionFilters()">مسح الفلاتر</button></div><div id="adminSubmissionSummary" class="submission-summary"></div><div id="adminSubmissions" class="submissions"></div>
 </section>
  </section>
 </main>
@@ -2103,40 +2151,124 @@ function getSubmissionFiles(s){
  return [{path:String(s.file_path),name:String(s.file_name||"ملف")}];
 }
 
+
+function formatSubmissionDate(value){
+ const date=new Date(value||"");
+ return Number.isNaN(date.getTime())?"وقت غير محدد":date.toLocaleString("ar-EG");
+}
 function submissionHTML(s,admin){
- const st={"submitted":"مستلم","reviewing":"قيد المراجعة","accepted":"مقبول","revision":"محتاج تعديل"}[s.status]||s.status;
-
- return `<div class="submission">
- <div class="submissionhead">
- <b>${esc(s.tasks?.title||"تسليم")}</b>
- <span class="badge ${s.status==="accepted"?"done":""}">${st}</span>
- </div>
-
- ${s.submission_text?`<div style="margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><b>الحل المكتوب:</b><div style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px;line-height:1.8">${esc(s.submission_text)}</div></div>`:""}
- ${s.note?`<p>${esc(s.note)}</p>`:""}
- ${s.link_url?`<p class="linkline">🔗 <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer">فتح لينك التسليم</a></p>`:""}
- ${s.file_path?`<div class="actions" style="margin-top:10px">${getSubmissionFiles(s).map((f,i)=>`<span class="actions"><button class="btn primary" onclick="viewSubmission('${s.id}',${i})">👁️ ${esc(f.name)}</button><button class="btn secondary" onclick="downloadSubmission('${s.id}',${i})">⬇️ تحميل</button></span>`).join("")}</div>`:""}
- ${s.admin_feedback?`<p>ملاحظة المسؤول: ${esc(s.admin_feedback)}</p>`:""}
-
- ${admin?`
- <div class="formrow">
- <select class="field" id="status_${s.id}">
- <option value="submitted" ${s.status==="submitted"?"selected":""}>مستلم</option>
- <option value="reviewing" ${s.status==="reviewing"?"selected":""}>قيد المراجعة</option>
- <option value="accepted" ${s.status==="accepted"?"selected":""}>مقبول</option>
- <option value="revision" ${s.status==="revision"?"selected":""}>محتاج تعديل</option>
- </select>
- <input class="field" id="feedback_${s.id}" placeholder="ملاحظة للمُسلِّم" value="${esc(s.admin_feedback||"")}">
- </div>
- <div class="actions" style="margin-top:8px">
- <button class="btn secondary" onclick="updateSubmission('${s.id}')">حفظ المراجعة</button>
- <button class="btn secondary" onclick="editSubmission('${s.id}')">✏️ تعديل التسليم</button>
- <button class="btn danger" onclick="deleteSubmission('${s.id}')">🗑️ حذف التسليم</button>
- </div>
- `:""}
-
- <div class="muted small" style="margin-top:7px">${new Date(s.created_at).toLocaleString("ar-EG")}</div>
- </div>`;
+ const labels={"submitted":"مستلم","reviewing":"قيد المراجعة","accepted":"مقبول","revision":"محتاج تعديل"};
+ const classes={"submitted":"submission-status-new","reviewing":"submission-status-review","accepted":"submission-status-accepted","revision":"submission-status-revision"};
+ const status=labels[s.status]||"حالة غير معروفة";
+ const files=s.file_path?getSubmissionFiles(s):[];
+ const taskTitle=s.tasks?.title||"تسليم";
+ return '<article class="submission submission-card">'+
+  '<div class="submissionhead"><div class="submission-heading-copy">'+
+   '<strong class="submission-task-title">'+esc(taskTitle)+'</strong>'+
+   (admin?'<span class="submission-member-line">👤 '+esc(s.member_name||"عضو")+'</span>':"")+
+  '</div><span class="badge '+(s.status==="accepted"?"done ":"")+(classes[s.status]||"")+'">'+esc(status)+'</span></div>'+
+  '<div class="submission-meta">🗓️ '+esc(formatSubmissionDate(s.created_at))+'</div>'+
+  (s.submission_text?'<details class="submission-text-details"><summary>📝 عرض الحل المكتوب</summary><div class="submission-text">'+esc(s.submission_text)+'</div></details>':"")+
+  (s.note?'<div class="submission-note"><strong>ملاحظة العضو:</strong><p>'+esc(s.note)+'</p></div>':"")+
+  (s.link_url?'<div class="submission-link">🔗 <a href="'+esc(s.link_url)+'" target="_blank" rel="noopener noreferrer">فتح رابط التسليم</a></div>':"")+
+  (files.length?'<div class="submission-files">'+files.map((file,index)=>
+   '<div class="submission-file-row"><span class="submission-file-name" dir="auto">📎 '+esc(file.name)+'</span><div class="submission-file-actions">'+
+    '<button class="btn primary" type="button" onclick="viewSubmission(\''+s.id+'\','+index+')">👁️ عرض</button>'+
+    '<button class="btn secondary" type="button" onclick="downloadSubmission(\''+s.id+'\','+index+')">⬇️ تحميل</button>'+
+   '</div></div>'
+  ).join("")+'</div>':"")+
+  (s.admin_feedback?'<div class="submission-feedback"><strong>ملاحظة المسؤول:</strong><p>'+esc(s.admin_feedback)+'</p></div>':"")+
+  (admin?'<div class="submission-review-form"><select class="field" id="status_'+s.id+'" aria-label="حالة التسليم">'+
+   '<option value="submitted" '+(s.status==="submitted"?"selected":"") +'>مستلم</option>'+
+   '<option value="reviewing" '+(s.status==="reviewing"?"selected":"") +'>قيد المراجعة</option>'+
+   '<option value="accepted" '+(s.status==="accepted"?"selected":"") +'>مقبول</option>'+
+   '<option value="revision" '+(s.status==="revision"?"selected":"") +'>محتاج تعديل</option>'+
+  '</select><input class="field" id="feedback_'+s.id+'" placeholder="ملاحظة للمُسلِّم" value="'+esc(s.admin_feedback||"")+'"></div>'+
+  '<div class="submission-admin-actions"><button class="btn secondary" type="button" onclick="updateSubmission(\''+s.id+'\')">حفظ المراجعة</button>'+
+  '<button class="btn secondary" type="button" onclick="editSubmission(\''+s.id+'\')">✏️ تعديل</button>'+
+  '<button class="btn danger" type="button" onclick="deleteSubmission(\''+s.id+'\')">🗑️ حذف</button></div>':"")+
+ '</article>';
+}
+function normalizeSubmissionSearch(value){
+ return String(value||"").toLocaleLowerCase("ar-EG").normalize("NFKC").trim();
+}
+function submissionMatchesFilters(s,query,status,taskId){
+ if(status&&s.status!==status)return false;
+ if(taskId&&s.task_id!==taskId)return false;
+ if(!query)return true;
+ const haystack=[s.member_name,s.tasks?.title,s.submission_text,s.note,s.admin_feedback,s.link_url]
+  .concat((s.file_path?getSubmissionFiles(s):[]).map(file=>file.name)).join(" ");
+ return normalizeSubmissionSearch(haystack).includes(query);
+}
+function populateSubmissionTaskFilter(selectId,list){
+ const select=$(selectId);if(!select)return;
+ const selected=select.value;
+ const titles=new Map();
+ (list||[]).forEach(s=>{
+  if(!s.task_id)return;
+  const title=s.tasks?.title||tasks.find(task=>task.id===s.task_id)?.title||"تاسك";
+  if(!titles.has(s.task_id))titles.set(s.task_id,title);
+ });
+ const first=document.createElement("option");first.value="";first.textContent="كل التاسكات";
+ select.replaceChildren(first);
+ [...titles.entries()].sort((a,b)=>a[1].localeCompare(b[1],"ar")).forEach(([id,title])=>{
+  const option=document.createElement("option");option.value=id;option.textContent=title;select.appendChild(option);
+ });
+ select.value=titles.has(selected)?selected:"";
+}
+function renderSubmissionSummary(elementId,visibleItems,allItems){
+ const summary=$(elementId);if(!summary)return;
+ const statuses=[["submitted","مستلم"],["reviewing","قيد المراجعة"],["accepted","مقبول"],["revision","محتاج تعديل"]];
+ const chips=[["المعروض",visibleItems.length+" من "+allItems.length]];
+ statuses.forEach(([key,label])=>chips.push([label,String(allItems.filter(item=>item.status===key).length)]));
+ summary.replaceChildren();
+ chips.forEach(([label,value])=>{
+  const chip=document.createElement("span");chip.className="submission-summary-chip";
+  const strong=document.createElement("strong");strong.textContent=value;
+  const textNode=document.createElement("span");textNode.textContent=label;
+  chip.append(strong,textNode);summary.appendChild(chip);
+ });
+}
+function resetSubmissionFilters(){
+ ["submissionSearch","submissionStatusFilter","submissionTaskFilter"].forEach(id=>{if($(id))$(id).value="";});
+ renderMySubs();
+}
+function renderMySubs(){
+ const host=$("mySubmissions"),toolbar=$("submissionToolbar"),summary=$("submissionSummary");
+ if(!host)return;
+ if(!currentUser){
+  if(toolbar)toolbar.classList.add("hidden");
+  if(summary)summary.classList.add("hidden");
+  host.innerHTML='<div class="empty">سجّل دخولك عشان تشوف التسليمات.</div>';
+  return;
+ }
+ if(toolbar)toolbar.classList.remove("hidden");
+ if(summary)summary.classList.remove("hidden");
+ const all=[...submissions].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+ populateSubmissionTaskFilter("submissionTaskFilter",all);
+ const query=normalizeSubmissionSearch($("submissionSearch")?.value);
+ const status=$("submissionStatusFilter")?.value||"";
+ const taskId=$("submissionTaskFilter")?.value||"";
+ const filtered=all.filter(item=>submissionMatchesFilters(item,query,status,taskId));
+ renderSubmissionSummary("submissionSummary",filtered,all);
+ if(!filtered.length){
+  host.innerHTML=all.length?'<div class="empty">مفيش تسليمات مطابقة للبحث والفلاتر.</div>':'<div class="empty">لسه مفيش أي تسليمات.</div>';
+  return;
+ }
+ const groups=new Map();
+ filtered.forEach(item=>{
+  const key=item.user_id||item.member_name||"unknown";
+  if(!groups.has(key)){
+   groups.set(key,{name:item.member_name||"اسم غير متاح",role:item.member_role==="admin"?"مسؤول":"عضو",items:[]});
+  }
+  groups.get(key).items.push(item);
+ });
+ const orderedGroups=[...groups.values()].sort((a,b)=>new Date(b.items[0]?.created_at||0)-new Date(a.items[0]?.created_at||0));
+ host.innerHTML=orderedGroups.map(group=>
+  '<section class="member-submission-group panel"><div class="member-submission-head"><div class="member-submission-identity"><h3>'+esc(group.name)+'</h3>'+
+  '<div class="member-submission-meta"><span class="member-role">'+esc(group.role)+'</span><span>'+group.items.length+' تسليم</span><span>آخر تسليم: '+esc(formatSubmissionDate(group.items[0]?.created_at))+'</span></div></div></div>'+
+  '<div class="member-submission-list">'+group.items.map(item=>submissionHTML(item,false)).join("")+'</div></section>'
+ ).join("");
 }
 
 async function editSubmission(id){
@@ -2703,52 +2835,45 @@ async function downloadSubmission(id,index=0){
 }
 
 
+
+let adminSubmissionCache=[];
+function resetAdminSubmissionFilters(){
+ ["adminSubmissionSearch","adminSubmissionStatusFilter","adminSubmissionTaskFilter"].forEach(id=>{if($(id))$(id).value="";});
+ renderAdminSubs();
+}
+function renderAdminSubs(){
+ if(!isAdmin())return;
+ const all=[...adminSubmissionCache].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+ populateSubmissionTaskFilter("adminSubmissionTaskFilter",all);
+ const query=normalizeSubmissionSearch($("adminSubmissionSearch")?.value);
+ const status=$("adminSubmissionStatusFilter")?.value||"";
+ const taskId=$("adminSubmissionTaskFilter")?.value||"";
+ const filtered=all.filter(item=>submissionMatchesFilters(item,query,status,taskId));
+ renderSubmissionSummary("adminSubmissionSummary",filtered,all);
+ $("adminSubmissions").innerHTML=filtered.length
+  ?filtered.map(item=>submissionHTML(item,true)).join("")
+  :all.length?'<div class="empty">مفيش تسليمات مطابقة للبحث والفلاتر.</div>':'<div class="empty">لسه مفيش تسليمات.</div>';
+}
 async function loadAdminSubs(){
-  if(!isAdmin())return;
-
-  const {data,error}=await sb
-    .from("submissions")
-    .select("*, tasks(title)")
-    .order("created_at",{ascending:false})
-    .limit(100);
-
-  if(error){
-    console.error("خطأ تحميل التسليمات:",error);
-    $("adminSubmissions").innerHTML=
-      '<div class="empty">حصل خطأ: '+esc(error.message)+'</div>';
-    return;
-  }
-
-  const all=data||[];
-  const userIds=[...new Set(all.map(s=>s.user_id).filter(Boolean))];
-  let profiles=[];
-
-  if(userIds.length){
-    const {data:profileData,error:profileError}=await sb
-      .from("profiles")
-      .select("id,display_name")
-      .in("id",userIds);
-
-    if(profileError) console.error("خطأ تحميل أسماء الأعضاء:",profileError);
-    profiles=profileData||[];
-  }
-
-  const names={};
-  profiles.forEach(p=>{
-    names[p.id]=displayMemberName(p.display_name||p.email||"عضو");
-  });
-
-  $("adminSubmissions").innerHTML=all.length
-    ?all.map(s=>`
-      <div class="submission">
-        <div class="submissionhead">
-          <b>${esc(s.tasks?.title||"تاسك")}</b>
-          <span class="muted small">${esc(names[s.user_id]||"عضو")}</span>
-        </div>
-        ${submissionHTML(s,true)}
-      </div>
-    `).join("")
-    :'<div class="empty">لسه مفيش تسليمات.</div>';
+ if(!isAdmin())return;
+ const {data,error}=await sb.from("submissions").select("*, tasks(title)").order("created_at",{ascending:false}).limit(100);
+ if(error){
+  console.error("خطأ تحميل التسليمات:",error);
+  $("adminSubmissions").innerHTML='<div class="empty">حصل خطأ: '+esc(error.message)+'</div>';
+  return;
+ }
+ const all=data||[];
+ const userIds=[...new Set(all.map(item=>item.user_id).filter(Boolean))];
+ let profiles=[];
+ if(userIds.length){
+  const {data:profileData,error:profileError}=await sb.from("profiles").select("id,display_name").in("id",userIds);
+  if(profileError)console.error("خطأ تحميل أسماء الأعضاء:",profileError);
+  profiles=profileData||[];
+ }
+ const names={};
+ profiles.forEach(profile=>{names[profile.id]=displayMemberName(profile.display_name||profile.email||"عضو");});
+ adminSubmissionCache=all.map(item=>({...item,member_name:names[item.user_id]||"عضو"}));
+ renderAdminSubs();
 }
 
 async function updateSubmission(id){
