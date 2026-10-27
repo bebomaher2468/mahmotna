@@ -95,14 +95,14 @@ end; $$;
 drop trigger if exists tasks_notify_members on public.tasks;
 create trigger tasks_notify_members after insert on public.tasks for each row execute function public.notify_members_new_task();
 
--- إشعار للمسؤولين عند تسجيل عضو تسليمًا جديدًا.
--- task_id يظل NULL حتى يحتفظ كل تسليم بإشعار مستقل لكل مسؤول.
-create or replace function public.notify_admins_new_submission()
+-- إشعار لكل الأعضاء والمسؤولين عند تسجيل عضو تسليمًا جديدًا.
+-- صاحب التسليم لا يصله إشعار عن نفسه، وكل تسليم يحتفظ بإشعار مستقل.
+create or replace function public.notify_users_new_submission()
 returns trigger
 language plpgsql
 security definer
 set search_path=''
-as $
+as $$
 begin
  insert into public.notifications(user_id,title,body,kind,task_id,submission_id)
  select p.id,
@@ -114,16 +114,18 @@ begin
  from public.profiles p
  left join public.profiles sender on sender.id=new.user_id
  left join public.tasks t on t.id=new.task_id
- where p.role='admin' and p.id is distinct from new.user_id;
+ where p.role in ('admin','member') and p.id is distinct from new.user_id;
  return new;
 end;
-$;
+$$;
 drop trigger if exists submissions_notify_admins_new on public.submissions;
-create trigger submissions_notify_admins_new
+drop trigger if exists submissions_notify_users_new on public.submissions;
+drop function if exists public.notify_admins_new_submission();
+create trigger submissions_notify_users_new
  after insert on public.submissions
  for each row
  when (new.status='submitted')
- execute function public.notify_admins_new_submission();
+ execute function public.notify_users_new_submission();
 
 create or replace function public.notify_submission_status()
 returns trigger language plpgsql security definer set search_path=public as $
