@@ -1329,244 +1329,357 @@ async function openMemberProfile(memberId){
  const history=rows.map(s=>'<article class="submission"><div class="submissionhead"><strong>'+esc(s.tasks?.title||"تسليم مهمة")+'</strong><span class="badge '+(s.status==="accepted"?"done":s.status==="rejected"?"late":"")+'">'+esc(submissionStatusLabel(s.status))+'</span></div><p>📅 '+esc(new Date(s.created_at).toLocaleString("ar-EG"))+'</p>'+(s.file_path?'<p>📎 '+getSubmissionFiles(s).map(f=>esc(f.name)).join('، ')+'</p>':"")+(s.link_url?'<p><a href="'+esc(s.link_url)+'" target="_blank" rel="noopener">فتح رابط التسليم</a></p>':"")+(s.submission_text?'<p>'+esc(s.submission_text)+'</p>':"")+(s.admin_feedback?'<p>ملاحظات المسؤول: '+esc(s.admin_feedback)+'</p>':"")+'</article>').join("");
  $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>👤 صفحة العضو</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="divider"></div><div class="profile-hero"><img class="member-avatar" src="'+esc(member.avatar_url||defaultAvatarData())+'" alt="الصورة الشخصية" onerror="this.src=defaultAvatarData()"><div><h2 style="margin:0 0 4px">'+esc(displayMemberName(member.display_name||member.username||"عضو"))+'</h2><div class="muted small">'+(member.role==="admin"?"مسؤول":"عضو")+'</div>'+(memberId===currentUser.id?'<div class="profile-avatar-actions"><button class="btn secondary" type="button" onclick="document.getElementById(\'avatarFileInput\').click()">📷 تغيير الصورة</button><button class="btn danger" type="button" onclick="deleteMyAvatar()" ' +(member.avatar_url?"":"disabled title=\"لا توجد صورة مرفوعة لحذفها\"") + ' >🗑️ حذف الصورة</button></div><div class="small muted" style="margin-top:6px">بحد أقصى 3 ميجابايت • حذف الصورة يمسحها من الموقع ومساحة التخزين</div>':"")+'</div></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px"><div class="profile-stat"><div class="muted small">إجمالي التسليمات</div><h2>'+rows.length+'</h2></div><div class="profile-stat"><div class="muted small">المقبولة</div><h2>'+accepted.length+'</h2></div><div class="profile-stat"><div class="muted small">مهام مقبولة مختلفة</div><h2>'+new Set(accepted.map(s=>s.task_id)).size+'</h2></div></div><h3>📋 سجل التسليمات</h3><div class="submissions">'+(history||'<div class="empty">مفيش تسليمات مسجلة لحد دلوقتي.</div>')+'</div></div></div>';
 }
-async function compressImageForUpload(file,maxBytes){
- if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type||""))return file;
- try{
-  let bitmap;
-  if("createImageBitmap" in window)bitmap=await createImageBitmap(file);
-  else{
-   bitmap=await new Promise((resolve,reject)=>{
-    const img=new Image(),url=URL.createObjectURL(file);
-    img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};
-    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("تعذّر قراءة الصورة"))};
-    img.src=url;
-   });
-  }
-  // WebP عادةً يعطي حجمًا أقل؛ نحافظ على الشفافية ونستخدم JPEG كخطة بديلة.
-  let scale=Math.min(1,1920/Math.max(bitmap.width,bitmap.height));
-  let canvas=document.createElement("canvas"),ctx=canvas.getContext("2d"),blob=null,outputType="image/webp";
-  if(!ctx)throw new Error("Canvas unavailable");
-  for(let pass=0;pass<7;pass++){
-   canvas.width=Math.max(1,Math.round(bitmap.width*scale));
-   canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-   ctx=canvas.getContext("2d");
-   ctx.clearRect(0,0,canvas.width,canvas.height);
-   ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-   for(const quality of [.86,.82,.78,.74,.70,.66,.62,.58,.54,.50,.46,.42]){
-    blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,quality));
-    if(!blob)throw new Error("Image compression failed");
-    if(outputType==="image/webp"&&blob.type!=="image/webp"){
-     outputType="image/jpeg";
-     blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,quality));
-    }
-    if(blob.size<=maxBytes)break;
-   }
-   if(blob&&blob.size<=maxBytes)break;
-   scale*=.78;
-  }
-  if(typeof bitmap.close==="function")bitmap.close();
-  if(!blob)throw new Error("Image compression failed");
-  if(blob.size>=file.size&&file.size<=maxBytes)return file;
-  const base=file.name.replace(/\.[^.]+$/,"")||"image";
-  const ext=outputType==="image/webp"?"webp":"jpg";
-  return new File([blob],base+"."+ext,{type:outputType,lastModified:Date.now()});
- }catch(err){
-  console.warn("تعذّر ضغط الصورة، سيتم استخدام الأصل:",err);
-  return file;
+async function canvasToBlobCompat(canvas,type,quality){
+ return await new Promise(resolve=>{
+  try{canvas.toBlob(blob=>resolve(blob||null),type,quality)}
+  catch(_){resolve(null)}
+ });
+}
+async function decodeImageForCompression(file){
+ if(typeof createImageBitmap==='function'){
+  try{return {image:await createImageBitmap(file),cleanup(){try{this.image.close?.()}catch(_){}}};}catch(_){}
  }
+ const objectUrl=URL.createObjectURL(file);
+ try{
+  const image=await new Promise((resolve,reject)=>{
+   const img=new Image();
+   img.onload=()=>resolve(img);
+   img.onerror=()=>reject(new Error('تعذّرت قراءة الصورة'));
+   img.src=objectUrl;
+  });
+  return {image,cleanup(){try{URL.revokeObjectURL(objectUrl)}catch(_){}}};
+ }catch(error){URL.revokeObjectURL(objectUrl);throw error;}
+}
+async function compressImageForUpload(file,maxBytes){
+ if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type||''))return file;
+ const targetBytes=Math.max(128*1024,Number(maxBytes)||2*1024*1024);
+ let decoded=null;
+ try{
+  decoded=await decodeImageForCompression(file);
+  const image=decoded.image;
+  const originalWidth=image.width||image.naturalWidth||0;
+  const originalHeight=image.height||image.naturalHeight||0;
+  if(!originalWidth||!originalHeight)throw new Error('أبعاد الصورة غير صالحة');
+  let scale=Math.min(1,1600/Math.max(originalWidth,originalHeight));
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d',{alpha:true});
+  if(!ctx)throw new Error('Canvas غير مدعوم');
+  const candidates=file.type==='image/jpeg'
+   ? [{type:'image/webp',quality:.84},{type:'image/jpeg',quality:.84}]
+   : [{type:'image/webp',quality:.84},{type:'image/png'}];
+  let bestBlob=null,bestType='',bestSize=Infinity;
+  for(let pass=0;pass<9;pass++){
+   canvas.width=Math.max(1,Math.round(originalWidth*scale));
+   canvas.height=Math.max(1,Math.round(originalHeight*scale));
+   ctx.clearRect(0,0,canvas.width,canvas.height);
+   ctx.drawImage(image,0,0,canvas.width,canvas.height);
+   bestBlob=null;bestType='';bestSize=Infinity;
+   for(const candidate of candidates){
+    const blob=await canvasToBlobCompat(canvas,candidate.type,candidate.quality);
+    if(!blob||!blob.size)continue;
+    const actualType=(blob.type||'').toLowerCase();
+    // Some browsers silently return PNG when WebP encoding is not supported; do not mislabel it.
+    if(actualType!==candidate.type)continue;
+    if(blob.size<bestSize){bestBlob=blob;bestType=actualType;bestSize=blob.size;}
+   }
+   if(bestBlob&&bestBlob.size<=targetBytes)break;
+   scale*=.82;
+  }
+  if(!bestBlob||bestBlob.size>=file.size*.97){
+   // Never replace a source with a larger or only trivially smaller rendition.
+   return file;
+  }
+  const base=file.name.replace(/\.[^.]+$/,'')||'image';
+  const ext=bestType==='image/webp'?'webp':bestType==='image/jpeg'?'jpg':'png';
+  return new File([bestBlob],base+'.'+ext,{type:bestType,lastModified:Date.now()});
+ }catch(err){
+  console.warn('تعذّر ضغط الصورة؛ سيتم الحفاظ على الأصل:',err);
+  return file;
+ }finally{
+  try{decoded?.cleanup?.()}catch(_){}
+ }
+}
+
+function getAudioContextConstructor(){
+ return window.AudioContext||window.webkitAudioContext||null;
+}
+function getMediaRecorderConstructor(){
+ return typeof window.MediaRecorder==="function"?window.MediaRecorder:null;
+}
+function getSupportedRecorderMimeType(types){
+ const Recorder=getMediaRecorderConstructor();
+ if(!Recorder||typeof Recorder.isTypeSupported!=="function")return "";
+ for(const type of (types||[])){
+  try{if(Recorder.isTypeSupported(type))return type;}catch(_){}
+ }
+ return "";
+}
+function createCompatibleMediaRecorder(stream,preferredTypes,encodingOptions){
+ const Recorder=getMediaRecorderConstructor();
+ if(!Recorder)throw new Error("MediaRecorder غير مدعوم في المتصفح");
+ const options=encodingOptions&&typeof encodingOptions==="object"?encodingOptions:{};
+ const mimeType=getSupportedRecorderMimeType(preferredTypes);
+ if(mimeType){
+  try{return new Recorder(stream,{...options,mimeType});}
+  catch(error){console.warn("تعذّر إنشاء MediaRecorder بنوع الملف المفضّل؛ ستتم تجربة النوع الافتراضي:",error);}
+ }
+ if(Object.keys(options).length){
+  try{return new Recorder(stream,options);}
+  catch(error){console.warn("تعذّرت خيارات ضغط الوسائط؛ ستتم تجربة الإعدادات الافتراضية:",error);}
+ }
+ return new Recorder(stream);
+}
+function readFileAsArrayBufferCompat(file){
+ if(file&&typeof file.arrayBuffer==="function")return file.arrayBuffer();
+ return new Promise((resolve,reject)=>{
+  if(typeof FileReader==="undefined")return reject(new Error("قراءة الملفات غير مدعومة في هذا المتصفح"));
+  const reader=new FileReader();
+  reader.onload=()=>resolve(reader.result);
+  reader.onerror=()=>reject(reader.error||new Error("تعذّرت قراءة الملف"));
+  reader.readAsArrayBuffer(file);
+ });
+}
+function decodeAudioDataCompat(context,arrayBuffer){
+ return new Promise((resolve,reject)=>{
+  let settled=false;
+  const done=value=>{if(!settled){settled=true;resolve(value);}};
+  const fail=error=>{if(!settled){settled=true;reject(error||new Error("تعذّر فك ترميز الصوت"));}};
+  try{
+   const result=context.decodeAudioData(arrayBuffer,done,fail);
+   if(result&&typeof result.then==="function")result.then(done,fail);
+  }catch(error){fail(error);}
+ });
+}
+async function closeAudioContextSafely(context){
+ if(!context||context.state==="closed"||typeof context.close!=="function")return;
+ try{const result=context.close();if(result&&typeof result.catch==="function")await result.catch(()=>{});}catch(_){}
 }
 
 async function compressVideoForUpload(file){
- if(!file||!/^video\//i.test(file.type||""))return file;
- if(!("MediaRecorder" in window)||!HTMLCanvasElement.prototype.captureStream)return file;
- let video=null,canvas=null,sourceUrl=null,canvasStream=null,sourceStream=null,recorder=null,audioContext=null,audioDestination=null,videoAudioSource=null;
+ if(!file||!/^video\//i.test(file.type||''))return file;
+ const minWorthCompressing=5*1024*1024;
+ if(file.size<=minWorthCompressing)return file;
+ const Recorder=getMediaRecorderConstructor();
+ const AudioContextClass=getAudioContextConstructor();
+ const hasCanvasCapture=typeof HTMLCanvasElement!=='undefined'&&typeof HTMLCanvasElement.prototype.captureStream==='function';
+ if(!Recorder||!AudioContextClass||!hasCanvasCapture||typeof window.MediaStream!=='function'){
+  updateUploadProgress(1,'الضغط المتقدم للفيديو غير مدعوم هنا','هنحافظ على الفيديو الأصلي؛ لو تعدّى 50 ميجابايت هتحتاج نسخة أصغر.');
+  return file;
+ }
+ let video=null,canvas=null,sourceUrl=null,canvasStream=null,recordingStream=null,recorder=null,audioContext=null,audioDestination=null,videoAudioSource=null,animationId=0;
  try{
   sourceUrl=URL.createObjectURL(file);
-  video=document.createElement("video");
-  video.preload="auto";
-  video.playsInline=true;
-  video.muted=false;
-  video.src=sourceUrl;
+  video=document.createElement('video');
+  video.preload='metadata';video.playsInline=true;video.setAttribute('playsinline','');video.src=sourceUrl;
   await new Promise((resolve,reject)=>{
-   video.onloadedmetadata=resolve;
-   video.onerror=()=>reject(new Error("تعذّر فتح الفيديو"));
+   let settled=false;
+   const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('انتهت مهلة قراءة بيانات الفيديو'));}},20000);
+   video.onloadedmetadata=()=>{if(!settled){settled=true;clearTimeout(timer);resolve();}};
+   video.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('تعذّر فتح الفيديو'))};};
    video.load();
   });
-  if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>600)return file;
-  if(!window.AudioContext)return file;
-  audioContext=new AudioContext();
-  audioDestination=audioContext.createMediaStreamDestination();
-  videoAudioSource=audioContext.createMediaElementSource(video);
-  videoAudioSource.connect(audioDestination); // Send audio into the recorded stream only, never to speakers.
-  if(audioContext.state==="suspended")await audioContext.resume();
-  const scale=Math.min(1,1280/Math.max(video.videoWidth||1,video.videoHeight||1));
-  canvas=document.createElement("canvas");
-  canvas.width=Math.max(2,Math.round(video.videoWidth*scale/2)*2);
-  canvas.height=Math.max(2,Math.round(video.videoHeight*scale/2)*2);
-  const ctx=canvas.getContext("2d");
-  if(!ctx)return file;
-  canvasStream=canvas.captureStream(24);
-  if(typeof video.captureStream==="function"){
-   sourceStream=video.captureStream();
-  }else if(typeof video.mozCaptureStream==="function"){
-   sourceStream=video.mozCaptureStream();
-  }else{
+  if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>600){
+   updateUploadProgress(1,'لم نضغط الفيديو الطويل تلقائيًا','ضغط الفيديوهات الأطول من 10 دقائق قد يحمّل الموبايل فوق طاقته.');
    return file;
   }
-  const tracks=[...canvasStream.getVideoTracks(),...audioDestination.stream.getAudioTracks()];
-  const stream=new MediaStream(tracks);
-  const mimeTypes=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
-  const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
-  if(!mimeType)return file;
+  const width=video.videoWidth||0,height=video.videoHeight||0;
+  if(!width||!height)throw new Error('أبعاد الفيديو غير متاحة');
+  audioContext=new AudioContextClass();
+  if(typeof audioContext.createMediaStreamDestination!=='function'||typeof audioContext.createMediaElementSource!=='function')throw new Error('مسار صوت الفيديو غير مدعوم');
+  audioDestination=audioContext.createMediaStreamDestination();
+  videoAudioSource=audioContext.createMediaElementSource(video);
+  videoAudioSource.connect(audioDestination); // يحتفظ بصوت الفيديو من دون تشغيله عبر مكبرات الصوت.
+  if(audioContext.state==='suspended')await audioContext.resume();
+  const scale=Math.min(1,960/Math.max(width,height));
+  canvas=document.createElement('canvas');
+  canvas.width=Math.max(2,Math.round(width*scale/2)*2);
+  canvas.height=Math.max(2,Math.round(height*scale/2)*2);
+  const ctx=canvas.getContext('2d');
+  if(!ctx)throw new Error('Canvas غير مدعوم');
+  canvasStream=canvas.captureStream(20);
+  const videoTracks=canvasStream.getVideoTracks(),audioTracks=audioDestination.stream.getAudioTracks();
+  if(!videoTracks.length||!audioTracks.length)throw new Error('مسار الصوت أو الصورة غير متاح');
+  recordingStream=new MediaStream([...videoTracks,...audioTracks]);
+  // MP4 أولًا للتوافق الأوسع، ثم WebM لو كان هو المتاح في المتصفح.
+  const mimeTypes=['video/mp4;codecs=h264,aac','video/mp4','video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm'];
+  const originalAverageBps=(file.size*8)/video.duration;
+  const audioBps=48000;
+  const videoBps=Math.max(180000,Math.min(600000,Math.floor(originalAverageBps*.68)-audioBps));
+  recorder=createCompatibleMediaRecorder(recordingStream,mimeTypes,{videoBitsPerSecond:videoBps,audioBitsPerSecond:audioBps});
   const chunks=[];
-  // خفض معدل البت حسب مدة الفيديو لاستهداف حجم أقل من 45MB.
-  const targetBitsPerSecond=Math.max(300000,Math.min(1200000,Math.floor((44*1024*1024*8)/video.duration)-64000));
-  recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:targetBitsPerSecond,audioBitsPerSecond:64000});
   const finished=new Promise((resolve,reject)=>{
    recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-   recorder.onerror=()=>reject(new Error("تعذّر ضغط الفيديو"));
-   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||"video/webm"}));
+   recorder.onerror=e=>reject(e.error||new Error('تعذّر إعادة ترميز الفيديو'));
+   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||''}));
   });
   recorder.start(1000);
   const drawFrame=()=>{
-   if(video.ended||video.paused)return;
+   if(!video||video.ended||video.paused)return;
    try{ctx.drawImage(video,0,0,canvas.width,canvas.height)}catch(_){}
-   requestAnimationFrame(drawFrame);
+   animationId=requestAnimationFrame(drawFrame);
   };
   await video.play();
+  try{ctx.drawImage(video,0,0,canvas.width,canvas.height)}catch(_){}
   drawFrame();
-  await new Promise(resolve=>{
-   video.onended=resolve;
-   video.onerror=resolve;
+  await new Promise((resolve,reject)=>{
+   let settled=false;
+   const finish=()=>{if(!settled){settled=true;clearTimeout(timer);resolve();}};
+   const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('انتهت مهلة ضغط الفيديو'));}},Math.max(120000,video.duration*2000+30000));
+   video.onended=finish;
+   video.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('توقفت قراءة الفيديو أثناء الضغط'));}};
   });
-  if(recorder.state!=="inactive")recorder.stop();
+  if(animationId)cancelAnimationFrame(animationId);
+  if(recorder.state!=='inactive')recorder.stop();
   const blob=await finished;
-  stream.getTracks().forEach(track=>track.stop());
-  if(!blob.size||blob.size>=file.size)return file;
-  const base=file.name.replace(/\.[^.]+$/,"")||"video";
-  return new File([blob],base+".webm",{type:"video/webm",lastModified:Date.now()});
+  const actualType=(blob.type||recorder.mimeType||'').split(';')[0].toLowerCase();
+  if(!blob.size||blob.size>=file.size*.97){
+   updateUploadProgress(35,'الفيديو الأصلي أصغر أو أنسب','هنحافظ على الأصل بدل استبداله بنسخة لا توفر مساحة كافية.');
+   return file;
+  }
+  if(!['video/mp4','video/webm','video/quicktime'].includes(actualType)){
+   updateUploadProgress(1,'تعذّر التأكد من صيغة الفيديو المضغوط','حفاظًا على إمكانية تشغيله، سنستخدم الملف الأصلي.');
+   return file;
+  }
+  const ext=actualType==='video/mp4'?'mp4':actualType==='video/quicktime'?'mov':'webm';
+  updateUploadProgress(35,'اكتمل ضغط الفيديو','جاري تجهيز النسخة الأصغر للرفع.');
+  return new File([blob],(file.name.replace(/\.[^.]+$/,'')||'video')+'.'+ext,{type:actualType,lastModified:Date.now()});
  }catch(err){
-  console.warn("تعذّر ضغط الفيديو، سيتم استخدام الأصل:",err);
-  if(recorder&&recorder.state!=="inactive"){try{recorder.stop()}catch(_){}}
+  console.warn('تعذّر ضغط الفيديو؛ سيتم الحفاظ على الأصل:',err);
+  updateUploadProgress(1,'تعذّر ضغط الفيديو بأمان على هذا المتصفح','سنحافظ على الأصل؛ لو تعدّى 50 ميجابايت هتحتاج نسخة أصغر.');
+  if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(_){}}
   return file;
  }finally{
-  if(canvasStream)canvasStream.getTracks().forEach(track=>track.stop());
-  if(sourceStream)sourceStream.getTracks().forEach(track=>track.stop());
-  if(video){video.pause();video.removeAttribute("src");video.load();}
+  if(animationId)cancelAnimationFrame(animationId);
+  if(canvasStream)canvasStream.getTracks().forEach(track=>{try{track.stop()}catch(_){}});
+  if(recordingStream)recordingStream.getTracks().forEach(track=>{try{track.stop()}catch(_){}});
+  if(video){try{video.pause();video.removeAttribute('src');video.load()}catch(_){}}
   if(sourceUrl)URL.revokeObjectURL(sourceUrl);
-  if(audioContext&&audioContext.state!=="closed")audioContext.close().catch(()=>{});
+  await closeAudioContextSafely(audioContext);
  }
 }
-
 
 let lameJsLoadPromise=null;
 function loadLameJs(){
  if(window.lamejs?.Mp3Encoder)return Promise.resolve(window.lamejs);
  if(lameJsLoadPromise)return lameJsLoadPromise;
  lameJsLoadPromise=new Promise((resolve,reject)=>{
-  const script=document.createElement("script");
-  script.src=new URL("./lame.min.js",document.baseURI).href;
-  script.async=true;
-  script.onload=()=>{
-   if(window.lamejs?.Mp3Encoder)resolve(window.lamejs);
-   else{lameJsLoadPromise=null;reject(new Error("مشفّر الصوت لم يبدأ"))}
+  const urls=[];
+  try{urls.push(new URL('./lame.min.js',document.baseURI).href)}catch(_){}
+  urls.push('https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js','https://unpkg.com/lamejs@1.2.1/lame.min.js');
+  try{urls.push(new URL('./lame.min.js',document.baseURI).href)}catch(_){ }
+  let index=0;
+  const tryNext=()=>{
+   if(window.lamejs?.Mp3Encoder)return resolve(window.lamejs);
+   if(index>=urls.length){lameJsLoadPromise=null;return reject(new Error('تعذّر تحميل مشفّر MP3 من المصادر المتاحة'))}
+   const url=urls[index++],script=document.createElement('script');
+   script.src=url;script.async=true;script.crossOrigin='anonymous';
+   let finished=false;
+   const timeoutMs=url.startsWith('https://')?8000:1500;
+   const timer=setTimeout(()=>{if(finished)return;finished=true;script.remove();tryNext()},timeoutMs);
+   script.onload=()=>{if(finished)return;finished=true;clearTimeout(timer);if(window.lamejs?.Mp3Encoder)resolve(window.lamejs);else{script.remove();tryNext()}};
+   script.onerror=()=>{if(finished)return;finished=true;clearTimeout(timer);script.remove();tryNext()};
+   document.head.appendChild(script);
   };
-  script.onerror=()=>{lameJsLoadPromise=null;reject(new Error("تعذّر تحميل مشفّر الصوت"))};
-  document.head.appendChild(script);
+  tryNext();
  });
  return lameJsLoadPromise;
 }
 async function compressAudioForUpload(file,maxBytes){
  if(!file)return file;
- if(file.size>100*1024*1024){
-  updateUploadProgress(35,"حجم المقطع كبير جدًا للمعالجة على الهاتف","اختار مقطعًا أصغر من 100 ميجابايت");
+ const hardLimit=Math.max(256*1024,Number(maxBytes)||5*1024*1024);
+ const targetBytes=Math.min(hardLimit,2*1024*1024);
+ if(file.size<=600*1024)return file;
+ if(file.size>80*1024*1024){
+  updateUploadProgress(35,'المقطع كبير جدًا للمعالجة الآمنة على الهاتف','هنحافظ على الأصل ونحاول رفعه؛ الحد المعتاد للملف الواحد في الخطة المجانية 50 ميجابايت.');
   return file;
  }
  let context=null;
  try{
-  updateUploadProgress(1,"جاري تجهيز ضغط الصوت...","الضغط السريع يتم على الجهاز");
+  updateUploadProgress(1,'جاري تجهيز ضغط الصوت...','بنحاول إخراج MP3 أصغر مع الحفاظ على الأصل لو الضغط لم ينجح.');
   const lamejs=await loadLameJs();
-  try{context=new AudioContext({sampleRate:44100})}catch(_){context=new AudioContext()}
-  const buffer=await context.decodeAudioData(await file.arrayBuffer());
-  if(!Number.isFinite(buffer.duration)||buffer.duration<=0)throw new Error("تعذّر قراءة مدة المقطع");
+  const AudioContextClass=getAudioContextConstructor();
+  if(!AudioContextClass)throw new Error('AudioContext غير مدعوم في هذا المتصفح');
+  try{context=new AudioContextClass({sampleRate:44100});}catch(_){context=new AudioContextClass();}
+  const buffer=await decodeAudioDataCompat(context,await readFileAsArrayBufferCompat(file));
+  if(!Number.isFinite(buffer.duration)||buffer.duration<=0)throw new Error('تعذّر قراءة مدة المقطع');
   const channels=buffer.numberOfChannels>1?2:1;
-  const bitrate=Math.max(32,Math.min(96,Math.floor((maxBytes*.88*8)/(buffer.duration*1000))));
+  const bitrate=Math.max(32,Math.min(80,Math.floor((targetBytes*.88*8)/(buffer.duration*1000))));
   const encoder=new lamejs.Mp3Encoder(channels,buffer.sampleRate,bitrate);
   const channelData=Array.from({length:buffer.numberOfChannels},(_,index)=>buffer.getChannelData(index));
   const frames=buffer.length,blockSize=1152,chunks=[];
   const leftCount=Math.ceil(channelData.length/2),rightCount=Math.floor(channelData.length/2);
-  updateUploadProgress(3,"جاري ضغط المقطع الصوتي بسرعة...","تم تجهيز الصوت؛ لا يحتاج الضغط انتظار مدة المقطع");
+  updateUploadProgress(3,'جاري ضغط المقطع الصوتي...','بيتم الضغط على الجهاز قبل الرفع لتقليل مساحة Supabase.');
   for(let offset=0;offset<frames;offset+=blockSize){
    const length=Math.min(blockSize,frames-offset),left=new Int16Array(length),right=channels===2?new Int16Array(length):null;
    for(let i=0;i<length;i++){
-    const sampleIndex=offset+i;
-    let leftSample=channelData[0][sampleIndex]||0;
-    let rightSample=channels===2?(channelData[1][sampleIndex]||0):0;
+    const sampleIndex=offset+i;let leftSample=channelData[0][sampleIndex]||0,rightSample=channels===2?(channelData[1][sampleIndex]||0):0;
     if(channelData.length>2){
      leftSample=0;rightSample=0;
-     for(let c=0;c<channelData.length;c++){
-      if(c%2===0)leftSample+=channelData[c][sampleIndex]||0;
-      else rightSample+=channelData[c][sampleIndex]||0;
-     }
-     leftSample/=leftCount;
-     rightSample/=rightCount||1;
+     for(let c=0;c<channelData.length;c++){if(c%2===0)leftSample+=channelData[c][sampleIndex]||0;else rightSample+=channelData[c][sampleIndex]||0;}
+     leftSample/=leftCount;rightSample/=rightCount||1;
     }
     left[i]=Math.round(Math.max(-1,Math.min(1,leftSample))*32767);
     if(right)right[i]=Math.round(Math.max(-1,Math.min(1,rightSample))*32767);
    }
    const encoded=channels===2?encoder.encodeBuffer(left,right):encoder.encodeBuffer(left);
    if(encoded?.length)chunks.push(encoded);
-   if(offset===0||offset% (blockSize*96)===0||offset+length>=frames){
+   if(offset===0||offset%(blockSize*96)===0||offset+length>=frames){
     const ratio=Math.min(1,(offset+length)/frames);
-    updateUploadProgress(3+Math.round(ratio*32),"جاري ضغط المقطع الصوتي بسرعة...",Math.round(ratio*100)+"٪ من المقطع");
+    updateUploadProgress(3+Math.round(ratio*32),'جاري ضغط المقطع الصوتي...',Math.round(ratio*100)+'٪ من المقطع');
     await new Promise(resolve=>setTimeout(resolve,0));
    }
   }
-  const tail=encoder.flush();
-  if(tail?.length)chunks.push(tail);
-  const blob=new Blob(chunks,{type:"audio/mpeg"});
-  if(!blob.size)throw new Error("الملف المضغوط فارغ");
-  updateUploadProgress(35,"اكتمل ضغط المقطع الصوتي","جاري تجهيز الملف للرفع");
-  if(blob.size>=file.size){
-   updateUploadProgress(35,"الملف الأصلي أصغر","هنرفع النسخة الأصغر لتوفير المساحة");
-   return file;
+  const tail=encoder.flush();if(tail?.length)chunks.push(tail);
+  const blob=new Blob(chunks,{type:'audio/mpeg'});
+  if(!blob.size)throw new Error('الملف المضغوط فارغ');
+  if(blob.size>=file.size*.97||blob.size>targetBytes){
+   updateUploadProgress(35,'محاولة MP3 لم تصل للحجم المستهدف','هنجرّب طريقة ضغط صوت بديلة قبل الرجوع للأصل.');
+   // Try a second encoding method when MP3 is not small enough; final fallback remains the original.
+   throw new Error('ضغط MP3 لم يصل للحجم المستهدف؛ تجربة الطريقة الاحتياطية');
   }
-  const base=file.name.replace(/\.[^.]+$/,"")||"audio";
-  return new File([blob],base+".mp3",{type:"audio/mpeg",lastModified:Date.now()});
+  updateUploadProgress(35,'اكتمل ضغط المقطع الصوتي','جاري تجهيز MP3 الأصغر للرفع.');
+  const base=file.name.replace(/\.[^.]+$/,'')||'audio';
+  return new File([blob],base+'.mp3',{type:'audio/mpeg',lastModified:Date.now()});
  }catch(err){
-  console.warn("تعذّر الضغط السريع للصوت، سيتم استخدام طريقة التوافق:",err);
-  updateUploadProgress(0,"جاري استخدام طريقة ضغط بديلة","قد تستغرق وقتًا يقارب مدة المقطع");
-  return await compressAudioRealtimeFallback(file,maxBytes);
- }finally{
-  if(context&&context.state!=="closed")context.close().catch(()=>{});
- }
+  console.warn('تعذّر ضغط الصوت السريع؛ سيتم تجربة مسار احتياطي:',err);
+  await closeAudioContextSafely(context);context=null;
+  updateUploadProgress(0,'جاري تجربة ضغط صوت احتياطي','لو المتصفح لا يدعم إعادة الترميز، سنحافظ على الملف الأصلي.');
+  return await compressAudioRealtimeFallback(file,hardLimit);
+ }finally{await closeAudioContextSafely(context);}
 }
 
 async function compressAudioRealtimeFallback(file,maxBytes){
  if(!file)return file;
- if(!window.AudioContext||!("MediaRecorder" in window)||file.size>100*1024*1024){
-  updateUploadProgress(35,"تعذّر ضغط المقطع الصوتي على هذا المتصفح","سيتم التحقق من حد 5 ميجابايت قبل الرفع");
+ const hardLimit=Math.max(256*1024,Number(maxBytes)||5*1024*1024);
+ const targetBytes=Math.min(hardLimit,2*1024*1024);
+ if(file.size<=600*1024)return file;
+ const AudioContextClass=getAudioContextConstructor();
+ const Recorder=getMediaRecorderConstructor();
+ if(!AudioContextClass||!Recorder||file.size>80*1024*1024){
+  updateUploadProgress(35,"ضغط الصوت غير مدعوم بالكامل في هذا المتصفح","سيُستخدم الملف الأصلي فقط إذا كان ضمن حد الرفع المسموح");
   return file;
  }
  let context=null,source=null,destination=null,recorder=null,progressTimer=null;
  try{
-  context=new AudioContext();
-  const buffer=await context.decodeAudioData(await file.arrayBuffer());
+  context=new AudioContextClass();
+  if(typeof context.createMediaStreamDestination!=="function"||typeof context.createBufferSource!=="function"){
+   updateUploadProgress(35,"ضغط الصوت غير متاح في هذا المتصفح","سيُستخدم الملف الأصلي إذا كان ضمن حد الرفع المسموح");
+   return file;
+  }
+  const buffer=await decodeAudioDataCompat(context,await readFileAsArrayBufferCompat(file));
   if(!Number.isFinite(buffer.duration)||buffer.duration<=0)return file;
-  const mimeTypes=["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/mp4"];
-  const mimeType=mimeTypes.find(type=>MediaRecorder.isTypeSupported(type));
-  if(!mimeType)return file;
+  const mimeTypes=["audio/mp4","audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/webm"];
   destination=context.createMediaStreamDestination();
   source=context.createBufferSource();
   source.buffer=buffer;
-  source.connect(destination); // Encode through the recording stream only; do not connect to speakers.
-  const audioBitsPerSecond=Math.max(16000,Math.min(64000,Math.floor((maxBytes*.94*8)/buffer.duration)));
-  recorder=new MediaRecorder(destination.stream,{mimeType,audioBitsPerSecond});
+  source.connect(destination); // لا يتم توصيل الصوت بمكبرات الصوت أثناء إعادة الترميز.
+  const audioBitsPerSecond=Math.max(24000,Math.min(64000,Math.floor((targetBytes*.90*8)/buffer.duration)));
+  recorder=createCompatibleMediaRecorder(destination.stream,mimeTypes,{audioBitsPerSecond});
   const chunks=[];
   const finished=new Promise((resolve,reject)=>{
    recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-   recorder.onerror=()=>reject(new Error("تعذّر ضغط المقطع الصوتي"));
-   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||mimeType}));
+   recorder.onerror=e=>reject(e.error||new Error("تعذّر ضغط المقطع الصوتي"));
+   recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||""}));
    source.onended=()=>{if(recorder.state!=="inactive")recorder.stop()};
   });
   if(context.state==="suspended")await context.resume();
@@ -1578,29 +1691,36 @@ async function compressAudioRealtimeFallback(file,maxBytes){
   },700);
   source.start();
   const blob=await finished;
-  clearInterval(progressTimer);progressTimer=null;
+  if(progressTimer)clearInterval(progressTimer);progressTimer=null;
   updateUploadProgress(35,"اكتمل ضغط المقطع الصوتي","جاري تجهيز الملف للرفع");
   if(!blob.size)return file;
-  if(blob.size>=file.size){
-   updateUploadProgress(35,"الملف الأصلي أصغر","هنرفع النسخة الأصغر لتوفير المساحة");
+  if(blob.size>=file.size*.97){
+   updateUploadProgress(35,"الملف الأصلي أصغر أو أنسب","هنحافظ على الأصل بدل استبداله بنسخة لا توفر مساحة كافية.");
    return file;
   }
-  const actualMime=(recorder.mimeType||mimeType).toLowerCase();
-  const ext=actualMime.startsWith("audio/ogg")?"ogg":actualMime.startsWith("audio/mp4")?"m4a":"webm";
-  const cleanMime=ext==="ogg"?"audio/ogg":ext==="m4a"?"audio/mp4":"audio/webm";
-  const base=file.name.replace(/\.[^.]+$/,"")||"audio";
+  const actualMime=(blob.type||recorder.mimeType||"").split(";")[0].toLowerCase();
+  if(!["audio/mp4","audio/x-m4a","audio/webm","audio/ogg","audio/aac","audio/mpeg"].includes(actualMime)){
+   updateUploadProgress(35,"تعذّر التأكد من صيغة الصوت المضغوط","هنحافظ على الأصل لتفادي ملف لا يشتغل عند الأعضاء الآخرين.");
+   return file;
+  }
+  let ext="webm",cleanMime="audio/webm";
+  if(actualMime==="audio/mp4"||actualMime==="audio/x-m4a"){ext="m4a";cleanMime="audio/mp4";}
+  else if(actualMime==="audio/ogg"){ext="ogg";cleanMime="audio/ogg";}
+  else if(actualMime==="audio/aac"){ext="aac";cleanMime="audio/aac";}
+  else if(actualMime==="audio/mpeg"){ext="mp3";cleanMime="audio/mpeg";}
+  const base=file.name.replace(/\.[^.]+$/ ,"")||"audio";
   return new File([blob],base+"."+ext,{type:cleanMime,lastModified:Date.now()});
  }catch(err){
-  console.warn("تعذّر ضغط المقطع الصوتي، سيتم استخدام الأصل:",err);
+  console.warn("تعذّر ضغط المقطع الصوتي؛ سيتم استخدام الملف الأصلي:",err);
+  updateUploadProgress(35,"تعذّر ضغط الصوت على هذا المتصفح","سيُستخدم الملف الأصلي فقط إذا كان ضمن حد الرفع المسموح");
   return file;
  }finally{
   if(progressTimer)clearInterval(progressTimer);
   if(source){try{source.stop()}catch(_){}}
-  if(destination)destination.stream.getTracks().forEach(track=>track.stop());
-  if(context&&context.state!=="closed")context.close().catch(()=>{});
+  if(destination&&destination.stream)destination.stream.getTracks().forEach(track=>{try{track.stop()}catch(_){}});
+  await closeAudioContextSafely(context);
  }
 }
-
 function getPublicStorageObjectPath(publicUrl,bucket){
  try{
   const parsed=new URL(publicUrl),project=new URL(SUPABASE_URL),prefix="/storage/v1/object/public/"+bucket+"/";
@@ -1613,7 +1733,7 @@ async function uploadMyAvatar(event){
  if(!currentUser)return toast("سجّل دخولك الأول.");
  if(!["image/jpeg","image/png","image/webp"].includes(file.type))return toast("اختار صورة PNG أو JPG أو WEBP.");
  toast("جاري تجهيز وضغط الصورة...");
- file=await compressImageForUpload(file,3*1024*1024);
+ file=await compressImageForUpload(file,600*1024);
  if(file.size>3*1024*1024)return toast("حجم الصورة أكبر من 3 ميجابايت حتى بعد الضغط. جرّب صورة أصغر.");
  const oldAvatarPath=getPublicStorageObjectPath(profile?.avatar_url,"avatars");
  const ext=file.type==="image/webp"?"webp":file.type==="image/png"?"png":"jpg",path=currentUser.id+"/avatar-"+Date.now()+"."+ext;
@@ -2246,7 +2366,7 @@ async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عاي�
 async function openTask(id){
  currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
  const mine=submissions.filter(s=>s.task_id===id);const canSubmit=currentUser&&t.status!=="done"&&t.submission_type!=="link";
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ لرفع أسرع، يفضّل حجم كل صورة يكون ≤ 5 ميجابايت.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 لرفع أسرع، يفضّل حجم كل مقطع صوتي يكون ≤ 5 ميجابايت.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 لرفع أسرع، يفضّل حجم كل ملف يكون ≤ 50 ميجابايت. تقدر ترفع Pdf او PowerPoint او Word او Excel او اي ملف بصيغة اخرى</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>سلّم شغلك</h3>${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ يُفضّل أن تكون الصورة ≤ 5 ميجابايت. هنحاول ضغطها؛ ولو فشل، هنرفع الأصل لو ضمن حد Supabase.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 يُفضّل أن يكون الصوت ≤ 5 ميجابايت. هنجرّب أكثر من طريقة ضغط، ولو فشلت هنرفع الأصل ضمن حد Supabase.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 لرفع أسرع، يفضّل حجم كل ملف يكون ≤ 50 ميجابايت. تقدر ترفع Pdf او PowerPoint او Word او Excel او اي ملف بصيغة اخرى</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical"></textarea></div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها..."></textarea></div><button class="btn primary" onclick="submitWork('${t.id}')">إرسال التسليم</button></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
@@ -2290,32 +2410,40 @@ function prepareOfficeFileForUpload(file){
  return ["doc","docx","ppt","pptx"].includes(ext)?file:file;
 }
 
-let pdfLibLoadPromise = null;
+let pdfLibLoadPromise=null;
 async function loadPdfLibOnDemand(){
  if(window.PDFLib?.PDFDocument)return window.PDFLib;
  if(pdfLibLoadPromise)return pdfLibLoadPromise;
  pdfLibLoadPromise=new Promise(resolve=>{
-  const script=document.createElement("script");
-  script.src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js";
-  script.async=true;
-  script.onload=()=>resolve(window.PDFLib?.PDFDocument?window.PDFLib:null);
-  script.onerror=()=>{pdfLibLoadPromise=null;resolve(null);};
-  document.head.appendChild(script);
+  const urls=['https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js','https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js'];
+  let index=0;
+  const tryNext=()=>{
+   if(window.PDFLib?.PDFDocument)return resolve(window.PDFLib);
+   if(index>=urls.length){pdfLibLoadPromise=null;return resolve(null)}
+   const script=document.createElement('script');script.src=urls[index++];script.async=true;script.crossOrigin='anonymous';
+   let settled=false;
+   const timer=setTimeout(()=>{if(settled)return;settled=true;script.remove();tryNext()},7000);
+   script.onload=()=>{if(settled)return;settled=true;clearTimeout(timer);if(window.PDFLib?.PDFDocument)resolve(window.PDFLib);else{script.remove();tryNext()}};
+   script.onerror=()=>{if(settled)return;settled=true;clearTimeout(timer);script.remove();tryNext()};
+   document.head.appendChild(script);
+  };
+  tryNext();
  });
  return pdfLibLoadPromise;
 }
 async function compressPdfForUpload(file){
- if(!file||(!/\.pdf$/i.test(file.name)&&file.type!=="application/pdf"))return file;
+ if(!file||(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf'))return file;
  try{
   const pdfLib=await loadPdfLibOnDemand();
   if(!pdfLib?.PDFDocument)return file;
-  const bytes=await file.arrayBuffer();
+  const bytes=await readFileAsArrayBufferCompat(file);
   const pdf=await pdfLib.PDFDocument.load(bytes,{ignoreEncryption:true,updateMetadata:false});
-  const optimized=await pdf.save({useObjectStreams:true,addDefaultPage:false,objectsPerTick:50});
-  if(!optimized?.byteLength||optimized.byteLength>=file.size)return file;
-  return new File([optimized],file.name,{type:"application/pdf",lastModified:file.lastModified});
+  // Optimization without rasterizing pages: keeps selectable text, links and page structure.
+  const optimized=await pdf.save({useObjectStreams:true,addDefaultPage:false,objectsPerTick:100});
+  if(!optimized?.byteLength||optimized.byteLength>=file.size*.99)return file;
+  return new File([optimized],file.name,{type:'application/pdf',lastModified:file.lastModified});
  }catch(err){
-  console.warn("تعذّر تحسين PDF، سيتم استخدام الملف الأصلي:",err);
+  console.warn('تعذّر تحسين PDF دون تغيير محتواه؛ سيتم الحفاظ على الأصل:',err);
   return file;
  }
 }
@@ -2351,6 +2479,23 @@ async function uploadSubmissionFileWithProgress(file,path){
   updateUploadProgress(0,"جاري بدء الرفع...","بنجهز اتصال الرفع");
   xhr.send(file);
  });
+}
+
+function humanFileSize(bytes){
+ if(!Number.isFinite(bytes)||bytes<0)return 'حجم غير معروف';
+ if(bytes<1024)return bytes+' بايت';
+ if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' كيلوبايت';
+ return (bytes/1024/1024).toFixed(2)+' ميجابايت';
+}
+function reportCompressionResult(label,original,optimized){
+ if(!original||!optimized)return;
+ const before=Number(original.size)||0,after=Number(optimized.size)||0;
+ if(after<before*.97){
+  const percent=Math.round((1-after/before)*100);
+  updateUploadProgress(35,'تم ضغط '+label+' بنجاح','من '+humanFileSize(before)+' إلى '+humanFileSize(after)+' • توفير '+percent+'٪ من المساحة');
+ }else{
+  updateUploadProgress(2,'لم ينتج ضغط آمن أصغر لـ'+label,'هنحافظ على الملف الأصلي لتفادي فقد الجودة أو تلف الملف.');
+ }
 }
 
 async function submitWork(taskId){
@@ -2397,26 +2542,31 @@ async function submitWork(taskId){
    const category=selectedImages.includes(files[i])?"image":selectedVideos.includes(files[i])?"video":selectedAudios.includes(files[i])?"audio":"document";
    if(category==="image"){
     updateUploadProgress(0,"جاري ضغط الصورة "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
-    uploadFile=await compressImageForUpload(uploadFile,5*1024*1024);
+    uploadFile=await compressImageForUpload(uploadFile,1536*1024);
+    reportCompressionResult("الصورة",files[i],uploadFile);
    }else if(category==="video"){
     updateUploadProgress(0,"جاري ضغط الفيديو "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressVideoForUpload(uploadFile);
+    reportCompressionResult("الفيديو",files[i],uploadFile);
    }else if(category==="audio"){
     updateUploadProgress(0,"جاري ضغط المقطع الصوتي "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressAudioForUpload(uploadFile,5*1024*1024);
+    reportCompressionResult("الصوت",files[i],uploadFile);
    }else if(ext==="pdf"){
     updateUploadProgress(0,"جاري تحسين PDF "+(i+1)+" من "+files.length,"تجهيز "+uploadFile.name);
     uploadFile=await compressPdfForUpload(uploadFile);
+    reportCompressionResult("PDF",files[i],uploadFile);
    }
    else if(["doc","docx","ppt","pptx"].includes(ext)){
     updateUploadProgress(0,"جاري تجهيز مستند Office "+(i+1)+" من "+files.length,"هنحافظ على الملف الأصلي بدون تغيير التنسيق أو المحتوى: "+uploadFile.name);
     uploadFile=prepareOfficeFileForUpload(uploadFile);
    }
    ext=(uploadFile.name.split(".").pop()||"").toLowerCase();
-   // الصور 5MB، والفيديوهات والمستندات 50MB بعد محاولة تحسين PDF.
-   // ملفات Office وZIP لا يمكن ضغطها بأمان من المتصفح دون تغيير محتواها.
-   const limit=category==="image"||category==="audio"?5:50;
-   if(uploadFile.size>limit*1024*1024)throw new Error("حجم "+(category==="audio"?"المقطع الصوتي":category==="image"?"الصورة":"الملف")+" "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد محاولة الضغط. جرّب اختيار ملف أصغر.");
+   // الضغط محاولة لتوفير المساحة وليس شرطًا للرفع: إذا فشل، تُستخدم النسخة الأصلية.
+   // حد الكود الأقصى 50MB لكل ملف، بما يتوافق مع الحد الأعلى في Supabase Free؛ قد يكون حد الـ bucket أقل.
+   // ملفات Office وZIP لا يعاد ترميزها للحفاظ على بنيتها، وPDF يُحسّن فقط إذا نتج ملف أصغر.
+   const limit=50;
+   if(uploadFile.size>limit*1024*1024)throw new Error("حجم الملف "+uploadFile.name+" أكبر من "+limit+" ميجابايت حتى بعد محاولات الضغط أو الرجوع للأصل. الحد الأعلى في Supabase Free هو 50 ميجابايت للملف الواحد، وقد يكون حد مساحة التخزين أقل.");
    const safe=uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
    const path=currentUser.id+"/"+taskId+(category==="audio"?"/audio":"")+"/"+Date.now()+"_"+i+"_"+safe;
    uploadedPaths.push(path);
