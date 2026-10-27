@@ -69,7 +69,7 @@ function vapidSettings() {
 async function sendToUsers(
   admin: ReturnType<typeof getAdminClient>,
   userIds: string[],
-  notice: { title: string; body: string; taskId?: string | null; kind: string }
+  notice: { title: string; body: string; taskId?: string | null; kind: string; url?: string }
 ) {
   const ids = [...new Set(userIds.filter(Boolean))];
   if (!ids.length) return { sent: 0, failed: 0, noSubscriptions: 0 };
@@ -88,7 +88,7 @@ async function sendToUsers(
     body: notice.body,
     kind: notice.kind,
     task_id: notice.taskId || null,
-    url: APP_URL + "#tasksSection"
+    url: notice.url || APP_URL + "#tasksSection"
   });
 
   let sent = 0;
@@ -148,6 +148,62 @@ Deno.serve(async (req: Request) => {
         body: "إشعارات الجهاز شغالة على موقع مهمتنا.",
         kind: "test"
       });
+      return json({ ok: true, ...result });
+    }
+
+    if (input.action === "submission_created") {
+      if (!input.submission_id) return json({ ok: false, error: "معرّف التسليم مطلوب." }, 400);
+      const { data: submission, error: submissionError } = await admin
+        .from("submissions")
+        .select("id,user_id,task_id,status,push_notified_at")
+        .eq("id", input.submission_id)
+        .maybeSingle();
+      if (submissionError || !submission) return json({ ok: false, error: "التسليم غير موجود." }, 404);
+      if (submission.user_id !== auth.user.id) return json({ ok: false, error: "غير مصرح بإرسال تنبيه عن تسليم شخص آخر." }, 403);
+      if (submission.status !== "submitted" || submission.push_notified_at) {
+        return json({ ok: true, sent: 0, skipped: true });
+      }
+
+      const [{ data: task, error: taskError }, { data: admins, error: adminsError }] = await Promise.all([
+        admin.from("tasks").select("title").eq("id", submission.task_id).maybeSingle(),
+        admin.from("profiles").select("id,role,display_name").eq("role", "admin").neq("id", submission.user_id)
+      ]);
+      if (taskError) throw new Error("تعذر تحميل بيانات المهمة.");
+      if (adminsError) throw new Error("تعذر تحميل قائمة المسؤولين.");
+      const recipients = (admins || []).map((profile) => profile.id);
+      if (!recipients.length) return json({ ok: true, sent: 0, noAdmins: true });
+
+      vapidSettings();
+      const { data: claimed, error: claimError } = await admin
+        .from("submissions")
+        .update({ push_notified_at: new Date().toISOString() })
+        .eq("id", submission.id)
+        .eq("user_id", auth.user.id)
+        .is("push_notified_at", null)
+        .select("id")
+        .maybeSingle();
+      if (claimError) throw new Error("تعذر تجهيز تنبيه التسليم.");
+      if (!claimed) return json({ ok: true, sent: 0, skipped: true });
+
+      const { data: sender } = await admin.from("profiles").select("display_name,username").eq("id", submission.user_id).maybeSingle();
+      const senderName = sender?.display_name || sender?.username || "عضو";
+      const taskTitle = task?.title || "المهمة";
+      let result;
+      try {
+        result = await sendToUsers(admin, recipients, {
+          title: "تسليم جديد",
+          body: senderName + " سلّم: " + taskTitle,
+          taskId: submission.task_id,
+          kind: "new_submission",
+          url: APP_URL + "#adminSubmissions"
+        });
+      } catch (error) {
+        await admin.from("submissions").update({ push_notified_at: null }).eq("id", submission.id).eq("user_id", auth.user.id);
+        throw error;
+      }
+      if (result.failed && !result.sent) {
+        await admin.from("submissions").update({ push_notified_at: null }).eq("id", submission.id).eq("user_id", auth.user.id);
+      }
       return json({ ok: true, ...result });
     }
 
