@@ -141,6 +141,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (input.action === "send_test") {
+      await requireAdmin(admin, auth.user.id);
       vapidSettings();
       const result = await sendToUsers(admin, [auth.user.id], {
         title: "إشعار تجريبي",
