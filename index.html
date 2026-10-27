@@ -137,6 +137,45 @@ body{margin:0;background:radial-gradient(ellipse at 85% 0%,#1b2b4b 0,transparent
 @media(max-width:580px){.audio-player-head{padding:12px}.audio-player-visual{gap:12px;padding:19px 14px 14px}.audio-player-disc{flex-basis:64px;width:64px;height:64px}.audio-player-disc span{width:27px;height:27px}.audio-player-wave{height:54px;gap:2px}.audio-player-wave i{width:2px}.audio-player-timeline{gap:6px;padding:0 12px}.audio-player-time{min-width:40px;font-size:11px}.audio-player-controls{justify-content:center;padding:12px 10px 8px}.audio-player-control-group{gap:5px}.audio-player-volume input{width:64px}.audio-player-foot{padding:0 13px 13px}}
 @media(prefers-reduced-motion:reduce){.audio-player.is-playing .audio-player-disc,.audio-player.is-playing .audio-player-wave i{animation:none}}
 
+
+.audio-modal{width:min(720px,calc(100vw - 32px))!important;max-height:calc(100vh - 32px)!important;padding:clamp(12px,2.6vw,20px)}
+.audio-modal .modalhead{min-width:0}
+.audio-modal .modalhead h2{flex:1;min-width:0;overflow-wrap:anywhere;font-size:clamp(17px,4vw,24px)}
+.audio-modal .audio-player{width:100%;min-width:0}
+.audio-modal .audio-player-controls,.audio-modal .audio-player-control-group{min-width:0;max-width:100%}
+@media(max-width:580px){
+ .audio-modal{width:calc(100vw - 32px)!important;max-height:calc(100vh - 32px)!important;padding:10px;border-radius:16px}
+ .audio-modal .modalhead{align-items:flex-start;gap:8px;margin-bottom:12px}
+ .audio-modal .modalhead h2{font-size:16px;line-height:1.45}
+ .audio-modal .modalhead .btn{flex:0 0 auto;padding:7px 9px;white-space:nowrap}
+ .audio-modal .audio-player{max-width:100%;margin:8px auto}
+ .audio-modal .audio-player-head{padding:10px;gap:8px}
+ .audio-modal .audio-player-mark{flex-basis:38px;width:38px;height:38px;border-radius:12px;font-size:18px}
+ .audio-modal .audio-player-head-copy strong{font-size:12px}
+ .audio-modal .audio-player-head-copy small{font-size:10px}
+ .audio-modal .audio-player-status{font-size:10px}
+ .audio-modal .audio-player-visual{gap:10px;padding:15px 10px 12px}
+ .audio-modal .audio-player-disc{flex-basis:54px;width:54px;height:54px}
+ .audio-modal .audio-player-disc span{width:24px;height:24px;font-size:16px}
+ .audio-modal .audio-player-wave{height:46px;gap:2px;min-width:0}
+ .audio-modal .audio-player-wave i{width:2px;min-width:1px}
+ .audio-modal .audio-player-timeline{gap:4px;padding:0 9px}
+ .audio-modal .audio-player-time{min-width:40px;font-size:10px}
+ .audio-modal .audio-player-controls{display:grid;grid-template-columns:minmax(0,1fr);justify-content:center;gap:8px;padding:10px 9px 7px}
+ .audio-modal .audio-player-control-group{width:100%;min-width:0;max-width:100%;gap:4px}
+ .audio-modal .audio-skip{min-width:40px;padding:7px 8px}
+ .audio-modal .audio-play-btn{min-width:88px;padding:8px 10px}
+ .audio-modal .audio-icon-btn{min-width:38px;padding:7px 8px}
+ .audio-modal .audio-player-volume{font-size:13px;gap:3px}
+ .audio-modal .audio-player-volume input{width:min(64px,18vw)}
+ .audio-modal .audio-player-speed{min-width:82px;padding:6px}
+ .audio-modal .audio-player-foot{padding:0 10px 10px;font-size:10px}
+}
+@supports(height:100dvh){
+ .audio-modal{max-height:calc(100dvh - 32px)!important}
+ @media(max-width:580px){.audio-modal{max-height:calc(100dvh - 32px)!important}}
+}
+
 </style></head>
 <body>
 <header class="container top">
@@ -2190,7 +2229,8 @@ async function viewSubmission(id,index=0){
  else if(ext==="pdf")preview='<iframe title="'+name+'" src="'+url+'#toolbar=1" style="width:100%;height:70vh;border:0;border-radius:8px"></iframe>';
  else if(["ppt","pptx","pps","ppsx"].includes(ext))preview='<iframe title="'+name+'" src="https://view.officeapps.live.com/op/embed.aspx?src='+encodeURIComponent(f.url)+'" style="width:100%;height:70vh;border:0;border-radius:8px" allowfullscreen></iframe><p class="muted small">معاينة PowerPoint بتحتاج إن خدمة Microsoft تقدر توصل للملف. لو المعاينة ما ظهرتش، استخدم التحميل.</p>';
  else preview='<div class="empty">المعاينة المباشرة مش متاحة لنوع الملف ده. تقدر تفتحه في نافذة جديدة أو تحمّله.</div>';
- $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\','+index+')">تحميل ⬇️</button></div></div></div>';
+ const modalClass=isAudio?"modal audio-modal":"modal";
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="'+modalClass+'" style="width:min(900px,96vw);max-height:92vh;overflow:auto"><div class="modalhead"><h2>'+name+'</h2><button class="btn secondary" onclick="closeModal()">إغلاق ✕</button></div>'+preview+'<div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="openSubmissionFile(\''+url+'\')">فتح في نافذة جديدة ↗</button><button class="btn primary" onclick="downloadSubmission(\''+id+'\','+index+')">تحميل ⬇️</button></div></div></div>';
  if(isVideo)initSubmissionVideoPlayer();
  else if(isAudio)initSubmissionAudioPlayer();
 }
