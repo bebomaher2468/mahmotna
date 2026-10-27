@@ -23,10 +23,24 @@ self.addEventListener("push", event => {
     lang: "ar",
     tag: data.tag || data.id || undefined,
     renotify: true,
+    silent: false,
+    vibrate: [180, 80, 180],
     data: { taskId: data.task_id || null }
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  const notifyOpenPages = self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clients => {
+    clients.forEach(client => client.postMessage({
+      type: "mahmotna-push",
+      id: data.id || "",
+      title,
+      body: options.body,
+      kind: data.kind || ""
+    }));
+  });
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, options),
+    notifyOpenPages
+  ]));
 });
 
 self.addEventListener("notificationclick", event => {
