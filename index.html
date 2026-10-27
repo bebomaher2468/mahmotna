@@ -2296,7 +2296,7 @@ async function editSubmission(id){
   .update({
    submission_text:newText.trim()||null,
    link_url:newLink.trim()||null,
-   note:newNote.trim()||null
+   note:newNote.trim()
   })
   .eq("id",id);
 
