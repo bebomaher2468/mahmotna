@@ -515,6 +515,7 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
 .submission-comment-body{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);font-size:12px;line-height:1.8;margin-top:5px}
 .submission-comments .submission-comment-input{min-height:76px}
 .submission-comments-note{font-size:10px;line-height:1.7;color:var(--muted);margin:7px 0 0}
+.submission-comment-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.submission-comment-actions .btn{min-height:32px;padding:5px 8px;font-size:11px}.submission-edit-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.submission-edit-actions .btn{min-height:38px;padding:7px 10px}
 .admin-storage-panel{padding:16px;margin:18px 0;background:linear-gradient(145deg,#141f35,#101729);border:1px solid var(--line);border-radius:18px}
 .storage-usage-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .storage-usage-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
@@ -2909,9 +2910,10 @@ function submissionHTML(s,admin,showMember=false,showTaskTitle=true){
    '<option value="revision" '+(s.status==="revision"?"selected":"") +'>محتاج تعديل</option>'+
   '</select><input class="field" id="feedback_'+s.id+'" placeholder="ملاحظة للمُسلِّم" value="'+esc(s.admin_feedback||"")+'"></div>'+
   '<div class="submission-admin-actions"><button class="btn secondary" type="button" onclick="updateSubmission(\''+s.id+'\')">حفظ المراجعة</button>'+
-  '<button class="btn secondary" type="button" onclick="editSubmission(\''+s.id+'\')">✏️ تعديل المحتوى</button>'+
-  '<button class="btn danger" type="button" onclick="deleteSubmission(\''+s.id+'\')">🗑️ حذف</button></div>':"")+
-  ((currentUser&&(admin||s.user_id===currentUser.id))?'<details class="submission-comments" data-submission-comments-root="'+esc(s.id)+'" ontoggle="if(this.open)loadSubmissionComments(\''+s.id+'\',this)"><summary>💬 التعليقات بين العضو والمسؤول</summary><div class="submission-comments-list"><div class="muted small">افتح النقاش لعرض الرسائل.</div></div><div class="formgrid" style="margin-top:9px"><textarea class="field submission-comment-input" rows="2" maxlength="2000" placeholder="اكتب تعليقك هنا..."></textarea><button class="btn primary" type="button" onclick="postSubmissionComment(\''+s.id+'\',this)">إرسال التعليق</button></div><p class="submission-comments-note">إعادة التسليم بتحدّث السجل الحالي. الملفات الجديدة بتتضاف افتراضيًا؛ حذف القديم يحصل فقط لو العضو اختار الاستبدال صراحةً، والتعليقات تفضل محفوظة.</p></details>':"")+
+  '<button class="btn secondary" type="button" onclick="editSubmission(\''+s.id+'\')">✏️ تعديل التسليم والملفات</button>'+
+  '<button class="btn danger" type="button" onclick="deleteSubmission(\''+s.id+'\')">🗑️ حذف التسليم</button></div>':"")+
+  ((currentUser&&(admin||s.user_id===currentUser.id))&&!admin?'<div class="submission-edit-actions"><button class="btn secondary" type="button" onclick="editSubmission(\''+s.id+'\')">✏️ تعديل التسليم والملفات</button><button class="btn danger" type="button" onclick="deleteSubmission(\''+s.id+'\')">🗑️ حذف التسليم</button></div>':"")+
+  (currentUser?'<details class="submission-comments" data-submission-comments-root="'+esc(s.id)+'" ontoggle="if(this.open)loadSubmissionComments(\''+s.id+'\',this)"><summary>💬 نقاش الأعضاء والمسؤولين</summary><div class="submission-comments-list"><div class="muted small">افتح النقاش لعرض الرسائل.</div></div><div class="formgrid" style="margin-top:9px"><textarea class="field submission-comment-input" rows="2" maxlength="2000" placeholder="اكتب تعليقك للأعضاء والمسؤولين..."></textarea><button class="btn primary" type="button" onclick="postSubmissionComment(\''+s.id+'\',this)">إرسال التعليق</button></div><p class="submission-comments-note">كل عضو يقدر يشارك في النقاش. تقدر تعدّل أو تحذف تعليقاتك أنت فقط.</p></details>':"")+
  '</article>';
 }
 function normalizeSubmissionSearch(value){
@@ -3015,52 +3017,113 @@ function renderMySubs(){
  renderTaskGroupedSubmissions("mySubmissions",filtered,false,true);
 }
 
-async function editSubmission(id){
- if(!isAdmin())return toast("التعديل المباشر للمسؤولين بس.");
+async function getSubmissionForEdit(id){
  let s=(adminSubmissionCache||[]).find(item=>item.id===id)||(submissions||[]).find(item=>item.id===id);
- if(!s){const {data,error}=await sb.from("submissions").select("*").eq("id",id).single();if(error||!data)return toast("مش قادر أجيب بيانات التسليم.");s=data;}
- $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>✏️ تعديل محتوى التسليم</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="notice">التعديلات هتتحفظ فوق البيانات الحالية مباشرة من غير إنشاء نسخة جديدة. المرفقات الحالية مش هتتغير من الشاشة دي؛ العضو يقدر يرفع ملفات بديلة من نفس المهمة.</div><div class="formgrid"><div><label class="label">الحل أو ملخص الشغل</label><textarea id="editSubmissionText" class="field" rows="7">'+esc(s.submission_text||"")+'</textarea></div><div><label class="label">رابط الشغل</label><input id="editSubmissionLink" class="field" type="url" value="'+esc(s.link_url||"")+'" placeholder="https://..."></div><div><label class="label">ملاحظة العضو</label><textarea id="editSubmissionNote" class="field" rows="3">'+esc(s.note||"")+'</textarea></div><div class="actions"><button class="btn primary" onclick="saveSubmissionContent(\''+s.id+'\')">حفظ التعديل</button><button class="btn secondary" onclick="closeModal()">إلغاء</button></div></div></div></div>';
+ if(!s){const {data,error}=await sb.from("submissions").select("*, tasks(title)").eq("id",id).single();if(error||!data)throw new Error("مش قادر أجيب بيانات التسليم.");s=data;}
+ if(!currentUser||(!isAdmin()&&s.user_id!==currentUser.id))throw new Error("تقدر تعدّل تسليمك أنت فقط.");
+ return s;
+}
+async function editSubmission(id){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ let s;try{s=await getSubmissionForEdit(id);}catch(e){return toast(e.message);}
+ const files=getSubmissionFiles(s);
+ const filesHtml=files.length?files.map((f,i)=>'<div class="submission-file-row"><span class="submission-file-name" dir="auto">📎 '+esc(f.name)+'</span><button class="btn danger" type="button" onclick="removeSubmissionAttachment(\''+s.id+'\','+i+')">حذف المرفق</button></div>').join(""):'<p class="muted small">لا توجد مرفقات حالية.</p>';
+ $("modalRoot").innerHTML='<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>✏️ تعديل التسليم</h2><button class="xbtn" onclick="closeModal()">✕</button></div><div class="notice">تقدر تعدّل النص أو الرابط، تضيف مرفقات، أو تستبدل المرفقات الموجودة. الاستبدال يحذف الملفات القديمة بعد نجاح حفظ الجديدة. حذف مرفق منفرد متاح من قائمة المرفقات.</div><div class="formgrid"><div><label class="label">النص / الاختبار / الحل</label><textarea id="editSubmissionText" class="field" rows="7">'+esc(s.submission_text||"")+'</textarea></div><div><label class="label">رابط الشغل</label><input id="editSubmissionLink" class="field" type="url" value="'+esc(s.link_url||"")+'" placeholder="https://..."></div><div><label class="label">ملاحظة العضو</label><textarea id="editSubmissionNote" class="field" rows="3">'+esc(s.note||"")+'</textarea></div>'+(isAdmin()?'<div><label class="label">ملاحظة المسؤول</label><textarea id="editSubmissionFeedback" class="field" rows="2">'+esc(s.admin_feedback||"")+'</textarea></div>':'')+'<div><label class="label">المرفقات الحالية</label><div class="submissions">'+filesHtml+'</div></div><div><label class="label">إضافة أو استبدال المرفقات</label><select id="editSubmissionFileMode" class="field"><option value="add">إضافة الملفات الجديدة للموجودة</option><option value="replace">استبدال كل المرفقات الحالية بالملفات الجديدة</option></select><input id="editSubmissionFiles" class="field" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt"><p class="muted small">لو اخترت الإضافة، هتفضل الملفات الحالية كما هي. لو اخترت الاستبدال، ارفع الملفات الجديدة أولًا؛ الملفات القديمة هتتحذف بعد نجاح التحديث.</p></div><div id="uploadProgressBox" class="notice hidden"><div style="display:flex;justify-content:space-between;gap:10px"><strong id="uploadProgressLabel">جاري تجهيز الملف</strong><span id="uploadProgressPercent">0%</span></div><div style="height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:7px"><div id="uploadProgressFill" style="height:100%;width:0;background:var(--cyan)"></div></div><div id="uploadProgressMeta" class="small"></div></div><div class="actions"><button id="saveEditedSubmissionBtn" class="btn primary" onclick="saveSubmissionContent(\''+s.id+'\')">حفظ التعديلات</button><button class="btn secondary" onclick="closeModal()">إلغاء</button></div></div></div></div>';
+}
+async function prepareEditedSubmissionFile(file,index,total,submission){
+ let f=file;const ext=(f.name.split(".").pop()||"").toLowerCase();
+ const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"],audioExt=["mp3","m4a","aac","wav","ogg","oga","opus","3gp","amr"];
+ if(imageExt.includes(ext)&&/^image\//i.test(f.type||"image/"+ext)){
+  updateUploadProgress(0,"جاري ضغط الصورة "+(index+1)+" من "+total,f.name);f=await compressImageForUpload(f,1536*1024);reportCompressionResult("الصورة",file,f);
+ }else if(videoExt.includes(ext)&&/^video\//i.test(f.type||"video/"+ext)){
+  updateUploadProgress(0,"جاري ضغط الفيديو "+(index+1)+" من "+total,f.name);f=await compressVideoForUpload(f);reportCompressionResult("الفيديو",file,f);
+ }else if(audioExt.includes(ext)&&/^audio\//i.test(f.type||"audio/"+ext)){
+  updateUploadProgress(0,"جاري ضغط الصوت "+(index+1)+" من "+total,f.name);f=await compressAudioForUpload(f,5*1024*1024);reportCompressionResult("الصوت",file,f);
+ }else if(ext==="pdf"){
+  updateUploadProgress(0,"جاري تحسين PDF "+(index+1)+" من "+total,f.name);f=await compressPdfForUpload(f);
+ }else if(["doc","docx","ppt","pptx"].includes(ext)){
+  f=prepareOfficeFileForUpload(f);
+ }
+ if(f.size>50*1024*1024)throw new Error("الملف "+f.name+" أكبر من 50 ميجابايت حتى بعد الضغط.");
+ return f;
 }
 async function saveSubmissionContent(id){
- if(!isAdmin())return toast("التعديل المباشر للمسؤولين بس.");
- const submission_text=$("editSubmissionText")?.value.trim()||"";
- const linkText=$("editSubmissionLink")?.value.trim()||"";
- const note=$("editSubmissionNote")?.value.trim()||"";
- if(linkText){try{new URL(linkText)}catch(_){return toast("الرابط مش صحيح.");}}
- const {error}=await sb.from("submissions").update({submission_text:submission_text||null,link_url:linkText||null,note:note||null}).eq("id",id);
- if(error)return toast("فشل تعديل التسليم: "+error.message);
- closeModal();await loadData();await loadAdminSubs();toast("تم تعديل محتوى التسليم مباشرة.");
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ let s;try{s=await getSubmissionForEdit(id);}catch(e){return toast(e.message);}
+ const textValue=$("editSubmissionText")?.value.trim()||"";
+ const linkValue=$("editSubmissionLink")?.value.trim()||"";
+ const noteValue=$("editSubmissionNote")?.value.trim()||"";
+ const feedbackValue=$("editSubmissionFeedback")?.value.trim()||s.admin_feedback||null;
+ if(linkValue){try{new URL(linkValue)}catch(_){return toast("الرابط مش صحيح.");}}
+ const chosen=Array.from($("editSubmissionFiles")?.files||[]);
+ const mode=$("editSubmissionFileMode")?.value||"add";
+ if(mode==="replace"&&!chosen.length)return toast("اختار ملفًا جديدًا واحدًا على الأقل للاستبدال. لحذف مرفق واحد استخدم زر حذف المرفق.");
+ const btn=$("saveEditedSubmissionBtn");if(btn){btn.disabled=true;btn.textContent="جاري الحفظ...";}
+ const uploaded=[];let saved=false;const oldFiles=getSubmissionFiles(s);
+ try{
+  for(let i=0;i<chosen.length;i++){
+   const f=await prepareEditedSubmissionFile(chosen[i],i,chosen.length,s);
+   const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+   const path=currentUser.id+"/"+s.task_id+"/edit_"+Date.now()+"_"+i+"_"+safe;
+   uploaded.push({path,name:f.name});
+   await uploadSubmissionFileWithProgress(f,path);
+  }
+  let finalFiles=oldFiles;
+  if(chosen.length){finalFiles=mode==="replace"?uploaded:[...oldFiles,...uploaded];}
+  const paths=finalFiles.map(f=>f.path),names=finalFiles.map(f=>f.name);
+  const pathValue=paths.length>1?JSON.stringify(paths):(paths[0]||null);
+  const nameValue=names.length>1?JSON.stringify(names):(names[0]||null);
+  const {error}=await sb.rpc("update_submission_content",{
+   p_submission_id:id,p_submission_text:textValue||null,p_link_url:linkValue||null,
+   p_file_path:pathValue,p_file_name:nameValue,p_note:noteValue||null,
+   p_admin_feedback:isAdmin()?feedbackValue:null
+  });
+  if(error)throw new Error("فشل حفظ التعديل: "+error.message+". تأكد من تشغيل ملف SQL المرفق.");
+  saved=true;
+  const removed=(mode==="replace"&&chosen.length)?oldFiles:[];
+  const failures=[];
+  for(const file of removed){
+   try{await deleteSubmissionStoragePath(file.path);}catch(err){failures.push(file.path);console.error("Storage cleanup:",err);}
+  }
+  closeModal();await loadData();if(isAdmin())await loadAdminSubs();
+  toast(failures.length?"اتحفظ التسليم، لكن بعض الملفات القديمة لم تُحذف من التخزين؛ راجع لوحة التخزين.":"تم حفظ التعديل بنجاح.");
+ }catch(err){
+  if(!saved&&uploaded.length){try{await sb.storage.from("submissions").remove(uploaded.map(f=>f.path));}catch(cleanError){console.error(cleanError);}}
+  toast(err?.message||"فشل حفظ التعديل.");
+ }finally{if(btn){btn.disabled=false;btn.textContent="حفظ التعديلات";}activeUploadXHR=null;}
+}
+async function deleteSubmissionStoragePath(path){
+ if(!path)return;
+ if(isAdmin()){
+  const {data,error}=await sb.functions.invoke("storage-admin",{body:{action:"delete",bucket_id:"submissions",name:path}});
+  if(error||!data?.ok)throw new Error(data?.error||error?.message||"تعذر حذف الملف من التخزين.");
+ }else{
+  const {error}=await sb.storage.from("submissions").remove([path]);
+  if(error)throw error;
+ }
+}
+async function removeSubmissionAttachment(id,index){
+ let s;try{s=await getSubmissionForEdit(id);}catch(e){return toast(e.message);}
+ const files=getSubmissionFiles(s);const target=files[index];if(!target)return toast("المرفق مش موجود.");
+ if(!confirm("متأكد إنك عايز تحذف المرفق «"+target.name+"»؟"))return;
+ const next=files.filter((_,i)=>i!==index);const paths=next.map(f=>f.path),names=next.map(f=>f.name);
+ const {error}=await sb.rpc("update_submission_content",{p_submission_id:id,p_submission_text:s.submission_text||null,p_link_url:s.link_url||null,p_file_path:paths.length>1?JSON.stringify(paths):(paths[0]||null),p_file_name:names.length>1?JSON.stringify(names):(names[0]||null),p_note:s.note||null,p_admin_feedback:isAdmin()?(s.admin_feedback||null):null});
+ if(error)return toast("تعذر تحديث التسليم: "+error.message);
+ try{await deleteSubmissionStoragePath(target.path);toast("اتحذف المرفق واتحدّث التسليم.");}
+ catch(e){console.error(e);toast("المرفق اتشال من التسليم، لكن ملف التخزين ما اتحذفش. راجع لوحة مساحة التخزين.");}
+ closeModal();await loadData();if(isAdmin())await loadAdminSubs();
 }
 async function deleteSubmission(id){
- if(!isAdmin())return toast("مش مسموح لك بالحذف.");
-
- if(!confirm("متأكد إنك عايز تحذف التسليم ده نهائيًا؟"))return;
-
- const {data:s,error:readError}=await sb
-  .from("submissions")
-  .select("id,file_path,file_name")
-  .eq("id",id)
-  .single();
-
- if(readError||!s)return toast("مش قادر أجيب بيانات التسليم.");
-
- const {error}=await sb
-  .from("submissions")
-  .delete()
-  .eq("id",id);
-
- if(error)return toast("فشل الحذف: "+error.message);
-
- const filePaths=getSubmissionFiles(s).map(file=>file.path);
- if(filePaths.length){
-  const {error:fileError}=await sb.storage.from("submissions").remove(filePaths);
-  if(fileError){console.error("تعذر حذف الملفات المرفقة:",fileError.message);await loadData();return toast("اتحذف سجل التسليم، لكن تعذّر حذف ملفاته من التخزين. راجع صلاحية حذف ملفات submissions.");}
- }
-
- await loadData();
- toast("تم حذف التسليم.");
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ let s;try{s=await getSubmissionForEdit(id);}catch(e){return toast(e.message);}
+ if(!confirm("متأكد إنك عايز تحذف التسليم ده نهائيًا مع تعليقاته؟"))return;
+ const {error}=await sb.rpc("delete_submission",{p_submission_id:id});
+ if(error)return toast("فشل حذف التسليم: "+error.message+". تأكد من تشغيل ملف SQL المرفق.");
+ const failures=[];
+ for(const file of getSubmissionFiles(s)){try{await deleteSubmissionStoragePath(file.path);}catch(e){failures.push(file.path);console.error(e);}}
+ await loadData();if(isAdmin())await loadAdminSubs();
+ toast(failures.length?"اتحذف التسليم، لكن بعض الملفات المتروكة لسه موجودة في التخزين؛ راجع لوحة التخزين.":"تم حذف التسليم.");
 }
- 
 
 
 function renderAchievementDashboard(){
@@ -3574,7 +3637,7 @@ async function loadAdminSubs(){
 }
 
 
-// التعليقات خاصة بصاحب التسليم والمسؤولين فقط؛ صلاحيات قاعدة البيانات تفرض نفس الشرط.
+// نقاشات التسليم متاحة لأعضاء المجموعة المسجلين؛ كل مستخدم يدير تعليقاته هو فقط.
 async function loadSubmissionComments(submissionId,details,force=false){
  if(!currentUser||!details||!details.open)return;
  if(details.dataset.loading==="true")return;
@@ -3584,47 +3647,47 @@ async function loadSubmissionComments(submissionId,details,force=false){
  try{
   const {data,error}=await sb.from("submission_comments").select("id,submission_id,user_id,body,created_at").eq("submission_id",submissionId).order("created_at",{ascending:true}).limit(200);
   if(error)throw error;
-  const rows=data||[];
-  const ids=[...new Set(rows.map(row=>row.user_id).filter(Boolean))];
-  let authors=[];
-  if(ids.length){
-   const result=await sb.from("profiles").select("id,display_name,username,role").in("id",ids);
-   if(!result.error)authors=result.data||[];
-  }
+  const rows=data||[];const ids=[...new Set(rows.map(row=>row.user_id).filter(Boolean))];let authors=[];
+  if(ids.length){const result=await sb.from("profiles").select("id,display_name,username,role").in("id",ids);if(!result.error)authors=result.data||[];}
   const byId=new Map(authors.map(author=>[author.id,author]));
   host.innerHTML=rows.length?rows.map(row=>{
-   const author=byId.get(row.user_id);
-   const fallback=row.user_id===currentUser.id?(profile?.display_name||profile?.username||"أنت"):(isAdmin()?"العضو":"المسؤول");
-   const name=displayMemberName(author?.display_name||author?.username||fallback);
-   const role=author?.role==="admin"?"مسؤول":(row.user_id===currentUser.id?"أنت":"عضو");
-   return '<article class="submission-comment"><div class="submission-comment-head"><strong>'+esc(name)+' · '+esc(role)+'</strong><time>'+esc(formatSubmissionDate(row.created_at))+'</time></div><div class="submission-comment-body">'+esc(row.body)+'</div></article>';
+   const author=byId.get(row.user_id);const fallback=row.user_id===currentUser.id?(profile?.display_name||profile?.username||"أنت"):"عضو";
+   const name=displayMemberName(author?.display_name||author?.username||fallback);const role=author?.role==="admin"?"مسؤول":(row.user_id===currentUser.id?"أنت":"عضو");
+   const actions=row.user_id===currentUser.id?'<div class="submission-comment-actions"><button class="btn secondary" type="button" onclick="editSubmissionComment(\''+row.id+'\')">✏️ تعديل تعليقي</button><button class="btn danger" type="button" onclick="deleteSubmissionComment(\''+row.id+'\')">🗑️ حذف تعليقي</button></div>':"";
+   return '<article class="submission-comment" data-comment-id="'+esc(row.id)+'"><div class="submission-comment-head"><strong>'+esc(name)+' · '+esc(role)+'</strong><time>'+esc(formatSubmissionDate(row.created_at))+'</time></div><div class="submission-comment-body">'+esc(row.body)+'</div>'+actions+'</article>';
   }).join(""):'<div class="muted small">مفيش تعليقات لحد دلوقتي. اكتب أول تعليق.</div>';
   details.dataset.loaded="true";
- }catch(error){
-  console.error("تعذر تحميل نقاش التسليم:",error);
-  host.innerHTML='<div class="notice">تعذّر تحميل التعليقات. تأكد من تشغيل ملف SQL المرفق ومن صلاحيات قاعدة البيانات.</div>';
- }finally{details.dataset.loading="false";}
+ }catch(error){console.error("تعذر تحميل نقاش التسليم:",error);host.innerHTML='<div class="notice">تعذّر تحميل التعليقات. تأكد من تشغيل ملف SQL المحدّث.</div>';}
+ finally{details.dataset.loading="false";}
 }
 async function postSubmissionComment(submissionId,button){
  if(!currentUser)return toast("سجّل دخولك الأول.");
- const details=button?.closest("details.submission-comments");
- const input=details?.querySelector(".submission-comment-input");
- const body=String(input?.value||"").trim();
- if(!body)return toast("اكتب التعليق الأول.");
- if(body.length>2000)return toast("التعليق طويل جدًا؛ الحد 2000 حرف.");
+ const details=button?.closest("details.submission-comments");const input=details?.querySelector(".submission-comment-input");const body=String(input?.value||"").trim();
+ if(!body)return toast("اكتب التعليق الأول.");if(body.length>2000)return toast("التعليق طويل جدًا؛ الحد 2000 حرف.");
  button.disabled=true;button.textContent="جاري الإرسال...";
- try{
-  const {error}=await sb.from("submission_comments").insert({submission_id:submissionId,user_id:currentUser.id,body});
-  if(error)throw error;
-  input.value="";
-  if(details){details.dataset.loaded="false";await loadSubmissionComments(submissionId,details,true);}
-  toast("تم إرسال التعليق.");
- }catch(error){
-  console.error("تعذر إرسال التعليق:",error);
-  toast(error?.message||"تعذّر إرسال التعليق. تأكد من تشغيل ملف SQL المرفق.");
- }finally{button.disabled=false;button.textContent="إرسال التعليق";}
+ try{const {error}=await sb.from("submission_comments").insert({submission_id:submissionId,user_id:currentUser.id,body});if(error)throw error;input.value="";if(details){details.dataset.loaded="false";await loadSubmissionComments(submissionId,details,true);}toast("تم إرسال التعليق.");}
+ catch(error){console.error("تعذر إرسال نقاش التسليم:",error);toast(error?.message||"تعذّر إرسال التعليق. تأكد من صلاحيات قاعدة البيانات.");}
+ finally{button.disabled=false;button.textContent="إرسال التعليق";}
 }
-
+async function editSubmissionComment(commentId){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ const {data:row,error:readError}=await sb.from("submission_comments").select("id,submission_id,user_id,body").eq("id",commentId).single();
+ if(readError||!row)return toast("مش قادر أجيب التعليق.");if(row.user_id!==currentUser.id)return toast("تقدر تعدّل تعليقاتك أنت بس.");
+ const next=prompt("عدّل تعليقك:",row.body);if(next===null)return;const body=next.trim();if(!body)return toast("التعليق ما ينفعش يكون فاضي.");if(body.length>2000)return toast("الحد الأقصى للتعليق 2000 حرف.");
+ const {error}=await sb.from("submission_comments").update({body}).eq("id",commentId).eq("user_id",currentUser.id);if(error)return toast("فشل تعديل التعليق: "+error.message);
+ await refreshCommentThread(row.submission_id);toast("تم تعديل تعليقك.");
+}
+async function deleteSubmissionComment(commentId){
+ if(!currentUser)return toast("سجّل دخولك الأول.");
+ const {data:row,error:readError}=await sb.from("submission_comments").select("id,submission_id,user_id").eq("id",commentId).single();
+ if(readError||!row)return toast("مش قادر أجيب التعليق.");if(row.user_id!==currentUser.id)return toast("تقدر تحذف تعليقاتك أنت بس.");
+ if(!confirm("متأكد إنك عايز تحذف تعليقك؟"))return;
+ const {error}=await sb.from("submission_comments").delete().eq("id",commentId).eq("user_id",currentUser.id);if(error)return toast("فشل حذف التعليق: "+error.message);
+ await refreshCommentThread(row.submission_id);toast("تم حذف تعليقك.");
+}
+async function refreshCommentThread(submissionId){
+ document.querySelectorAll('details.submission-comments[data-submission-comments-root="'+CSS.escape(submissionId)+'"][open]').forEach(async details=>{details.dataset.loaded="false";await loadSubmissionComments(submissionId,details,true);});
+}
 const STORAGE_QUOTA_BYTES=1024*1024*1024;
 let storageUsageAutoAttempted=false;
 function formatBytes(bytes){
@@ -3761,7 +3824,7 @@ const dailyVerses = [
 function renderTimeGreeting(){
  const greeting=$("timeGreeting"); if(!greeting)return;
  const hour=Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Cairo",hour:"2-digit",hourCycle:"h23"}).format(new Date()));
- greeting.textContent=hour<12?"صباح الخير ☀️":"مساء الخير";
+ greeting.textContent=hour<12?"🌙 صباح الخير ☀️":"مساء الخير";
 }
 renderTimeGreeting();
 setInterval(renderTimeGreeting,60*1000);
