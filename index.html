@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
 <title>مهمتنا | مجموعة القديس فيلبس الرسول</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -533,6 +533,69 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
 .storage-warning{font-size:11px;line-height:1.8;color:#f5d694;margin:9px 0 0}
 @media(max-width:580px){.admin-storage-panel{padding:12px}.storage-usage-metrics{grid-template-columns:1fr 1fr}.storage-metric:first-child{grid-column:1/-1}.storage-file-row{align-items:flex-start;flex-direction:column}.storage-file-row .btn{width:100%}.submission-comments{padding:8px}.submission-comments>summary{font-size:11px}}
 
+
+/* In-app AI helper: animated floating launcher + friendly speech bubble */
+.ai-chat-launcher{position:fixed;right:max(20px,env(safe-area-inset-right));bottom:max(22px,env(safe-area-inset-bottom));z-index:35;width:66px;height:66px;display:block;isolation:isolate}
+.ai-chat-fab{position:absolute;right:0;bottom:0;isolation:isolate;display:grid;place-items:center;width:66px;height:66px;padding:0;border:1px solid #b9fff2aa;border-radius:50%;background:radial-gradient(circle at 30% 20%,#c5fff6 0,#72e0d1 42%,#54bdbd 100%);color:#091723;box-shadow:0 12px 34px #0008,0 0 0 5px #72e0d11a,0 0 26px #72e0d14a;cursor:pointer;animation:aiFabFloat 3.3s ease-in-out infinite;transition:transform .2s ease,box-shadow .2s ease}
+.ai-chat-fab:before{content:"";position:absolute;inset:-7px;border:2px solid #72e0d185;border-radius:50%;z-index:-1;animation:aiFabRing 2.2s ease-out infinite}
+.ai-chat-fab:after{content:"";position:absolute;inset:5px;border:1px solid #ffffff66;border-radius:50%;pointer-events:none}
+.ai-chat-fab:hover{transform:translateY(-3px) scale(1.035);box-shadow:0 16px 38px #0009,0 0 0 7px #72e0d120,0 0 32px #72e0d166}
+.ai-chat-fab:focus-visible{outline:3px solid #f5ca7b;outline-offset:5px}
+.ai-chat-fab .ai-chat-fab-icon{position:relative;display:grid;place-items:center;width:44px;height:48px;border-radius:50%;background:transparent;line-height:1;filter:drop-shadow(0 2px 3px #09172330)}
+.ai-chat-fab .ai-chat-fab-icon svg{display:block;width:37px;height:44px;overflow:visible;filter:drop-shadow(0 1px 1px #12384a55)}
+.ai-chat-fab-icon:after{content:"✦";position:absolute;right:-5px;top:-3px;font-size:12px;color:#fffaf0;text-shadow:0 0 8px #fff3ba,0 0 14px #fff3ba;animation:aiStarTwinkle 1.5s ease-in-out infinite alternate}
+.ai-chat-nudge{position:absolute;right:0;bottom:calc(100% + 14px);width:max-content;min-width:232px;max-width:min(280px,calc(100vw - 32px));box-sizing:border-box;padding:12px 17px;border:1px solid #72e0d1a6;border-radius:18px 18px 7px 18px;background:linear-gradient(135deg,#f7fffe 0%,#d8fff7 58%,#b9f7ec 100%);color:#102436;font-size:13px;font-weight:900;line-height:1.5;text-align:center;white-space:normal;overflow-wrap:normal;word-break:normal;box-shadow:0 12px 30px #0006,0 0 0 4px #72e0d10b,0 0 24px #72e0d132;transform-origin:85% 100%;animation:aiNudgeEnter .7s cubic-bezier(.2,.85,.25,1.25) both,aiNudgeBob 3s 1s ease-in-out infinite}
+.ai-chat-nudge:after{content:"";position:absolute;right:26px;bottom:-8px;width:14px;height:14px;background:#c9fff4;border-right:1px solid #72e0d18c;border-bottom:1px solid #72e0d18c;transform:rotate(45deg);border-bottom-right-radius:3px}
+.ai-chat-window{position:fixed;right:16px;bottom:94px;z-index:36;width:min(430px,calc(100vw - 24px));height:min(650px,calc(100dvh - 125px));min-height:360px;display:flex;flex-direction:column;overflow:hidden;border:1px solid #3b5579;border-radius:20px;background:#0d1528;box-shadow:0 26px 80px #000b}
+@keyframes aiFabFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes aiFabRing{0%{transform:scale(.88);opacity:.75}80%,100%{transform:scale(1.32);opacity:0}}
+@keyframes aiStarTwinkle{from{opacity:.35;transform:scale(.8) rotate(-12deg)}to{opacity:1;transform:scale(1.18) rotate(12deg)}}
+@keyframes aiNudgeEnter{0%{opacity:0;transform:translateY(14px) scale(.75)}70%{opacity:1;transform:translateY(-3px) scale(1.025)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes aiNudgeBob{0%,100%{translate:0 0}50%{translate:0 -3px}}
+.ai-chat-launcher.is-open .ai-chat-nudge{display:none}
+.ai-chat-launcher.is-open .ai-chat-fab{visibility:hidden;pointer-events:none;animation:none}
+.ai-chat-launcher.is-open .ai-chat-fab:before,.ai-chat-launcher.is-open .ai-chat-fab:after{display:none}
+.ai-chat-window.hidden{display:none!important}
+.ai-chat-header{display:flex;align-items:center;gap:10px;padding:13px 14px;background:linear-gradient(120deg,#1b2d49,#111a2e);border-bottom:1px solid #ffffff15}
+.ai-chat-header-icon{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#72e0d1,#78a8ff);color:#0b1020;font-size:22px}
+.ai-chat-header-copy{min-width:0;flex:1}.ai-chat-header-copy strong{display:block}.ai-chat-header-copy small{display:block;color:var(--muted);font-size:11px;line-height:1.5}
+.ai-chat-close{background:#ffffff0a;border:1px solid var(--line);color:var(--text);border-radius:10px;min-width:38px;min-height:38px}
+.ai-chat-shortcuts{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid #ffffff10}
+.ai-chat-shortcuts button{border:1px solid #72e0d13d;background:#72e0d10d;color:#b7f6eb;border-radius:10px;padding:7px 9px;font-size:11px;font-weight:800}
+.ai-chat-messages{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow:auto;padding:13px;overscroll-behavior:contain}
+.ai-chat-bubble{max-width:92%;padding:10px 12px;border:1px solid #ffffff12;border-radius:14px;font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;unicode-bidi:plaintext}
+.ai-chat-bubble.assistant{align-self:flex-start;background:#17243a;color:#edf4ff;border-bottom-right-radius:5px}
+.ai-chat-bubble.user{align-self:flex-end;background:#72e0d118;border-color:#72e0d133;color:#f4fffd;border-bottom-left-radius:5px}
+.ai-chat-bubble.system{align-self:center;max-width:100%;background:#f5ca7b0c;color:#bdc9dc;font-size:11px;text-align:center}
+.ai-chat-compose{padding:10px 11px;border-top:1px solid #ffffff15;background:#111a2e}
+.ai-chat-compose textarea{width:100%;min-height:72px;max-height:130px;resize:vertical;background:#0b1020;border:1px solid #344561;color:var(--text);border-radius:12px;padding:10px;font:inherit;font-size:14px;line-height:1.65;outline:none}
+.ai-chat-compose textarea:focus{border-color:var(--cyan)}
+.ai-chat-compose-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.ai-chat-compose small{font-size:10px;color:var(--muted);line-height:1.5}
+.ai-chat-send{min-width:92px}
+.ai-chat-send:disabled{opacity:.55;cursor:not-allowed}
+.ai-chat-loading{display:inline-flex;align-items:center;gap:7px;color:#c4d3e9;font-size:12px}
+.ai-chat-loading:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 4px #72e0d117;animation:aiPulse 1s infinite alternate}
+@keyframes aiPulse{to{opacity:.35;transform:scale(.8)}}
+@media(max-width:600px){
+ .ai-chat-launcher{right:max(15px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));width:60px;height:60px}
+ .ai-chat-fab{width:60px;height:60px}
+ .ai-chat-fab .ai-chat-fab-icon{width:40px;height:44px}.ai-chat-fab .ai-chat-fab-icon svg{width:34px;height:41px}.ai-chat-fab-icon:after{right:-4px;top:-2px;font-size:11px}
+ .ai-chat-nudge{width:max-content;min-width:min(224px,calc(100vw - 32px));max-width:min(260px,calc(100vw - 32px));padding:10px 14px;font-size:12px;border-radius:17px 17px 6px 17px}
+ .ai-chat-nudge:after{right:23px}
+ .ai-chat-window{top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));left:max(8px,env(safe-area-inset-left));width:auto;height:auto;max-height:none;min-height:0;border-radius:17px}
+ .ai-chat-header{padding:10px;gap:8px}.ai-chat-header-icon{flex-basis:36px;height:36px;border-radius:11px;font-size:19px}.ai-chat-header-copy strong{font-size:14px}.ai-chat-header-copy small{font-size:10px}
+ .ai-chat-shortcuts{gap:5px;padding:8px;flex-shrink:0}.ai-chat-shortcuts button{flex:1 1 auto;padding:7px 6px;font-size:10px;min-width:0}
+ .ai-chat-messages{padding:10px;min-height:0}.ai-chat-bubble{font-size:13px;max-width:94%}
+ .ai-chat-compose{padding:9px;flex-shrink:0}.ai-chat-compose textarea{min-height:58px;max-height:100px;resize:none;font-size:16px;padding:9px}.ai-chat-compose-row{align-items:center;gap:7px}.ai-chat-compose small{font-size:9px;line-height:1.4}.ai-chat-send{min-width:78px;padding:8px 10px}
+}
+@media(max-height:500px) and (max-width:900px){.ai-chat-window{top:6px;bottom:6px}.ai-chat-header{padding:7px}.ai-chat-shortcuts{padding:5px}.ai-chat-messages{padding:7px}.ai-chat-compose{padding:6px}.ai-chat-compose textarea{min-height:44px;max-height:68px}}
+
+@media(prefers-reduced-motion:reduce){
+ .ai-chat-loading:before,.ai-chat-fab,.ai-chat-fab:before,.ai-chat-fab-icon:after,.ai-chat-nudge{animation:none!important;transition:none!important}
+ .ai-chat-fab:hover{transform:none}
+}
+
 </style></head>
 <body>
 <header class="container top">
@@ -733,6 +796,53 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
  </section>
 </main>
 <footer class="container footer">كنيسة الشهيدة دميانة والأنبا توماس السائح<br>فصل الأنبا توماس السائح للخدام • مجموعة القديس فيلبس الرسول<br><a class="developer-credit" href="https://wa.me/qr/FRRDZFMFJW5UJ1" target="_blank" rel="noopener noreferrer" aria-label="تواصل مع أبانوب ماهر عبر واتساب"><span class="developer-credit-code" aria-hidden="true">&lt;/&gt;</span><span>تطوير: أبانوب ماهر</span></a></footer>
+
+<div id="aiChatLauncher" class="ai-chat-launcher">
+ <div id="aiChatNudge" class="ai-chat-nudge" role="status">عايز تسأل في أي حاجة يا نجم 🌚</div>
+ <button id="aiChatFab" class="ai-chat-fab" type="button" onclick="toggleAIChat()" aria-label="افتح مساعد مهمتنا واسأل في أي حاجة" aria-controls="aiChatWindow" aria-expanded="false" title="مساعد مهمتنا AI">
+  <span class="ai-chat-fab-icon" aria-hidden="true">
+   <svg viewBox="0 0 48 56" role="presentation" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+     <linearGradient id="aiCrossGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffef8"/>
+      <stop offset="0.46" stop-color="#fff0bf"/>
+      <stop offset="1" stop-color="#c88c35"/>
+     </linearGradient>
+     <linearGradient id="aiCrossShine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.15"/>
+     </linearGradient>
+    </defs>
+    <path d="M20 5.5Q20 3.5 22 3.5H26Q28 3.5 28 5.5V18H39Q41 18 41 20V24Q41 26 39 26H28V49Q28 51 26 51H22Q20 51 20 49V26H9Q7 26 7 24V20Q7 18 9 18H20Z" fill="#226b72" opacity=".22" transform="translate(0 1.5)"/>
+    <path d="M20 5Q20 3 22 3H26Q28 3 28 5V18H39Q41 18 41 20V24Q41 26 39 26H28V49Q28 51 26 51H22Q20 51 20 49V26H9Q7 26 7 24V20Q7 18 9 18H20Z" fill="url(#aiCrossGold)" stroke="#fffdf5" stroke-width="1.15" stroke-linejoin="round"/>
+    <path d="M22.1 5.5V19.5H9.5M22.1 27V48.5" fill="none" stroke="url(#aiCrossShine)" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>
+    <path d="M24 0.8L25.2 3.2L27.8 4.2L25.2 5.1L24 7.5L22.9 5.1L20.3 4.2L22.9 3.2Z" fill="#fffdf7" opacity=".96"/>
+   </svg>
+  </span>
+ </button>
+</div>
+<section id="aiChatWindow" class="ai-chat-window hidden" aria-label="مساعد مهمتنا بالذكاء الاصطناعي" aria-hidden="true">
+ <header class="ai-chat-header">
+  <div class="ai-chat-header-icon" aria-hidden="true">✦</div>
+  <div class="ai-chat-header-copy"><strong>مساعد مهمتنا</strong><small>أسئلة دينية • تلخيص الإصحاحات • مساعدة الموقع</small></div>
+  <button class="ai-chat-close" type="button" onclick="toggleAIChat(false)" aria-label="إغلاق الشات">✕</button>
+ </header>
+ <div class="ai-chat-shortcuts" aria-label="أسئلة سريعة">
+  <button type="button" onclick="aiChatShortcut('اشرح لي موضوعًا دينيًا بطريقة بسيطة وبالعامية المصرية.')">✝ سؤال ديني</button>
+  <button type="button" onclick="aiChatShortcut('لخّص لي إصحاحًا من الكتاب المقدس، واسألني عن اسم السفر ورقم الإصحاح إذا لم أذكرهما.')">📖 تلخيص إصحاح</button>
+  <button type="button" onclick="aiChatShortcut('ساعدني في فهم أو حل مشكلة في موقع مهمتنا. اسألني عن الخطوة التي أقوم بها ورسالة الخطأ إن احتجت.')">🛠 مشكلة في الموقع</button>
+ </div>
+ <div id="aiChatMessages" class="ai-chat-messages" role="log" aria-live="polite" aria-relevant="additions text">
+  <div class="ai-chat-bubble assistant">أهلًا بيك! ✨
+اسألني عن موضوع ديني، أو اطلب تلخيص أي إصحاح، أو احكيلي المشكلة اللي ظهرتلك في موقع مهمتنا.</div>
+ </div>
+ <form id="aiChatForm" class="ai-chat-compose" onsubmit="sendAIChatMessage(event)">
+  <textarea id="aiChatInput" maxlength="2000" placeholder="اكتب سؤالك هنا..." aria-label="اكتب سؤالك" required></textarea>
+  <div class="ai-chat-compose-row"><small>حتى 30 سؤالًا في اليوم لكل حساب.<br>المحادثة لا تُحفظ بعد إغلاق الصفحة.</small><button id="aiChatSend" class="btn primary ai-chat-send" type="submit">إرسال ↗</button></div>
+ </form>
+</section>
+
 <div id="modalRoot"></div><input id="avatarFileInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadMyAvatar(event)"><div id="toast" class="hidden"></div>
 <script>
 // 1) بعد إنشاء مشروع Supabase، ضع بيانات المشروع هنا. لا تضع service_role key هنا أبداً.
@@ -2827,12 +2937,12 @@ async function submitWork(taskId){
     p_link_url:link,
     p_file_path:finalFilePath,
     p_file_name:finalFileName,
-    p_note:note,
+    p_note:note||null,
     p_cleanup_duplicates:cleanupOlderSubmissions
    });
    if(error)throw new Error("فشل تحديث التسليم الحالي: "+error.message+". لو ظهر إن الدالة غير موجودة، شغّل ملف replace_submission.sql المحدّث في Supabase.");
   }else{
-   const {error}=await sb.from("submissions").insert({id:submissionId,task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:finalFilePath,file_name:finalFileName,note:note,status:"submitted"});
+   const {error}=await sb.from("submissions").insert({id:submissionId,task_id:taskId,user_id:currentUser.id,submission_text:submissionText||null,link_url:link,file_path:finalFilePath,file_name:finalFileName,note:note||null,status:"submitted"});
    if(error)throw new Error("فشل تسجيل التسليم: "+error.message);
   }
   submissionSaved=true;
@@ -3075,7 +3185,7 @@ async function saveSubmissionContent(id){
   const nameValue=names.length>1?JSON.stringify(names):(names[0]||null);
   const {error}=await sb.rpc("update_submission_content",{
    p_submission_id:id,p_submission_text:textValue||null,p_link_url:linkValue||null,
-   p_file_path:pathValue,p_file_name:nameValue,p_note:noteValue,
+   p_file_path:pathValue,p_file_name:nameValue,p_note:noteValue||null,
    p_admin_feedback:isAdmin()?feedbackValue:null
   });
   if(error)throw new Error("فشل حفظ التعديل: "+error.message+". تأكد من تشغيل ملف SQL المرفق.");
@@ -3107,7 +3217,7 @@ async function removeSubmissionAttachment(id,index){
  const files=getSubmissionFiles(s);const target=files[index];if(!target)return toast("المرفق مش موجود.");
  if(!confirm("متأكد إنك عايز تحذف المرفق «"+target.name+"»؟"))return;
  const next=files.filter((_,i)=>i!==index);const paths=next.map(f=>f.path),names=next.map(f=>f.name);
- const {error}=await sb.rpc("update_submission_content",{p_submission_id:id,p_submission_text:s.submission_text||null,p_link_url:s.link_url||null,p_file_path:paths.length>1?JSON.stringify(paths):(paths[0]||null),p_file_name:names.length>1?JSON.stringify(names):(names[0]||null),p_note:s.note||"",p_admin_feedback:isAdmin()?(s.admin_feedback||null):null});
+ const {error}=await sb.rpc("update_submission_content",{p_submission_id:id,p_submission_text:s.submission_text||null,p_link_url:s.link_url||null,p_file_path:paths.length>1?JSON.stringify(paths):(paths[0]||null),p_file_name:names.length>1?JSON.stringify(names):(names[0]||null),p_note:s.note||null,p_admin_feedback:isAdmin()?(s.admin_feedback||null):null});
  if(error)return toast("تعذر تحديث التسليم: "+error.message);
  try{await deleteSubmissionStoragePath(target.path);toast("اتحذف المرفق واتحدّث التسليم.");}
  catch(e){console.error(e);toast("المرفق اتشال من التسليم، لكن ملف التخزين ما اتحذفش. راجع لوحة مساحة التخزين.");}
@@ -3841,6 +3951,68 @@ function renderDailyVerse(){
  dateLabel.textContent=new Intl.DateTimeFormat("ar-EG",{timeZone:"Africa/Cairo",weekday:"long",day:"numeric",month:"long"}).format(new Date());
 }
 renderDailyVerse();
+
+// AI helper chat — conversations stay in memory only; API keys stay server-side.
+let aiChatHistory = [];
+let aiChatBusy = false;
+function syncAIChatViewport(){
+ const panel=$('aiChatWindow');if(!panel)return;
+ const mobile=window.matchMedia('(max-width: 600px)').matches;
+ const vv=window.visualViewport;
+ if(!mobile||panel.classList.contains('hidden')||!vv){panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');return;}
+ const top=Math.max(8,Math.round(vv.offsetTop+8));
+ const height=Math.max(220,Math.round(vv.height-top-8));
+ panel.style.top=top+'px';panel.style.height=height+'px';panel.style.bottom='auto';
+}
+function toggleAIChat(force){
+ const panel=$('aiChatWindow'),fab=$('aiChatFab'),launcher=$('aiChatLauncher'); if(!panel||!fab)return;
+ const open=typeof force==='boolean'?force:panel.classList.contains('hidden');
+ panel.classList.toggle('hidden',!open); panel.setAttribute('aria-hidden',String(!open)); fab.setAttribute('aria-expanded',String(open)); launcher?.classList.toggle('is-open',open);
+ if(open){syncAIChatViewport();setTimeout(()=>{$('aiChatInput')?.focus();syncAIChatViewport();},80);scrollAIChatToBottom();}
+ else{panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');}
+}
+if(window.visualViewport){window.visualViewport.addEventListener('resize',syncAIChatViewport);window.visualViewport.addEventListener('scroll',syncAIChatViewport);}
+window.addEventListener('resize',syncAIChatViewport);
+function scrollAIChatToBottom(){const box=$('aiChatMessages');if(box)box.scrollTop=box.scrollHeight;}
+function addAIChatBubble(role,text){
+ const box=$('aiChatMessages');if(!box)return null;
+ const el=document.createElement('div');el.className='ai-chat-bubble '+role;el.textContent=String(text??'');box.appendChild(el);scrollAIChatToBottom();return el;
+}
+function aiChatShortcut(prompt){
+ if(!currentUser){toast('سجّل دخولك الأول لاستخدام مساعد الذكاء الاصطناعي.');openAuth();return;}
+ toggleAIChat(true);const input=$('aiChatInput');if(input){input.value=prompt;input.focus();input.setSelectionRange(input.value.length,input.value.length);}
+}
+async function sendAIChatMessage(event){
+ event?.preventDefault(); if(aiChatBusy)return;
+ if(!currentUser){toast('سجّل دخولك الأول لاستخدام مساعد الذكاء الاصطناعي.');openAuth();return;}
+ if(!sb||!CONFIGURED)return toast('الاتصال بقاعدة البيانات غير جاهز.');
+ const input=$('aiChatInput'),send=$('aiChatSend');const text=(input?.value||'').trim();
+ if(!text)return; if(text.length>2000)return toast('الرسالة طويلة جدًا؛ اختصرها إلى 2000 حرف.');
+ aiChatBusy=true; if(send){send.disabled=true;send.textContent='بيفكر...';}
+ addAIChatBubble('user',text); aiChatHistory.push({role:'user',content:text}); if(input)input.value='';
+ const loading=addAIChatBubble('system','جاري التفكير في إجابتك...');
+ try{
+  const {data,error}=await sb.functions.invoke('ai-assistant',{body:{messages:aiChatHistory.slice(-10)}});
+  loading?.remove();
+  if(error){
+   let detail=data?.error;
+   try{const ctx=error.context;const payload=ctx&&typeof ctx.json==='function'?await (typeof ctx.clone==='function'?ctx.clone():ctx).json():null;detail=detail||payload?.error;}catch(_ignored){}
+   throw new Error(detail||error.message||'تعذر الاتصال بالمساعد.');
+  }
+  if(!data?.reply)throw new Error(data?.error||'المساعد لم يرجع إجابة.');
+  addAIChatBubble('assistant',data.reply);aiChatHistory.push({role:'assistant',content:data.reply});
+  aiChatHistory=aiChatHistory.slice(-10);
+ }catch(err){
+  loading?.remove();
+  const message=err?.message||'حصل خطأ غير معروف.';
+  let friendly=message;
+  if(/401|unauthorized|jwt/i.test(message))friendly='انتهت جلسة الدخول أو لم يتم التحقق منها. سجّل خروجًا ثم ادخل مرة أخرى.';
+  else if(/429|limit|quota/i.test(message))friendly='وصلت للحد اليومي المسموح به للمساعد. جرّب بكرة.';
+  else if(/OPENAI_API_KEY|GEMINI_API_KEY|api key|not configured/i.test(message))friendly='المساعد لسه محتاج إعداد مفتاح الذكاء الاصطناعي في Secrets داخل Supabase.';
+  addAIChatBubble('system','تعذر الحصول على إجابة: '+friendly);
+ }finally{aiChatBusy=false;if(send){send.disabled=false;send.textContent='إرسال ↗';}input?.focus();scrollAIChatToBottom();}
+}
+
 init();
 if("IntersectionObserver" in window)setupScrollAnimations();
 </script></body></html>
