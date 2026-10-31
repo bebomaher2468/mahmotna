@@ -596,7 +596,147 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
  .ai-chat-fab:hover{transform:none}
 }
 
-</style></head>
+
+/* Personal preferences: theme, readable text, task layout and notification controls */
+.personal-settings-action .header-action-icon{background:#f5ca7b16;border-color:#f5ca7b35}
+.personal-settings-modal{width:min(620px,100%);max-height:min(90vh,820px);}
+.personal-settings-grid{display:grid;gap:14px}
+.personal-settings-section{padding:14px;border:1px solid var(--line);border-radius:15px;background:#ffffff05}
+.personal-settings-section h3{display:flex;align-items:center;gap:8px;margin:0 0 11px;font-size:14px}
+.personal-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #ffffff10}
+.personal-setting-row:first-of-type{border-top:0;padding-top:0}
+.personal-setting-copy{min-width:0;flex:1}
+.personal-setting-copy strong{display:block;font-size:13px}
+.personal-setting-copy small{display:block;color:var(--muted);font-size:11px;line-height:1.6;margin-top:3px}
+.personal-setting-control{flex:0 0 auto;min-width:130px;width:auto;max-width:48%;}
+.personal-setting-switch{appearance:none;-webkit-appearance:none;position:relative;width:48px;height:28px;border-radius:99px;border:1px solid #53647c;background:#26354c;cursor:pointer;transition:background .2s,border-color .2s;flex:0 0 48px}
+.personal-setting-switch:before{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0004;transition:transform .2s}
+.personal-setting-switch:checked{background:#42bda9;border-color:#72e0d1}
+.personal-setting-switch:checked:before{transform:translateX(-20px)}
+.personal-setting-switch:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+.personal-settings-note{margin:0;font-size:11px;line-height:1.7;color:var(--muted)}
+.personal-settings-actions{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:14px}
+#tasksGrid.pref-compact{grid-template-columns:minmax(0,1fr);gap:8px}
+#tasksGrid.pref-compact .task{min-height:0;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;align-items:center}
+#tasksGrid.pref-compact .tasktop{grid-column:1/-1}
+#tasksGrid.pref-compact .task h3{margin:0;grid-column:1}
+#tasksGrid.pref-compact .task p{display:none}
+#tasksGrid.pref-compact .taskbottom{grid-column:2;grid-row:2/4;margin:0;padding:0;border:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:center}
+#tasksGrid.pref-compact .taskbottom>.actions{justify-content:flex-end}
+#tasksGrid.pref-compact .taskbottom>.muted{white-space:nowrap}
+@media(max-width:580px){
+ .personal-settings-modal{padding:13px}
+ .personal-settings-section{padding:11px}
+ .personal-setting-row{align-items:flex-start}
+ .personal-setting-control{min-width:118px;max-width:52%;font-size:13px}
+ #tasksGrid.pref-compact .task{grid-template-columns:minmax(0,1fr);gap:8px}
+ #tasksGrid.pref-compact .task h3,#tasksGrid.pref-compact .tasktop,#tasksGrid.pref-compact .taskbottom{grid-column:1;grid-row:auto}
+ #tasksGrid.pref-compact .taskbottom{align-items:stretch;flex-direction:column}
+ #tasksGrid.pref-compact .taskbottom>.actions{width:100%;display:flex;flex-wrap:wrap}
+ #tasksGrid.pref-compact .taskbottom>.actions .btn{flex:1 1 auto}
+}
+
+/* Light theme overrides for the actual app surfaces (dark remains the default). */
+html[data-theme="light"]{
+ --bg:#f3f6fb;--panel:#ffffff;--panel2:#edf2f8;--line:#d8e1ed;--text:#1c2a3d;--muted:#62738b;
+ --blue:#456fb4;--cyan:#167e78;--gold:#986712;--green:#218451;--red:#b84255;
+ color-scheme:light;
+}
+html[data-theme="light"] body{background:radial-gradient(ellipse at 85% 0%,#dfeafa 0,transparent 40%),var(--bg);color:var(--text)}
+html[data-theme="light"] .panel,html[data-theme="light"] .stat,html[data-theme="light"] .task,
+html[data-theme="light"] .hero-card,html[data-theme="light"] .profile-stat,html[data-theme="light"] .profile-hero,
+html[data-theme="light"] .submission,html[data-theme="light"] .submission-card,
+html[data-theme="light"] .task-submission-accordion,html[data-theme="light"] .member-submission-group,
+html[data-theme="light"] .admin-storage-panel{background:linear-gradient(145deg,#ffffff,#f7f9fc);border-color:var(--line);color:var(--text)}
+html[data-theme="light"] .field,html[data-theme="light"] select.field,html[data-theme="light"] textarea.field,
+html[data-theme="light"] .submission-file-row,html[data-theme="light"] .submission-text-details,
+html[data-theme="light"] .submission-note,html[data-theme="light"] .submission-feedback,
+html[data-theme="light"] .task-submission-content{background:#f7f9fc;border-color:var(--line);color:var(--text)}
+html[data-theme="light"] .field::placeholder{color:#8492a5}
+html[data-theme="light"] .secondary,html[data-theme="light"] .filter,html[data-theme="light"] .header-action,
+html[data-theme="light"] .profile-chip,html[data-theme="light"] .header-account-btn,
+html[data-theme="light"] .xbtn{background:#ffffff;border-color:var(--line);color:var(--text)}
+html[data-theme="light"] .filter.active{background:#e7f4f2;border-color:#8ccbc4;color:#145f5b}
+html[data-theme="light"] .task p,html[data-theme="light"] .hero p,html[data-theme="light"] .submission p,
+html[data-theme="light"] .submission-text,html[data-theme="light"] .submission-file-name{color:#465a73}
+html[data-theme="light"] .taskbottom,html[data-theme="light"] .divider{border-color:#e2e8f0}
+html[data-theme="light"] .notification-popover,html[data-theme="light"] .achievement-popover,
+html[data-theme="light"] .modal,html[data-theme="light"] .ai-chat-window{background:#ffffff;border-color:#cbd7e5;color:#1c2a3d}
+html[data-theme="light"] .ai-chat-header,html[data-theme="light"] .ai-chat-compose{background:#f2f6fa;border-color:#dce4ed}
+html[data-theme="light"] .ai-chat-messages{background:#fff}
+html[data-theme="light"] .ai-chat-bubble.assistant{background:#eef3f8;color:#203148;border-color:#dce4ed}
+html[data-theme="light"] .ai-chat-bubble.user{background:#e3f5f1;color:#144b48;border-color:#b8e4dc}
+html[data-theme="light"] .ai-chat-compose textarea{background:#fff;color:#1c2a3d;border-color:#cbd7e5}
+html[data-theme="light"] .submission-comments{background:#f5f8fc;border-color:#d5dfeb}
+html[data-theme="light"] .submission-comment{background:#fff;border-color:#e0e7ef}
+html[data-theme="light"] .submission-comment-body{color:#263a52}
+html[data-theme="light"] .daily-verse{background:linear-gradient(115deg,#edf7f6,#f8fafc 68%,#eef4fa);border-color:#c4dfdc}
+html[data-theme="light"] .daily-verse blockquote{color:#1c2a3d}
+html[data-theme="light"] .ux-mobile-nav{background:rgba(249,251,254,.96);border-color:#d8e1ed;box-shadow:0 -8px 24px #24364b12}
+html[data-theme="light"] .ux-mobile-nav button{color:#53657d}
+html[data-theme="light"] .ux-mobile-nav button[aria-current="page"]{background:#e5f3f0;border-color:#c0e3dc;color:#155f59}
+html[data-theme="light"] .top{background:rgba(243,246,251,.94);border-color:#d8e1ed}
+html[data-theme="light"] .notice{background:#edf4fc;border-color:#d4e2f3;color:#304c6d}
+html[data-theme="light"] .notice.good{background:#edf8f1;border-color:#cce9d7;color:#24633e}
+html[data-theme="light"] .notice.error{background:#fff0f1;border-color:#f1cbd0;color:#8b3341}
+html[data-theme="light"] .personal-settings-section{background:#f8fafc;border-color:#d8e1ed}
+html[data-theme="light"] .personal-setting-row{border-color:#e5ebf2}
+html[data-theme="light"] .personal-setting-switch{background:#d7e0ea;border-color:#bbc8d7}
+html[data-theme="light"] .personal-setting-switch:before{background:#fff}
+html[data-theme="light"] #toast{background:#fff;border-color:#cbd7e5;color:#1c2a3d}
+
+</style><style>
+
+
+/* UX polish layer: clearer hierarchy, reliable navigation and comfortable controls */
+:root{scroll-behavior:smooth;scroll-padding-top:90px}
+html{scroll-behavior:smooth}
+[id]{scroll-margin-top:88px}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #72e0d1;outline-offset:3px}
+.btn,.filter,.header-action,.header-account-btn,.profile-chip{min-height:42px}
+.btn:disabled,.filter:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+.task,.submission,.panel,.stat{transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+@media(hover:hover) and (pointer:fine){.task:hover,.submission:hover{border-color:#456083;box-shadow:0 12px 28px #0003}}
+.field::placeholder{color:#8798b4;opacity:1}
+.field:disabled{opacity:.62;cursor:not-allowed}
+.sectionhead{scroll-margin-top:96px}
+.ux-task-results{display:flex;align-items:center;gap:7px;width:max-content;max-width:100%;margin:-3px 0 12px;padding:5px 10px;border:1px solid #72e0d126;border-radius:999px;background:#72e0d10a;color:#a9eee3;font-size:11px;font-weight:800}
+.ux-task-results:empty{display:none}
+
+/* Desktop: keep the main controls reachable without covering content. */
+@media(min-width:761px){
+ .top{position:sticky;top:0;z-index:20;padding-top:10px;padding-bottom:10px;background:rgba(11,16,32,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 24px #0002}
+}
+
+/* Mobile quick navigation. It stays below dialogs and above the page content. */
+.ux-mobile-nav{display:none}
+@media(max-width:760px){
+ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+ .ux-mobile-nav{position:fixed;inset:auto 0 0;z-index:8;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:7px 9px calc(7px + env(safe-area-inset-bottom));border-top:1px solid #ffffff18;background:rgba(10,17,31,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 -10px 30px #0004}
+ .ux-mobile-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:54px;padding:5px 3px;border:1px solid transparent;border-radius:13px;background:transparent;color:#a9b8d0;font:inherit;font-size:10px;font-weight:800;line-height:1.2;cursor:pointer;transition:background .18s ease,color .18s ease,border-color .18s ease}
+ .ux-mobile-nav button .ux-nav-icon{font-size:18px;line-height:1.1}
+ .ux-mobile-nav button[aria-current="page"]{background:linear-gradient(135deg,#72e0d11c,#78a8ff12);border-color:#72e0d13d;color:#cafff5}
+ .ux-mobile-nav button:active{transform:scale(.97)}
+ .ai-chat-launcher{bottom:calc(91px + env(safe-area-inset-bottom))!important}
+ #toast{bottom:calc(86px + env(safe-area-inset-bottom))!important}
+ .modalback{z-index:40}
+ .notification-popover,.achievement-popover{z-index:30}
+ .ai-chat-window{z-index:50}
+}
+.ai-chat-is-open .ux-mobile-nav{display:none!important}
+@media(max-width:380px){
+ .ux-mobile-nav{gap:2px;padding-inline:5px}
+ .ux-mobile-nav button{font-size:9px;min-height:51px}
+ .ux-mobile-nav button .ux-nav-icon{font-size:17px}
+}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ .ux-mobile-nav button,.task,.submission,.panel,.stat{transition:none!important}
+ .ux-mobile-nav button:active{transform:none}
+}
+
+</style>
+</head>
 <body>
 <header class="container top">
  <div class="brand">
@@ -617,6 +757,11 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
   <button id="achievementToggle" class="header-action achievement-action" onclick="toggleAchievementPanel()" aria-label="لوحة الإنجازات">
    <span class="header-action-icon" aria-hidden="true">🏆</span>
    <span class="header-action-copy"><strong>الإنجازات</strong><small class="header-action-meta">تابع تقدمك</small></span>
+   <span class="header-action-spark" aria-hidden="true">✦</span>
+  </button>
+  <button id="personalSettingsBtn" class="header-action personal-settings-action" type="button" onclick="openPersonalSettings()" aria-label="الإعدادات الشخصية">
+   <span class="header-action-icon" aria-hidden="true">⚙️</span>
+   <span class="header-action-copy"><strong>الإعدادات</strong><small class="header-action-meta">خصص تجربتك</small></span>
    <span class="header-action-spark" aria-hidden="true">✦</span>
   </button>
   <button id="myProfileBtn" class="profile-chip hidden" onclick="openMyProfile()">
@@ -665,8 +810,9 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
   </section>
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
   <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
+  <div id="uxTaskResults" class="ux-task-results" aria-live="polite">جاري تحميل المهام…</div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
-  <div class="sectionhead"><div><h2>تسليمات الأعضاء</h2><p>افتح أي تاسك عشان تشوف تسليماته، واقفله بالضغط عليه تاني. ابحث أو فلتر للوصول بسرعة.</p></div></div><div id="submissionToolbar" class="submission-toolbar hidden"><input id="submissionSearch" class="field" type="search" aria-label="البحث في التسليمات" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderMySubs()"><select id="submissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderMySubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="submissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderMySubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetSubmissionFilters()">مسح الفلاتر</button></div><div id="submissionSummary" class="submission-summary hidden"></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
+  <div class="sectionhead" id="mySubmissionsSection"><div><h2>تسليمات الأعضاء</h2><p>افتح أي تاسك عشان تشوف تسليماته، واقفله بالضغط عليه تاني. ابحث أو فلتر للوصول بسرعة.</p></div></div><div id="submissionToolbar" class="submission-toolbar hidden"><input id="submissionSearch" class="field" type="search" aria-label="البحث في التسليمات" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderMySubs()"><select id="submissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderMySubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="submissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderMySubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetSubmissionFilters()">مسح الفلاتر</button></div><div id="submissionSummary" class="submission-summary hidden"></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
   <section id="achievementDashboard" class="achievement-popover panel hidden" aria-label="لوحة الإنجازات">
     <div class="sectionhead" style="margin:0 0 12px;align-items:center"><div><h2 style="font-size:18px;margin:0">🏆 لوحة الإنجازات</h2><p>تابع تقدمك في تنفيذ المهام.</p></div><button class="xbtn" onclick="toggleAchievementPanel(false)" aria-label="إغلاق">✕</button></div>
     <div id="achievementAdminPicker" class="hidden" style="margin-bottom:14px"><label class="label" for="achievementMember">عرض إنجازات عضو</label><select id="achievementMember" class="field" onchange="renderAchievementDashboard()"></select></div>
@@ -842,6 +988,14 @@ button,.btn,.filter,.header-action,.profile-chip,.header-account-btn,.xbtn{touch
   <div class="ai-chat-compose-row"><small>حتى 30 سؤالًا في اليوم لكل حساب.<br>المحادثة لا تُحفظ بعد إغلاق الصفحة.</small><button id="aiChatSend" class="btn primary ai-chat-send" type="submit">إرسال ↗</button></div>
  </form>
 </section>
+
+
+<nav class="ux-mobile-nav" id="uxMobileNav" aria-label="التنقل السريع">
+ <button type="button" data-ux-nav="home" aria-current="page" aria-label="العودة للرئيسية"><span class="ux-nav-icon" aria-hidden="true">⌂</span><span>الرئيسية</span></button>
+ <button type="button" data-ux-nav="tasks" aria-label="الانتقال للمهام"><span class="ux-nav-icon" aria-hidden="true">✓</span><span>المهام</span></button>
+ <button type="button" data-ux-nav="submissions" aria-label="الانتقال للتسليمات"><span class="ux-nav-icon" aria-hidden="true">▤</span><span>التسليمات</span></button>
+ <button type="button" data-ux-nav="notifications" aria-label="فتح الإشعارات"><span class="ux-nav-icon" aria-hidden="true">♧</span><span>الإشعارات</span></button>
+</nav>
 
 <div id="modalRoot"></div><input id="avatarFileInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadMyAvatar(event)"><div id="toast" class="hidden"></div>
 <script>
@@ -1288,7 +1442,7 @@ async function loadNotifications(){
  if(!currentUser){$("notificationUnread").textContent="0 جديد";list.innerHTML='<div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div>';return;}
  const {data,error}=await sb.from("notifications").select("id,title,body,kind,task_id,submission_id,read_at,created_at").order("created_at",{ascending:false}).limit(30);
  if(error){console.error("Notifications:",error);list.innerHTML='<div class="notice">فعّل مركز الإشعارات بتشغيل ملف supabase/notifications.sql في Supabase SQL Editor.</div>';return;}
- const rows=data||[]; $("notificationUnread").textContent=rows.filter(n=>!n.read_at).length+" جديد";
+ const rows=data||[]; $("notificationUnread").textContent=personalPrefs.inAppNotifications?(rows.filter(n=>!n.read_at).length+" جديد"):"متوقف";
  const icons={new_task:"🆕",new_submission:"📥",due_soon:"⏰",due_24h:"⏰",due_1h:"🚨",overdue_task:"⚠️",accepted:"✅",revision:"📝"};
  list.innerHTML=rows.length?rows.map(n=>'<article class="submission" style="border-color:'+(n.read_at?'var(--line)':'#78a8ff88')+'"><div class="submissionhead"><strong>'+(icons[n.kind]||"🔔")+' '+esc(n.title)+'</strong><span class="muted small">'+new Date(n.created_at).toLocaleString("ar-EG")+'</span></div><p>'+esc(n.body||"")+'</p>'+(n.kind==="new_submission"&&isAdmin()?'<button class="btn secondary" onclick="scrollToAdminSubmissions()">عرض التسليمات</button> ':"")+'<button class="btn secondary" onclick="markNotificationRead(\''+n.id+'\')">'+(n.read_at?'مقروء':'تحديد كمقروء')+'</button></article>').join(""):'<div class="empty">مفيش إشعارات لحد دلوقتي.</div>';
 }
@@ -1327,6 +1481,7 @@ function unlockNotificationAudio(){
 }
 ["pointerdown","touchstart","keydown"].forEach(type=>document.addEventListener(type,unlockNotificationAudio,{once:true,capture:true,passive:type!=="keydown"}));
 function playNotificationSound(notice={}){
+ if(!personalPrefs.inAppNotifications||!personalPrefs.soundNotifications)return;
  const now=Date.now(),key=[notice.title||"",notice.body||"",notice.kind||""].join("|");
  if(key&&notificationSoundSeen.has(key)&&now-notificationSoundSeen.get(key)<5000)return;
  if(now-notificationSoundLastAt<900)return;
@@ -1363,7 +1518,7 @@ function subscribeNotifications(){
  notificationChannel=null;
  if(!currentUser||!sb)return;
  notificationChannel=sb.channel("notifications-"+currentUser.id)
-  .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUser.id},payload=>{playNotificationSound(payload.new||{});loadNotifications();})
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:"user_id=eq."+currentUser.id},payload=>{if(personalPrefs.inAppNotifications){playNotificationSound(payload.new||{});loadNotifications();}})
   .subscribe();
 }
 
@@ -1462,6 +1617,132 @@ try{
 }catch(e){
   toast("حصل خطأ في الاتصال: "+e.message);
 }
+}
+
+
+// Per-user personal settings are saved in this browser only; no Supabase schema change is needed.
+const PERSONAL_PREFS_DEFAULTS = {
+  theme: "dark",
+  fontSize: "normal",
+  taskView: "cards",
+  inAppNotifications: true,
+  soundNotifications: true
+};
+let personalPrefs = {...PERSONAL_PREFS_DEFAULTS};
+let personalFontObserver = null;
+function personalPrefsKey(){return "mohemmetna_personal_prefs_v1:"+(currentUser?.id||"guest");}
+function readPersonalPrefs(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(personalPrefsKey())||"{}");
+    personalPrefs={...PERSONAL_PREFS_DEFAULTS,...(saved&&typeof saved==="object"?saved:{})};
+  }catch(_){personalPrefs={...PERSONAL_PREFS_DEFAULTS};}
+  applyPersonalPreferences();
+}
+function applyPersonalFontSize(){
+  const multipliers={small:.92,normal:1,large:1.1};
+  const scale=multipliers[personalPrefs.fontSize]||1;
+  const selector='h1,h2,h3,h4,p,span,strong,small,label,button,input,textarea,select,a,summary,li,blockquote,td,th,legend,.badge,.muted,.eyebrow,.notice,.task,.submission,.sectionhead,.daily-verse,.header-action-copy,.profile-chip-copy,.ai-chat-bubble';
+  const applyOne=(el)=>{
+    if(!(el instanceof Element)||!el.matches(selector))return;
+    if(!el.dataset.prefFontBase){
+      const base=parseFloat(getComputedStyle(el).fontSize);
+      if(Number.isFinite(base))el.dataset.prefFontBase=String(base);
+    }
+    const base=parseFloat(el.dataset.prefFontBase||"");
+    if(Number.isFinite(base))el.style.setProperty("font-size",(base*scale).toFixed(2)+"px","important");
+  };
+  document.querySelectorAll(selector).forEach(applyOne);
+  if(!personalFontObserver){
+    personalFontObserver=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{
+      if(node.nodeType===1){applyOne(node);node.querySelectorAll?.(selector).forEach(applyOne);}
+    })));
+    personalFontObserver.observe(document.body,{childList:true,subtree:true});
+  }
+}
+function applyPersonalPreferences(){
+  document.documentElement.dataset.theme=personalPrefs.theme==="light"?"light":"dark";
+  const grid=$("tasksGrid");
+  if(grid)grid.classList.toggle("pref-compact",personalPrefs.taskView==="compact");
+  applyPersonalFontSize();
+  const unread=$("notificationUnread");
+  if(unread&&!personalPrefs.inAppNotifications)unread.textContent="متوقف";
+  document.documentElement.style.colorScheme=personalPrefs.theme==="light"?"light":"dark";
+}
+function openPersonalSettings(){
+  readPersonalPrefs();
+  const p=personalPrefs;
+  const html=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal personal-settings-modal" role="dialog" aria-modal="true" aria-labelledby="personalSettingsTitle">
+   <div class="modalhead"><div><h2 id="personalSettingsTitle">⚙️ إعداداتك الشخصية</h2><p class="muted small" style="margin:4px 0 0">ظبّط مهمتنا بالطريقة اللي تريحك.</p></div><button class="xbtn" type="button" onclick="closeModal()" aria-label="إغلاق">✕</button></div>
+   <div class="divider"></div>
+   <div class="personal-settings-grid">
+    <section class="personal-settings-section"><h3>🎨 شكل الموقع</h3>
+     <div class="personal-setting-row"><div class="personal-setting-copy"><strong>المظهر</strong><small>اختار الشكل اللي يريح عينك.</small></div><select id="prefTheme" class="field personal-setting-control"><option value="dark" ${p.theme==="dark"?"selected":""}>داكن</option><option value="light" ${p.theme==="light"?"selected":""}>فاتح</option></select></div>
+     <div class="personal-setting-row"><div class="personal-setting-copy"><strong>حجم الخط</strong><small>صغير أو عادي أو كبير حسب راحتك في القراءة.</small></div><select id="prefFontSize" class="field personal-setting-control"><option value="small" ${p.fontSize==="small"?"selected":""}>صغير</option><option value="normal" ${p.fontSize==="normal"?"selected":""}>عادي</option><option value="large" ${p.fontSize==="large"?"selected":""}>كبير</option></select></div>
+    </section>
+    <section class="personal-settings-section"><h3>📋 طريقة عرض المهام</h3>
+     <div class="personal-setting-row"><div class="personal-setting-copy"><strong>شكل المهام</strong><small>البطاقات تعرض التفاصيل، والقائمة المختصرة توفر مساحة.</small></div><select id="prefTaskView" class="field personal-setting-control"><option value="cards" ${p.taskView==="cards"?"selected":""}>بطاقات</option><option value="compact" ${p.taskView==="compact"?"selected":""}>قائمة مختصرة</option></select></div>
+    </section>
+    <section class="personal-settings-section"><h3>🔔 تفضيلات الإشعارات</h3>
+     <label class="personal-setting-row"><span class="personal-setting-copy"><strong>تنبيهات داخل الموقع</strong><small>تحديث عدد الإشعارات والتنبيه عند وصول تحديث جديد.</small></span><input id="prefInAppNotifications" class="personal-setting-switch" type="checkbox" ${p.inAppNotifications?"checked":""}></label>
+     <label class="personal-setting-row"><span class="personal-setting-copy"><strong>صوت الإشعارات</strong><small>تشغيل نغمة قصيرة عند وصول إشعار داخل الموقع.</small></span><input id="prefSoundNotifications" class="personal-setting-switch" type="checkbox" ${p.soundNotifications?"checked":""}></label>
+     <label class="personal-setting-row"><span class="personal-setting-copy"><strong>إشعارات الجهاز</strong><small>تفعيلها أو إيقافها لهذا الجهاز من مركز الإشعارات. قد يطلب المتصفح إذنًا.</small></span><input id="prefDevicePush" class="personal-setting-switch" type="checkbox"></label>
+     <p id="prefDevicePushHint" class="personal-settings-note">جاري التحقق من حالة إشعارات الجهاز…</p>
+    </section>
+    <p class="personal-settings-note">تُحفظ هذه الاختيارات على نفس الجهاز والمتصفح، ولكل حساب إعداداته الخاصة. لا تغيّر بيانات المهام أو التسليمات.</p>
+   </div>
+   <div class="personal-settings-actions"><button class="btn secondary" type="button" onclick="resetPersonalSettings()">استعادة الافتراضي</button><div class="actions"><button class="btn secondary" type="button" onclick="closeModal()">إلغاء</button><button class="btn primary" type="button" onclick="savePersonalSettings()">حفظ الإعدادات</button></div></div>
+  </div></div>`;
+  $("modalRoot").innerHTML=html;
+  syncPersonalPushSetting();
+}
+async function hasActiveDevicePush(){
+  try{
+    if(!( "serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window))return false;
+    const registration=await navigator.serviceWorker.getRegistration();
+    const subscription=registration?await registration.pushManager.getSubscription():null;
+    return Notification.permission==="granted"&&!!subscription;
+  }catch(_){return false;}
+}
+async function syncPersonalPushSetting(){
+  const toggle=$("prefDevicePush"),hint=$("prefDevicePushHint");if(!toggle||!hint)return;
+  const active=await hasActiveDevicePush();
+  if(!$("prefDevicePush"))return;
+  toggle.checked=active;
+  hint.textContent=active?"إشعارات الجهاز مفعّلة على هذا الجهاز.":("إشعارات الجهاز "+("Notification" in window?"غير مفعّلة.":"غير مدعومة في المتصفح الحالي."));
+  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))toggle.disabled=true;
+}
+async function savePersonalSettings(){
+  const theme=$("prefTheme")?.value||"dark";
+  const fontSize=$("prefFontSize")?.value||"normal";
+  const taskView=$("prefTaskView")?.value||"cards";
+  const inAppNotifications=!!$("prefInAppNotifications")?.checked;
+  const soundNotifications=!!$("prefSoundNotifications")?.checked;
+  const wantDevicePush=!!$("prefDevicePush")?.checked;
+  const hadDevicePush=await hasActiveDevicePush();
+  personalPrefs={theme,fontSize,taskView,inAppNotifications,soundNotifications};
+  try{localStorage.setItem(personalPrefsKey(),JSON.stringify(personalPrefs));}
+  catch(error){console.warn("Could not save personal preferences:",error);toast("تعذر حفظ الإعدادات على هذا الجهاز.");return;}
+  applyPersonalPreferences();
+  closeModal();
+  toast("اتحفظت إعداداتك الشخصية.");
+  if(wantDevicePush&&!hadDevicePush){
+    if(!currentUser){toast("سجّل دخولك الأول لتفعيل إشعارات الجهاز.");return;}
+    await enablePushNotifications();
+  }else if(!wantDevicePush&&hadDevicePush){
+    if(currentUser)await disablePushNotifications();
+    else toast("أوقف إشعارات الموقع من إعدادات المتصفح لهذا الجهاز.");
+  }
+}
+function resetPersonalSettings(){
+  personalPrefs={...PERSONAL_PREFS_DEFAULTS};
+  if($("prefTheme"))$("prefTheme").value=personalPrefs.theme;
+  if($("prefFontSize"))$("prefFontSize").value=personalPrefs.fontSize;
+  if($("prefTaskView"))$("prefTaskView").value=personalPrefs.taskView;
+  if($("prefInAppNotifications"))$("prefInAppNotifications").checked=true;
+  if($("prefSoundNotifications"))$("prefSoundNotifications").checked=true;
+  if($("prefDevicePush"))$("prefDevicePush").checked=false;
+  applyPersonalPreferences();
+  toast("رجّعنا الاختيارات الافتراضية. اضغط حفظ لتأكيدها.");
 }
 
 function defaultAvatarData(){return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#17223a"/><circle cx="50" cy="36" r="19" fill="#78a8ff"/><path d="M15 95c2-23 16-35 35-35s33 12 35 35" fill="#72e0d1"/></svg>')}
@@ -2305,6 +2586,7 @@ async function activateSession(user,opts={}){
   authBusy=true;
   try{
     currentUser=user;profile=null;
+    readPersonalPrefs();
     const [allowed]=await Promise.all([claimThisDevice(user),loadProfile()]);
     if(!allowed){
       currentUser=null;profile=null;authHandledUserId=null;
@@ -2339,6 +2621,7 @@ async function handleAuthEvent(event,session){
   if(!user||event==="SIGNED_OUT"){
     if(!currentUser&&authHandledUserId===null)return; // الخروج اتعمل محليًا بالفعل
     currentUser=null;profile=null;authHandledUserId=null;
+    readPersonalPrefs();
     if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
     subscribePresence();
     updateAuthUI();
@@ -2542,6 +2825,7 @@ function logout(){
   if(userId)verifiedDeviceSessions.delete(userId+":"+deviceTokenForUser(userId));
   // الواجهة بتتحدث فورًا من غير ما تستنى الشبكة.
   currentUser=null;profile=null;authHandledUserId=null;submissions=[];memberProfiles=[];
+  readPersonalPrefs();
   subscribePresence();
   $("notificationCenter")?.classList.add("hidden");
   $("achievementDashboard")?.classList.add("hidden");
@@ -4016,6 +4300,129 @@ async function sendAIChatMessage(event){
  }finally{aiChatBusy=false;if(send){send.disabled=false;send.textContent='إرسال ↗';}input?.focus();scrollAIChatToBottom();}
 }
 
+readPersonalPrefs();
 init();
 if("IntersectionObserver" in window)setupScrollAnimations();
-</script></body></html>
+</script>
+<script>
+// Lightweight UX helpers. These only improve navigation and accessibility;
+// they do not change task, submission, comment, storage, notification or AI data logic.
+(function initMohemmetnaUX(){
+  const nav = document.getElementById('uxMobileNav');
+  const grid = document.getElementById('tasksGrid');
+  const count = document.getElementById('uxTaskResults');
+  const chatPanel = document.getElementById('aiChatWindow');
+  if (!nav) return;
+
+  const buttons = Array.from(nav.querySelectorAll('[data-ux-nav]'));
+  const setActive = (key) => {
+    buttons.forEach((button) => {
+      const active = button.dataset.uxNav === key;
+      if (active) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+  };
+
+  window.uxNavigate = function(key){
+    if (key === 'home') {
+      window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+      setActive('home');
+      return;
+    }
+    if (key === 'tasks') {
+      const target = document.getElementById('tasksSection');
+      target?.scrollIntoView({behavior:'smooth',block:'start'});
+      setActive('tasks');
+      return;
+    }
+    if (key === 'submissions') {
+      const target = document.getElementById('mySubmissionsSection') || document.getElementById('mySubmissions');
+      target?.scrollIntoView({behavior:'smooth',block:'start'});
+      setActive('submissions');
+      return;
+    }
+    if (key === 'notifications') {
+      if (typeof window.toggleNotificationPanel === 'function') window.toggleNotificationPanel();
+      return;
+    }
+  };
+
+  buttons.forEach((button) => button.addEventListener('click', () => window.uxNavigate(button.dataset.uxNav)));
+
+  // Keep the active destination in sync when the user scrolls normally.
+  let scrollQueued = false;
+  const updateActiveFromScroll = () => {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    window.requestAnimationFrame(() => {
+      scrollQueued = false;
+      const threshold = window.scrollY + Math.min(window.innerHeight * .34, 220);
+      const taskTop = document.getElementById('tasksSection')?.getBoundingClientRect().top + window.scrollY;
+      const submissionsEl = document.getElementById('mySubmissionsSection') || document.getElementById('mySubmissions');
+      const submissionsTop = submissionsEl ? submissionsEl.getBoundingClientRect().top + window.scrollY : Number.POSITIVE_INFINITY;
+      if (threshold >= submissionsTop) setActive('submissions');
+      else if (threshold >= taskTop) setActive('tasks');
+      else setActive('home');
+    });
+  };
+  window.addEventListener('scroll', updateActiveFromScroll, {passive:true});
+  window.addEventListener('resize', updateActiveFromScroll, {passive:true});
+
+  // Announce the filtered task count so search and filters feel responsive.
+  const updateTaskCount = () => {
+    if (!grid || !count) return;
+    const visible = grid.querySelectorAll('.task').length;
+    const hasEmpty = !!grid.querySelector('.empty');
+    if (hasEmpty) count.textContent = grid.querySelector('.empty')?.textContent || 'لا توجد مهام مطابقة.';
+    else count.textContent = `عرض ${visible.toLocaleString('ar-EG')} ${visible === 1 ? 'مهمة' : 'مهام'}`;
+  };
+  if (grid && count) {
+    new MutationObserver(updateTaskCount).observe(grid, {childList:true,subtree:true});
+    updateTaskCount();
+  }
+
+  // Hide the bottom bar while the full-screen assistant is open.
+  if (chatPanel) {
+    const syncChatState = () => document.body.classList.toggle('ai-chat-is-open', !chatPanel.classList.contains('hidden'));
+    new MutationObserver(syncChatState).observe(chatPanel, {attributes:true,attributeFilter:['class']});
+    syncChatState();
+  }
+
+  // Keyboard shortcuts: Ctrl/Cmd+K focuses task search; Escape closes the topmost overlay.
+  document.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      window.uxNavigate('tasks');
+      window.setTimeout(() => {
+        const search = document.getElementById('search');
+        search?.focus();
+        search?.select();
+      }, 180);
+      return;
+    }
+    if (event.key !== 'Escape') return;
+    const modalRoot = document.getElementById('modalRoot');
+    if (modalRoot?.childElementCount && typeof window.closeModal === 'function') {
+      window.closeModal();
+      return;
+    }
+    if (chatPanel && !chatPanel.classList.contains('hidden') && typeof window.toggleAIChat === 'function') {
+      window.toggleAIChat(false);
+      return;
+    }
+    const notifications = document.getElementById('notificationCenter');
+    if (notifications && !notifications.classList.contains('hidden') && typeof window.toggleNotificationPanel === 'function') {
+      window.toggleNotificationPanel(false);
+      return;
+    }
+    const achievements = document.getElementById('achievementDashboard');
+    if (achievements && !achievements.classList.contains('hidden') && typeof window.toggleAchievementPanel === 'function') {
+      window.toggleAchievementPanel(false);
+    }
+  });
+
+  updateActiveFromScroll();
+})();
+</script>
+
+</body></html>
