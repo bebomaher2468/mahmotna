@@ -736,6 +736,36 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 
 </style>
+<style>
+
+
+/* Stability and accessibility patch — layered overlays, Cairo deadlines, and touch layouts. */
+:root{scroll-padding-top:96px}
+#toast{z-index:1200;max-width:min(520px,calc(100vw - 24px));text-align:center;overflow-wrap:anywhere;padding:12px 16px;box-shadow:0 14px 38px #0006}
+.modalback{z-index:1000}
+.notification-popover,.achievement-popover{z-index:900;max-height:min(72vh,680px);overscroll-behavior:contain;scrollbar-gutter:stable}
+.ai-chat-window{z-index:850}
+.ai-chat-launcher{z-index:840}
+.welcome-overlay{z-index:10000}
+.device-session-notice{display:block;margin:12px 0;padding:12px 13px;font-weight:800;line-height:1.8}
+@media(min-width:761px){
+ .top{position:sticky;top:0;z-index:20;background:rgba(11,16,32,.86);border-bottom:1px solid rgba(255,255,255,.12);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+ html[data-theme="light"] .top{background:rgba(243,246,251,.86);border-color:#d8e1ed}
+}
+@media(max-width:760px){
+ .top{position:static!important;top:auto!important;z-index:auto!important;background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important}
+ :root{scroll-padding-top:16px}
+ [id]{scroll-margin-top:16px}
+ .notification-popover,.achievement-popover{top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));width:auto;max-height:calc(100dvh - 104px - env(safe-area-inset-bottom));max-height:calc(100vh - 104px - env(safe-area-inset-bottom));overflow:auto;padding:12px;z-index:900}
+ .notification-popover .sectionhead,.achievement-popover .sectionhead{position:sticky;top:-12px;z-index:2;padding:5px 0 9px;background:inherit}
+ .modalback{z-index:1000}
+ #toast{z-index:1200;bottom:calc(86px + env(safe-area-inset-bottom))!important;left:10px;right:10px;width:auto;font-size:13px;line-height:1.75}
+ .device-session-notice{font-size:13px}
+}
+.utility-panel-open .ai-chat-launcher{opacity:0!important;pointer-events:none!important;visibility:hidden!important}
+@media(prefers-reduced-motion:reduce){.task,.submission,.panel,.stat{transition:none!important}}
+
+</style>
 </head>
 <body>
 <header class="container top">
@@ -809,7 +839,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
     <div id="notificationsList" class="submissions"><div class="empty">سجّل دخولك عشان تشوف إشعاراتك.</div></div>
   </section>
   <div class="sectionhead" id="tasksSection"><div><h2>التاسكات</h2><p>اختار المهمة وافتح تفاصيلها عشان تعرف المطلوب وتسلم شغلك.</p></div><button id="adminAdd" class="btn primary hidden" onclick="openTaskForm()">＋ تاسك جديد</button></div>
-  <div class="toolbar"><input id="search" class="field search" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
+  <div class="toolbar"><input id="search" class="field search" type="search" aria-label="ابحث في المهام" placeholder="دور على تاسك..." oninput="renderTasks()"><div class="filters"><button class="filter active" data-filter="all" onclick="setFilter('all')">الكل</button><button class="filter" data-filter="open" onclick="setFilter('open')">المفتوحة</button><button class="filter" data-filter="late" onclick="setFilter('late')">المتأخرة</button><button class="filter" data-filter="done" onclick="setFilter('done')">المكتملة</button><button class="filter" data-filter="archive" onclick="setFilter('archive')">الأرشيف</button></div></div>
   <div id="uxTaskResults" class="ux-task-results" aria-live="polite">جاري تحميل المهام…</div>
   <div id="tasksGrid" class="grid"><div class="empty">جاري تحميل التاسكات...</div></div>
   <div class="sectionhead" id="mySubmissionsSection"><div><h2>تسليمات الأعضاء</h2><p>افتح أي تاسك عشان تشوف تسليماته، واقفله بالضغط عليه تاني. ابحث أو فلتر للوصول بسرعة.</p></div></div><div id="submissionToolbar" class="submission-toolbar hidden"><input id="submissionSearch" class="field" type="search" aria-label="البحث في التسليمات" placeholder="ابحث باسم العضو أو التاسك أو الملف..." oninput="renderMySubs()"><select id="submissionStatusFilter" class="field" aria-label="تصفية حسب الحالة" onchange="renderMySubs()"><option value="">كل الحالات</option><option value="submitted">مستلم</option><option value="reviewing">قيد المراجعة</option><option value="accepted">مقبول</option><option value="revision">محتاج تعديل</option></select><select id="submissionTaskFilter" class="field" aria-label="تصفية حسب التاسك" onchange="renderMySubs()"><option value="">كل التاسكات</option></select><button class="btn secondary" type="button" onclick="resetSubmissionFilters()">مسح الفلاتر</button></div><div id="submissionSummary" class="submission-summary hidden"></div><div id="mySubmissions" class="submissions"><div class="empty">سجّل دخولك عشان تشوف تسليماتك.</div></div>
@@ -990,7 +1020,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 </section>
 
 
-<nav class="ux-mobile-nav" id="uxMobileNav" aria-label="التنقل السريع">
+<nav class="ux-mobile-nav" id="uxMobileNav" aria-label="التنقل السريع" role="navigation">
  <button type="button" data-ux-nav="home" aria-current="page" aria-label="العودة للرئيسية"><span class="ux-nav-icon" aria-hidden="true">⌂</span><span>الرئيسية</span></button>
  <button type="button" data-ux-nav="tasks" aria-label="الانتقال للمهام"><span class="ux-nav-icon" aria-hidden="true">✓</span><span>المهام</span></button>
  <button type="button" data-ux-nav="submissions" aria-label="الانتقال للتسليمات"><span class="ux-nav-icon" aria-hidden="true">▤</span><span>التسليمات</span></button>
@@ -1010,12 +1040,70 @@ let pushSubscriptionSyncedUserId = null;
 if(CONFIGURED && window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function toast(msg){$("toast").textContent=msg;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),3500)}
+let toastTimerId = null;
+function toast(msg, duration = 5200){
+ const el=$("toast");
+ if(!el)return;
+ if(toastTimerId)window.clearTimeout(toastTimerId);
+ el.textContent=String(msg??"");
+ el.setAttribute("role","status");
+ el.setAttribute("aria-live","polite");
+ el.classList.remove("hidden");
+ toastTimerId=window.setTimeout(()=>{el.classList.add("hidden");toastTimerId=null;},Math.max(2500,Number(duration)||5200));
+}
+function showDeviceSessionNotice(message){
+ const modal=document.querySelector("#modalRoot .modal.auth");
+ if(!modal){toast(message,7000);return;}
+ let notice=modal.querySelector("#deviceSessionNotice");
+ if(!notice){
+  notice=document.createElement("div");
+  notice.id="deviceSessionNotice";
+  notice.className="notice error device-session-notice";
+  notice.setAttribute("role","alert");
+  notice.setAttribute("aria-live","assertive");
+  const form=modal.querySelector(".formgrid");
+  const firstButton=form?.querySelector("button");
+  if(form&&firstButton)form.insertBefore(notice,firstButton);
+  else if(form)form.prepend(notice);
+  else modal.appendChild(notice);
+ }
+ notice.textContent=String(message||"تعذر تسجيل الدخول من هذا الجهاز.");
+ notice.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
 const SITE_OWNER_NAME = "bebomaher2468";
 function isAdmin(){return profile?.role==="admin"}
+function cairoDateISO(date=new Date()){
+ try{
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Cairo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+  const values={};parts.forEach(part=>{if(part.type!=="literal")values[part.type]=part.value;});
+  return `${values.year}-${values.month}-${values.day}`;
+ }catch(_){
+  const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+ }
+}
+function isTaskOverdue(task, date=new Date()){
+ const due=String(task?.due_date||"").slice(0,10);
+ return !!due && task?.status!=="done" && cairoDateISO(date)>due;
+}
+function isTaskSubmissionClosed(task){
+ return !task || task.status==="done" || isTaskOverdue(task);
+}
+function cairoWallTimeToUtcMs(dateString,hour=23,minute=59,second=59){
+ const match=String(dateString||"").slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ if(!match)return NaN;
+ const [,ys,ms,ds]=match;const target=Date.UTC(+ys,+ms-1,+ds,hour,minute,second);
+ const cairoOffsetAt=(timestamp)=>{
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Africa/Cairo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(timestamp));
+  const v={};parts.forEach(part=>{if(part.type!=="literal")v[part.type]=Number(part.value);});
+  return Date.UTC(v.year,v.month-1,v.day,v.hour,v.minute,v.second)-timestamp;
+ };
+ try{let offset=cairoOffsetAt(target);let utc=target-offset;offset=cairoOffsetAt(utc);return target-offset;}
+ catch(_){return target-new Date(target).getTimezoneOffset()*60000;}
+}
 function displayMemberName(name){return name==="bebomaher2468"?"Abanoub Maher":name} 
 function fmtDate(d){if(!d)return "من غير موعد";return new Date(d+"T12:00:00").toLocaleDateString("ar-EG",{year:"numeric",month:"short",day:"numeric"})}
-function statusLabel(t){if(t.status==="done")return ["مكتملة","done"];if(t.due_date && new Date(t.due_date+"T23:59:59")<new Date())return ["فات موعدها","late"];return ["مفتوحة",""]}
+function statusLabel(t){if(t.status==="done")return ["مكتملة","done"];if(isTaskOverdue(t))return ["فات موعدها","late"];return ["مفتوحة",""]}
 function ready(){return !!sb}
 function updateAuthUI(){
  $("authBtn").classList.toggle("hidden",!!currentUser);$("logoutBtn").classList.toggle("hidden",!currentUser);$("myProfileBtn").classList.toggle("hidden",!currentUser);
@@ -1347,8 +1435,30 @@ async function changeMyPassword() {
 
 
 
-function toggleAchievementPanel(force){const panel=$("achievementDashboard");if(!panel)return;if(!currentUser)return toast("سجّل دخولك عشان تشوف إنجازاتك.");const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");$("notificationCenter")?.classList.add("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";renderAchievementDashboard();}}
-function toggleNotificationPanel(force){const panel=$("notificationCenter");if(!panel)return;const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");$("achievementDashboard")?.classList.add("hidden");panel.classList.toggle("hidden",!shouldOpen);if(shouldOpen){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";loadNotifications();}}
+function syncUtilityPanelState(){
+ const notification=$("notificationCenter"),achievement=$("achievementDashboard");
+ const open=!!((notification&&!notification.classList.contains("hidden"))||(achievement&&!achievement.classList.contains("hidden")));
+ document.body.classList.toggle("utility-panel-open",open);
+ if(notification)notification.setAttribute("aria-hidden",String(notification.classList.contains("hidden")));
+ if(achievement)achievement.setAttribute("aria-hidden",String(achievement.classList.contains("hidden")));
+}
+function toggleAchievementPanel(force){
+ const panel=$("achievementDashboard");if(!panel)return;
+ if(!currentUser)return toast("سجّل دخولك عشان تشوف إنجازاتك.");
+ const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");
+ $("notificationCenter")?.classList.add("hidden");
+ if(shouldOpen&&typeof toggleAIChat==="function")toggleAIChat(false);
+ panel.classList.toggle("hidden",!shouldOpen);syncUtilityPanelState();
+ if(shouldOpen){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";renderAchievementDashboard();}
+}
+function toggleNotificationPanel(force){
+ const panel=$("notificationCenter");if(!panel)return;
+ const shouldOpen=typeof force==="boolean"?force:panel.classList.contains("hidden");
+ $("achievementDashboard")?.classList.add("hidden");
+ if(shouldOpen&&typeof toggleAIChat==="function")toggleAIChat(false);
+ panel.classList.toggle("hidden",!shouldOpen);syncUtilityPanelState();
+ if(shouldOpen){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";loadNotifications();}
+}
 function pushBase64ToBytes(value){
  const normalized=value.replace(/-/g,"+").replace(/_/g,"/");
  const padded=normalized+"=".repeat((4-normalized.length%4)%4);
@@ -1463,7 +1573,7 @@ async function markAllNotificationsRead(){
 async function createDueSoonNotifications(){
  if(!currentUser)return;
  const now=Date.now();
- for(const t of tasks.filter(t=>t.status!=="done"&&t.due_date&&new Date(t.due_date+"T23:59:59").getTime()>=now&&new Date(t.due_date+"T00:00:00").getTime()-now<=86400000)){
+ for(const t of tasks.filter(t=>{const deadline=t.due_date?cairoWallTimeToUtcMs(t.due_date):NaN;return t.status!=="done"&&Number.isFinite(deadline)&&deadline>=now&&deadline-now<=86400000;})){
   const {error}=await sb.from("notifications").upsert({user_id:currentUser.id,title:"موعد التسليم قرب",body:"فاضل أقل من 24 ساعة على تسليم: "+t.title,kind:"due_soon",task_id:t.id},{onConflict:"user_id,task_id,kind",ignoreDuplicates:true});
   if(error)console.error("Due notification:",error.message);
  }
@@ -2457,7 +2567,7 @@ async function loadDataNow(){
   ?"أنت داخل بحسابك. يمكنك مشاهدة تسليمات الأعضاء."
   :"اتفرج على التاسكات كزائر، وسجّل دخولك لمشاهدة التسليمات.";
 
- $("statOpen").textContent=tasks.filter(t=>t.status!=="done").length;
+ $("statOpen").textContent=tasks.filter(t=>t.status!=="done"&&!isTaskOverdue(t)).length;
  $("statDone").textContent=tasks.filter(t=>t.status==="done").length;
  $("statSubs").textContent=submissions.length;
 
@@ -2472,11 +2582,24 @@ async function loadDataNow(){
  }
 }
 
-function setFilter(f){filter=f;document.querySelectorAll(".filter").forEach(b=>b.classList.toggle("active",b.dataset.filter===f));renderTasks()}
+function setFilter(f){
+ filter=f;
+ document.querySelectorAll(".filter[data-filter]").forEach(b=>{
+  const active=b.dataset.filter===f;
+  b.classList.toggle("active",active);
+  b.setAttribute("aria-pressed",String(active));
+ });
+ renderTasks();
+}
 
 function renderTasks(){
  const q=($("search")?.value||"").trim().toLowerCase();
- const list=tasks.filter(t=>(!q||(t.title+" "+(t.description||"")).toLowerCase().includes(q))&&(filter==="all"||(filter==="open"&&t.status!=="done")||(filter==="done"&&t.status==="done")||(filter==="archive"&&t.status==="done")));
+ const list=tasks.filter(t=>{
+  const matchesQuery=!q||(t.title+" "+(t.description||"")).toLowerCase().includes(q);
+  const overdue=isTaskOverdue(t);
+  const matchesFilter=filter==="all"||(filter==="open"&&t.status!=="done"&&!overdue)||(filter==="late"&&overdue)||(filter==="done"&&t.status==="done")||(filter==="archive"&&t.status==="done");
+  return matchesQuery&&matchesFilter;
+ });
 
  $("tasksGrid").innerHTML=list.length?list.map(t=>{
   const [lab,cls]=statusLabel(t);
@@ -2501,6 +2624,13 @@ function renderTasks(){
  }).join(""):'<div class="empty">مفيش تاسكات مطابقة دلوقتي.</div>';
 }
 
+function refreshTaskDeadlineUI(){
+ const openCount=tasks.filter(t=>t.status!=="done"&&!isTaskOverdue(t)).length;
+ if($("statOpen"))$("statOpen").textContent=openCount;
+ renderTasks();
+}
+window.setInterval(()=>{if(!document.hidden)refreshTaskDeadlineUI();},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshTaskDeadlineUI();});
 function scrollToTasks(){$("tasksSection").scrollIntoView({behavior:"smooth"})}
 
 function openAuth(){
@@ -2585,10 +2715,12 @@ function clearStoredAuthTokens(){
 async function activateSession(user,opts={}){
   authBusy=true;
   try{
+    if(currentUser?.id&&currentUser.id!==user.id)resetAIChatForAccountChange();
     currentUser=user;profile=null;
     readPersonalPrefs();
     const [allowed]=await Promise.all([claimThisDevice(user),loadProfile()]);
     if(!allowed){
+      resetAIChatForAccountChange();
       currentUser=null;profile=null;authHandledUserId=null;
       // scope:"local" مهم: الافتراضي "global" بيقفل جلسات الحساب كلها، حتى على الجهاز الأول.
       if(deviceSessionBlocked||opts.fresh)await sb.auth.signOut({scope:"local"});
@@ -2620,6 +2752,7 @@ async function handleAuthEvent(event,session){
   const user=session?.user||null;
   if(!user||event==="SIGNED_OUT"){
     if(!currentUser&&authHandledUserId===null)return; // الخروج اتعمل محليًا بالفعل
+    resetAIChatForAccountChange();
     currentUser=null;profile=null;authHandledUserId=null;
     readPersonalPrefs();
     if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
@@ -2653,7 +2786,7 @@ async function claimThisDevice(user){
     if(data!==true){
       deviceSessionBlocked=true;
       verifiedDeviceSessions.delete(user.id+":"+token);
-      toast("الحساب مفتوح بالفعل على هاتف أو جهاز تاني. اقفل الجلسة هناك وجرب تاني.");
+      showDeviceSessionNotice("الحساب مفتوح بالفعل على هاتف أو جهاز تاني. اقفل الجلسة هناك وجرب تاني.");
       return false;
     }
     deviceSessionBlocked=false;
@@ -2821,6 +2954,7 @@ async function signUp(){
 function logout(){
   if(logoutPromise)return logoutPromise;
   const userId=currentUser?.id;
+  resetAIChatForAccountChange();
   if(deviceHeartbeatTimer){clearInterval(deviceHeartbeatTimer);deviceHeartbeatTimer=null;}
   if(userId)verifiedDeviceSessions.delete(userId+":"+deviceTokenForUser(userId));
   // الواجهة بتتحدث فورًا من غير ما تستنى الشبكة.
@@ -2955,7 +3089,7 @@ async function saveTask(id){
 }
 async function deleteTask(id){if(!isAdmin()||!confirm("متأكد إنك عايز تحذف التاسك؟ ده هيحذف بيانات التاسك المرتبطة بيه."))return;const {error}=await sb.from("tasks").delete().eq("id",id);if(error)return toast(error.message);closeModal();await loadData();toast("تم حذف التاسك")}
 async function openTask(id, additionalSubmission=false){
- currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;
+ currentTask=tasks.find(t=>t.id===id);if(!currentTask)return;const t=currentTask;const taskClosedForSubmission=isTaskSubmissionClosed(t);const taskStatusText=statusLabel(t)[0];
  let mine=[];
  if(currentUser){
   const {data:ownRows,error:ownError}=await sb.from("submissions").select("*, tasks(title)").eq("task_id",id).eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(100);
@@ -2967,11 +3101,12 @@ async function openTask(id, additionalSubmission=false){
  // نمط الإضافة ينشئ صف تسليم مستقلًا، ولا يملأ النموذج ببيانات التسليم السابق.
  const existingSubmission=additionalSubmission?null:latestSubmission;
  const existingFiles=existingSubmission?getSubmissionFiles(existingSubmission):[];
- $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${t.status==="done"?"مكتملة":"مفتوحة"}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>${additionalSubmission?"➕ إرسال تسليم إضافي":"سلّم شغلك"}</h3><div class="actions" style="margin:10px 0">${latestSubmission&&!additionalSubmission&&t.status!=="done"?`<button class="btn secondary" type="button" onclick="openTask('${t.id}',true)">➕ إرسال تسليم إضافي مستقل</button>`:""}${additionalSubmission?`<button class="btn secondary" type="button" onclick="openTask('${t.id}',false)">الرجوع للتسليم الحالي</button>`:""}</div>${additionalSubmission?'<div class="notice good">التسليم ده هيتسجل بشكل مستقل، ومش هيغيّر أي تسليم سابق أو مرفق موجود.</div>':""}${existingSubmission?'<div class="notice">تقدر تزود على النص الموجود أو تعدّله. الملفات الجديدة هتتضاف للمرفقات الحالية افتراضيًا. لو عايز توفر مساحة، اختار استبدال المرفقات والتسليمات القديمة؛ ساعتها الملفات القديمة هتتحذف بعد نجاح التحديث.</div>':""}${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':t.status==="done"?'<div class="notice">التاسك دي في الأرشيف ومقفولة للتسليم الجديد.</div>':`<div class="formgrid">${existingSubmission&&t.submission_type!=="link"?`<div><label class="label">طريقة التعامل مع الملفات القديمة</label><select id="submissionFileMode" class="field"><option value="add">إضافة الملفات الجديدة للموجودة (الاختيار الافتراضي)</option><option value="replace">استبدال الملفات والتسليمات الأقدم وحذفها لتوفير المساحة</option></select><p class="muted small">اختيار الاستبدال يتطلب رفع ملف واحد جديد على الأقل، وسيحذف الملفات القديمة والتسليمات الأقدم لنفس العضو والمهمة بعد نجاح الحفظ.</p></div>`:""}${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" value="${esc(existingSubmission?.link_url||"")}" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ اختر الصور اللي عايز تضيفها أو تستبدل بها المرفقات.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 اختر المقاطع الصوتية اللي عايز تضيفها.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 لرفع أسرع، يفضّل حجم كل ملف يكون ≤ 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical">${esc(existingSubmission?.submission_text||"")}</textarea>${existingSubmission?'<p class="muted small">النص الموجود ظاهر هنا؛ لو عايز تضيف عليه، اكتب الإضافة في آخره وسيب النص القديم موجودًا.</p>':""}</div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها...">${esc(existingSubmission?.note||"")}</textarea></div><button class="btn primary" onclick="submitWork('${t.id}'${additionalSubmission?",'additional'":""})">${additionalSubmission?"إرسال التسليم الإضافي":existingSubmission?"حفظ تعديل التسليم":"إرسال التسليم"}</button><p class="muted small" style="margin:0">${additionalSubmission?"هيتسجل كتسليم منفصل، والتسليمات السابقة هتفضل زي ما هي.":existingSubmission?"الوضع الافتراضي يضيف الملفات الجديدة للموجودة. استخدم خيار الاستبدال فقط لو متأكد إنك مش محتاج الملفات والتسليمات القديمة.":"تقدر تعدّل التسليم الحالي لاحقًا، أو تختار إرسال تسليم إضافي مستقل."}</p></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
+ $("modalRoot").innerHTML=`<div class="modalback" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modalhead"><h2>${esc(t.title)}</h2><button class="xbtn" onclick="closeModal()">✕</button></div><p class="muted small">آخر موعد: ${fmtDate(t.due_date)} • ${taskStatusText}</p><p style="line-height:2">${esc(t.description||"مفيش تفاصيل إضافية.")}</p>${t.reference_url?`<p class="linkline">لينك مرجعي: <a href="${esc(t.reference_url)}" target="_blank" rel="noopener noreferrer">${esc(t.reference_url)}</a></p>`:""}<div class="divider"></div><h3>${additionalSubmission?"➕ إرسال تسليم إضافي":"سلّم شغلك"}</h3><div class="actions" style="margin:10px 0">${latestSubmission&&!additionalSubmission&&!taskClosedForSubmission?`<button class="btn secondary" type="button" onclick="openTask('${t.id}',true)">➕ إرسال تسليم إضافي مستقل</button>`:""}${additionalSubmission?`<button class="btn secondary" type="button" onclick="openTask('${t.id}',false)">الرجوع للتسليم الحالي</button>`:""}</div>${additionalSubmission?'<div class="notice good">التسليم ده هيتسجل بشكل مستقل، ومش هيغيّر أي تسليم سابق أو مرفق موجود.</div>':""}${existingSubmission?'<div class="notice">تقدر تزود على النص الموجود أو تعدّله. الملفات الجديدة هتتضاف للمرفقات الحالية افتراضيًا. لو عايز توفر مساحة، اختار استبدال المرفقات والتسليمات القديمة؛ ساعتها الملفات القديمة هتتحذف بعد نجاح التحديث.</div>':""}${!currentUser?'<div class="notice">لازم تسجّل دخولك قبل التسليم. اقفل النافذة واضغط تسجيل الدخول.</div>':taskClosedForSubmission?`<div class="notice error">${isTaskOverdue(t)?"انتهى موعد التسليم. المهمة لم تعد تقبل تسليمات أو تعديلات جديدة من الأعضاء.":"التاسك دي في الأرشيف ومقفولة للتسليم الجديد."}</div>`:`<div class="formgrid">${existingSubmission&&t.submission_type!=="link"?`<div><label class="label">طريقة التعامل مع الملفات القديمة</label><select id="submissionFileMode" class="field"><option value="add">إضافة الملفات الجديدة للموجودة (الاختيار الافتراضي)</option><option value="replace">استبدال الملفات والتسليمات الأقدم وحذفها لتوفير المساحة</option></select><p class="muted small">اختيار الاستبدال يتطلب رفع ملف واحد جديد على الأقل، وسيحذف الملفات القديمة والتسليمات الأقدم لنفس العضو والمهمة بعد نجاح الحفظ.</p></div>`:""}${t.submission_type!=="file"?`<div><label class="label">لينك الشغل (اختياري حسب المطلوب)</label><input id="submitLink" class="field" type="url" value="${esc(existingSubmission?.link_url||"")}" placeholder="https://drive.google.com/..."></div>`:""}${t.submission_type!=="link"?`<div><label class="label">🖼️ رفع الصور</label><input id="submitImages" class="field" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple><p class="muted small">🖼️ اختر الصور اللي عايز تضيفها أو تستبدل بها المرفقات.</p></div><div><label class="label">🎬 رفع الفيديوهات</label><input id="submitVideos" class="field" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,.mp4,.webm,.mov,.m4v,.avi" multiple><p class="muted small">🎬 لرفع أسرع، يفضّل حجم كل فيديو يكون ≤ 50 ميجابايت.</p></div><div><label class="label">🎧 رفع المقاطع الصوتية</label><input id="submitAudio" class="field" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.webm,.3gp,.amr" multiple><p class="muted small">🎧 اختر المقاطع الصوتية اللي عايز تضيفها.</p></div><div><label class="label">📎 رفع الملفات والمستندات</label><input id="submitFile" class="field" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" multiple><p class="muted small">📎 لرفع أسرع، يفضّل حجم كل ملف يكون ≤ 50 ميجابايت.</p></div>`:""}<div><label class="label">اكتب الحل أو ملخص الشغل هنا</label><textarea id="submitText" class="field" rows="8" placeholder="اكتب الحل أو انسخ والصق شغلك هنا..." style="min-height:180px;resize:vertical">${esc(existingSubmission?.submission_text||"")}</textarea>${existingSubmission?'<p class="muted small">النص الموجود ظاهر هنا؛ لو عايز تضيف عليه، اكتب الإضافة في آخره وسيب النص القديم موجودًا.</p>':""}</div><div><label class="label">ملاحظة للمسؤول (اختياري)</label><textarea id="submitNote" class="field" rows="2" placeholder="أي تفاصيل تحب تقولها...">${esc(existingSubmission?.note||"")}</textarea></div><button class="btn primary" onclick="submitWork('${t.id}'${additionalSubmission?",'additional'":""})">${additionalSubmission?"إرسال التسليم الإضافي":existingSubmission?"حفظ تعديل التسليم":"إرسال التسليم"}</button><p class="muted small" style="margin:0">${additionalSubmission?"هيتسجل كتسليم منفصل، والتسليمات السابقة هتفضل زي ما هي.":existingSubmission?"الوضع الافتراضي يضيف الملفات الجديدة للموجودة. استخدم خيار الاستبدال فقط لو متأكد إنك مش محتاج الملفات والتسليمات القديمة.":"تقدر تعدّل التسليم الحالي لاحقًا، أو تختار إرسال تسليم إضافي مستقل."}</p></div>`}<div class="divider"></div><h3>تسليماتي للمهمة</h3><div class="submissions">${mine.length?mine.map(s=>submissionHTML(s,false)).join(""):'<p class="muted small">لسه مفيش تسليم منك للمهمة دي.</p>'}</div></div></div>`
 }
 
 
 let submittingWork = false;
+let submissionPreflightBusy = false;
 let activeUploadXHR = null;
 
 function ensureUploadProgressUI(){
@@ -3117,10 +3252,23 @@ function reportCompressionResult(label,original,optimized){
 }
 
 async function submitWork(taskId, submissionMode="current"){
- if(submittingWork)return toast("إيه يا نجم 😂 استنى لحد ما التسليم الأول يخلص!");
+ if(submittingWork||submissionPreflightBusy)return toast("إيه يا نجم 😂 استنى لحد ما التسليم الأول يخلص!");
  if(!currentUser)return toast("سجّل دخولك الأول.");
- const t=tasks.find(x=>x.id===taskId);
- if(!t||t.status==="done")return toast("التاسك مقفولة.");
+ const attemptUserId=currentUser.id;
+ let t=tasks.find(x=>x.id===taskId);
+ if(!t)return toast("المهمة مش موجودة. حدّث الصفحة وجرب تاني.");
+ submissionPreflightBusy=true;
+ let liveTaskResult;
+ try{
+  liveTaskResult=await sb.from("tasks").select("id,due_date,status,submission_type").eq("id",taskId).maybeSingle();
+ }catch(error){submissionPreflightBusy=false;return toast("تعذر التحقق من موعد المهمة. جرّب تاني.");}
+ if(currentUser?.id!==attemptUserId){submissionPreflightBusy=false;return toast("اتغير الحساب أثناء العملية. سجّل دخولك تاني.");}
+ if(liveTaskResult?.error||!liveTaskResult?.data){submissionPreflightBusy=false;return toast("تعذر التحقق من المهمة من قاعدة البيانات. لم يتم إرسال أي شيء.");}
+ t={...t,...liveTaskResult.data};
+ if(!isAdmin()&&isTaskSubmissionClosed(t)){
+  submissionPreflightBusy=false;
+  return toast(isTaskOverdue(t)?"انتهى موعد التسليم. المهمة لم تعد تقبل تسليمات أو تعديلات جديدة.":"المهمة مقفولة ولا تقبل تسليمات جديدة.");
+ }
  const selectedImages=Array.from($("submitImages")?.files||[]);
  const selectedVideos=Array.from($("submitVideos")?.files||[]);
  const selectedAudios=Array.from($("submitAudio")?.files||[]);
@@ -3130,30 +3278,36 @@ async function submitWork(taskId, submissionMode="current"){
  const link=$("submitLink")?.value.trim()||null;
  const submissionText=$("submitText")?.value.trim()||"";
  const note=$("submitNote")?.value.trim()||"";
- const {data:priorRows,error:priorReadError}=await sb.from("submissions").select("id,task_id,user_id,file_path,file_name,created_at").eq("task_id",taskId).eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(1000);
- if(priorReadError)return toast("مش قادر أتحقق من التسليم الحالي: "+priorReadError.message);
+ let priorRows,priorReadError;
+ try{
+  const priorResult=await sb.from("submissions").select("id,task_id,user_id,file_path,file_name,created_at").eq("task_id",taskId).eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(1000);
+  priorRows=priorResult.data;priorReadError=priorResult.error;
+ }catch(error){submissionPreflightBusy=false;return toast("مش قادر أتحقق من التسليم الحالي. حاول تاني.");}
+ if(currentUser?.id!==attemptUserId){submissionPreflightBusy=false;return toast("اتغير الحساب أثناء تجهيز التسليم. سجّل دخولك تاني.");}
+ if(priorReadError){submissionPreflightBusy=false;return toast("مش قادر أتحقق من التسليم الحالي: "+priorReadError.message);}
  const priorSubmissions=priorRows||[];
  const isAdditionalSubmission=submissionMode==="additional";
  const existingSubmission=isAdditionalSubmission?null:(priorSubmissions[0]||null);
  const existingFiles=existingSubmission?getSubmissionFiles(existingSubmission):[];
  const replaceAttachments=!!existingSubmission&&$("submissionFileMode")?.value==="replace";
- if(replaceAttachments&&!files.length)return toast("لاستبدال الملفات وحذف القديمة، اختار ملفًا جديدًا واحدًا على الأقل. لو عايز تضيف نص فقط، سيب طريقة الملفات على الاختيار الافتراضي.");
- if(!files.length&&!link&&!submissionText&&!existingFiles.length)return toast("اكتب الحل أو ارفع صورة أو فيديو أو مقطع صوتي أو ملف أو حط لينك.");
+ if(replaceAttachments&&!files.length){submissionPreflightBusy=false;return toast("لاستبدال الملفات وحذف القديمة، اختار ملفًا جديدًا واحدًا على الأقل. لو عايز تضيف نص فقط، سيب طريقة الملفات على الاختيار الافتراضي.");}
+ if(!files.length&&!link&&!submissionText&&!existingFiles.length){submissionPreflightBusy=false;return toast("اكتب الحل أو ارفع صورة أو فيديو أو مقطع صوتي أو ملف أو حط لينك.");}
 
  const seen=new Set();
  for(const f of files){
   const ext=(f.name.split(".").pop()||"").toLowerCase();
   const imageExt=["jpg","jpeg","png","webp"],videoExt=["mp4","webm","mov","m4v","avi"],audioExt=["mp3","m4a","aac","wav","ogg","oga","opus","webm","3gp","amr"],docExt=["pdf","doc","docx","ppt","pptx","zip","xlsx","txt"];
   const expected=selectedImages.includes(f)?"image":selectedVideos.includes(f)?"video":selectedAudios.includes(f)?"audio":"document";
-  if(expected==="image"&&!imageExt.includes(ext))return toast("خانة الصور تقبل الصور فقط.");
-  if(expected==="video"&&!videoExt.includes(ext))return toast("خانة الفيديوهات تقبل الفيديوهات فقط.");
-  if(expected==="audio"&&!audioExt.includes(ext))return toast("خانة المقاطع الصوتية تقبل ملفات الصوت فقط.");
-  if(expected==="document"&&!docExt.includes(ext))return toast("خانة الملفات تقبل المستندات فقط.");
+  if(expected==="image"&&!imageExt.includes(ext)){submissionPreflightBusy=false;return toast("خانة الصور تقبل الصور فقط.");}
+  if(expected==="video"&&!videoExt.includes(ext)){submissionPreflightBusy=false;return toast("خانة الفيديوهات تقبل الفيديوهات فقط.");}
+  if(expected==="audio"&&!audioExt.includes(ext)){submissionPreflightBusy=false;return toast("خانة المقاطع الصوتية تقبل ملفات الصوت فقط.");}
+  if(expected==="document"&&!docExt.includes(ext)){submissionPreflightBusy=false;return toast("خانة الملفات تقبل المستندات فقط.");}
   const duplicate=submissions.some(s=>s.user_id===currentUser.id&&s.task_id!==taskId&&getSubmissionFiles(s).some(file=>file.name===f.name));
-  if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\\n"+f.name+" اتسلّم قبل كده في نفس المهمة. تكمل؟"))return toast("تم إلغاء التسليم عشان الملف متكرر.");
+  if(duplicate&&!seen.has(f.name)&&!confirm("الملف متكرر يا نجم 😎\n"+f.name+" اتسلّم قبل كده في مهمة تانية. تكمل؟")){submissionPreflightBusy=false;return toast("تم إلغاء التسليم عشان الملف متكرر.");}
   seen.add(f.name);
   // لا نرفض حسب الحجم الأصلي؛ جرّب الضغط أولًا ثم افحص الحجم النهائي قبل الرفع.
  }
+ submissionPreflightBusy=false;
  submittingWork=true;
  const submitButton=$("modalRoot").querySelector('button[onclick^="submitWork"]');
  if(submitButton){submitButton.disabled=true;submitButton.textContent="جاري الرفع...";}
@@ -3223,7 +3377,7 @@ async function submitWork(taskId, submissionMode="current"){
     p_link_url:link,
     p_file_path:finalFilePath,
     p_file_name:finalFileName,
-    p_note:note||null,
+    p_note:note,
     p_cleanup_duplicates:cleanupOlderSubmissions
    });
    if(error)throw new Error("فشل تحديث التسليم الحالي: "+error.message+". لو ظهر إن الدالة غير موجودة، شغّل ملف replace_submission.sql المحدّث في Supabase.");
@@ -3258,7 +3412,7 @@ async function submitWork(taskId, submissionMode="current"){
   $("uploadProgressBox")?.classList.add("hidden");
   toast(cleanupFailed?"فشل التسليم وتعذّر تنظيف الملفات المؤقتة. راجع صلاحية حذف ملفات submissions في التخزين.":(err.message||"حصل خطأ أثناء إرسال التسليم."));
  }finally{
-  submittingWork=false;activeUploadXHR=null;
+  submittingWork=false;submissionPreflightBusy=false;activeUploadXHR=null;
   if(submitButton){submitButton.disabled=false;submitButton.textContent="إرسال التسليم";}
  }
 }
@@ -4242,6 +4396,21 @@ renderDailyVerse();
 // AI helper chat — conversations stay in memory only; API keys stay server-side.
 let aiChatHistory = [];
 let aiChatBusy = false;
+let aiChatSessionVersion = 0;
+function resetAIChatForAccountChange(){
+ aiChatSessionVersion++;
+ document.body.classList.remove("utility-panel-open");
+ aiChatHistory=[];
+ aiChatBusy=false;
+ const input=$("aiChatInput"),send=$("aiChatSend"),messages=$("aiChatMessages");
+ if(input)input.value="";
+ if(send){send.disabled=false;send.textContent="إرسال ↗";}
+ if(messages)messages.innerHTML='<div class="ai-chat-bubble assistant">أهلًا بيك! ✨<br>اسألني عن موضوع ديني، أو اطلب تلخيص أي إصحاح، أو احكيلي المشكلة اللي ظهرتلك في موقع مهمتنا.</div>';
+ $("notificationCenter")?.classList.add("hidden");
+ $("achievementDashboard")?.classList.add("hidden");
+ if(typeof syncUtilityPanelState==="function")syncUtilityPanelState();
+ if(typeof toggleAIChat==="function")toggleAIChat(false);
+}
 function syncAIChatViewport(){
  const panel=$('aiChatWindow');if(!panel)return;
  const mobile=window.matchMedia('(max-width: 600px)').matches;
@@ -4254,6 +4423,12 @@ function syncAIChatViewport(){
 function toggleAIChat(force){
  const panel=$('aiChatWindow'),fab=$('aiChatFab'),launcher=$('aiChatLauncher'); if(!panel||!fab)return;
  const open=typeof force==='boolean'?force:panel.classList.contains('hidden');
+ if(open){
+  $("notificationCenter")?.classList.add("hidden");
+  $("achievementDashboard")?.classList.add("hidden");
+  if(typeof syncUtilityPanelState==="function")syncUtilityPanelState();
+  document.body.classList.remove("utility-panel-open");
+ }
  panel.classList.toggle('hidden',!open); panel.setAttribute('aria-hidden',String(!open)); fab.setAttribute('aria-expanded',String(open)); launcher?.classList.toggle('is-open',open);
  if(open){syncAIChatViewport();setTimeout(()=>{$('aiChatInput')?.focus();syncAIChatViewport();},80);scrollAIChatToBottom();}
  else{panel.style.removeProperty('top');panel.style.removeProperty('height');panel.style.removeProperty('bottom');}
@@ -4270,38 +4445,50 @@ function aiChatShortcut(prompt){
  toggleAIChat(true);const input=$('aiChatInput');if(input){input.value=prompt;input.focus();input.setSelectionRange(input.value.length,input.value.length);}
 }
 async function sendAIChatMessage(event){
- event?.preventDefault(); if(aiChatBusy)return;
- if(!currentUser){toast('سجّل دخولك الأول لاستخدام مساعد الذكاء الاصطناعي.');openAuth();return;}
- if(!sb||!CONFIGURED)return toast('الاتصال بقاعدة البيانات غير جاهز.');
- const input=$('aiChatInput'),send=$('aiChatSend');const text=(input?.value||'').trim();
- if(!text)return; if(text.length>2000)return toast('الرسالة طويلة جدًا؛ اختصرها إلى 2000 حرف.');
- aiChatBusy=true; if(send){send.disabled=true;send.textContent='بيفكر...';}
- addAIChatBubble('user',text); aiChatHistory.push({role:'user',content:text}); if(input)input.value='';
- const loading=addAIChatBubble('system','جاري التفكير في إجابتك...');
+ event?.preventDefault();if(aiChatBusy)return;
+ if(!currentUser){toast("سجّل دخولك الأول لاستخدام مساعد الذكاء الاصطناعي.");openAuth();return;}
+ if(!sb||!CONFIGURED)return toast("الاتصال بقاعدة البيانات غير جاهز.");
+ const input=$("aiChatInput"),send=$("aiChatSend"),text=(input?.value||"").trim();
+ if(!text)return;
+ if(text.length>2000)return toast("الرسالة طويلة جدًا؛ اختصرها إلى 2000 حرف.");
+ const requestVersion=aiChatSessionVersion,requestUserId=currentUser.id,historyLength=aiChatHistory.length;
+ aiChatBusy=true;if(send){send.disabled=true;send.textContent="بيفكر...";}
+ addAIChatBubble("user",text);aiChatHistory.push({role:"user",content:text});if(input)input.value="";
+ const loading=addAIChatBubble("system","جاري التفكير في إجابتك...");
+ const stillSameSession=()=>requestVersion===aiChatSessionVersion&&currentUser?.id===requestUserId;
  try{
-  const {data,error}=await sb.functions.invoke('ai-assistant',{body:{messages:aiChatHistory.slice(-10)}});
+  const {data,error}=await sb.functions.invoke("ai-assistant",{body:{messages:aiChatHistory.slice(-10)}});
+  if(!stillSameSession())return;
   loading?.remove();
   if(error){
    let detail=data?.error;
-   try{const ctx=error.context;const payload=ctx&&typeof ctx.json==='function'?await (typeof ctx.clone==='function'?ctx.clone():ctx).json():null;detail=detail||payload?.error;}catch(_ignored){}
-   throw new Error(detail||error.message||'تعذر الاتصال بالمساعد.');
+   try{const ctx=error.context;const payload=ctx&&typeof ctx.json==="function"?await (typeof ctx.clone==="function"?ctx.clone():ctx).json():null;detail=detail||payload?.error;}catch(_ignored){}
+   throw new Error(detail||error.message||"تعذر الاتصال بالمساعد.");
   }
-  if(!data?.reply)throw new Error(data?.error||'المساعد لم يرجع إجابة.');
-  addAIChatBubble('assistant',data.reply);aiChatHistory.push({role:'assistant',content:data.reply});
-  aiChatHistory=aiChatHistory.slice(-10);
+  if(!data?.reply)throw new Error(data?.error||"المساعد لم يرجع إجابة.");
+  addAIChatBubble("assistant",data.reply);aiChatHistory.push({role:"assistant",content:data.reply});aiChatHistory=aiChatHistory.slice(-10);
  }catch(err){
+  if(!stillSameSession())return;
   loading?.remove();
-  const message=err?.message||'حصل خطأ غير معروف.';
-  let friendly=message;
-  if(/401|unauthorized|jwt/i.test(message))friendly='انتهت جلسة الدخول أو لم يتم التحقق منها. سجّل خروجًا ثم ادخل مرة أخرى.';
-  else if(/429|limit|quota/i.test(message))friendly='وصلت للحد اليومي المسموح به للمساعد. جرّب بكرة.';
-  else if(/OPENAI_API_KEY|GEMINI_API_KEY|api key|not configured/i.test(message))friendly='المساعد لسه محتاج إعداد مفتاح الذكاء الاصطناعي في Secrets داخل Supabase.';
-  addAIChatBubble('system','تعذر الحصول على إجابة: '+friendly);
- }finally{aiChatBusy=false;if(send){send.disabled=false;send.textContent='إرسال ↗';}input?.focus();scrollAIChatToBottom();}
+  aiChatHistory=aiChatHistory.slice(0,historyLength);
+  const message=err?.message||"حصل خطأ غير معروف.";let friendly=message;
+  if(/401|unauthorized|jwt/i.test(message))friendly="انتهت جلسة الدخول أو لم يتم التحقق منها. سجّل خروجًا ثم ادخل مرة أخرى.";
+  else if(/429|limit|quota/i.test(message))friendly="وصلت للحد اليومي المسموح به للمساعد. جرّب بكرة.";
+  else if(/GEMINI_API_KEY|api key|not configured/i.test(message))friendly="المساعد لسه محتاج إعداد مفتاح Gemini في Secrets داخل Supabase.";
+  addAIChatBubble("system","تعذر الحصول على إجابة: "+friendly);
+ }finally{
+  if(stillSameSession()){
+   aiChatBusy=false;
+   if(send){send.disabled=false;send.textContent="إرسال ↗";}
+   if(document.activeElement!==input)input?.focus();
+   scrollAIChatToBottom();
+  }
+ }
 }
 
 readPersonalPrefs();
 init();
+setFilter("all");
 if("IntersectionObserver" in window)setupScrollAnimations();
 </script>
 <script>
